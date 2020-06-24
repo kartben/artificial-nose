@@ -27,12 +27,29 @@
 
 #include <Multichannel_Gas_GMXXX.h>
 #include <Wire.h>
-GAS_GMXXX<TwoWire> gas;
+GAS_GMXXX<TwoWire> *gas = new GAS_GMXXX<TwoWire>();
 
 #include <TFT_eSPI.h>
+#include "seeed_line_chart.h"
 TFT_eSPI tft;
 // Stock font and GFXFF reference handle
 TFT_eSprite spr = TFT_eSprite(&tft); // Sprite
+
+typedef uint32_t (GAS_GMXXX<TwoWire>::*sensorGetFn)();
+
+typedef struct SENSOR_INFO
+{
+  char *name;
+  char *unit;
+  std::function<uint32_t()> readFn;
+} SENSOR_INFO;
+
+SENSOR_INFO sensors[4] = {
+    {"NO2", "ppm", std::bind(&GAS_GMXXX<TwoWire>::getGM102B, gas)},
+    {"C2H5NH", "ppm", std::bind(&GAS_GMXXX<TwoWire>::getGM302B, gas)},
+    {"VOC", "ppm", std::bind(&GAS_GMXXX<TwoWire>::getGM502B, gas)},
+    {"CO", "ppm", std::bind(&GAS_GMXXX<TwoWire>::getGM702B, gas)}};
+#define NB_SENSORS 4
 
 char title_text[20] = "";
 
@@ -44,8 +61,13 @@ int mode = TRAINING;
 #define INFERENCE_RESULTS 1
 int screen_mode = SENSORS;
 
+#define MAX_CHART_SIZE 50
+std::vector<doubles> chart_series = std::vector<doubles>(4, doubles());
+
 /* Private variables ------------------------------------------------------- */
 static bool debug_nn = false; // Set this to true to see e.g. features generated from the raw signal
+
+void draw_chart();
 
 /**
 * @brief      Arduino setup function
@@ -69,7 +91,7 @@ void setup()
   pinMode(WIO_5S_RIGHT, INPUT_PULLUP);
   pinMode(WIO_5S_PRESS, INPUT_PULLUP);
 
-  gas.begin(Wire, 0x08); // use the hardware I2C
+  gas->begin(Wire, 0x08); // use the hardware I2C
 
   // put your setup code here, to run once:
   tft.begin();
@@ -139,7 +161,7 @@ void loop()
   spr.fillSprite(TFT_BLACK);
   spr.setFreeFont(&FreeSansBoldOblique18pt7b);
   spr.setTextColor(TFT_GREEN);
-  spr.drawString(title_text, 60 - 15, 10, 1); // Print the test text in the custom font
+  spr.drawString(title_text, 60 - 15, 10, 1);
   for (int8_t line_index = 0; line_index < 5; line_index++)
   {
     spr.drawLine(0, 50 + line_index, tft.width(), 50 + line_index, TFT_GREEN);
@@ -148,59 +170,36 @@ void loop()
   spr.setFreeFont(&FreeSansBoldOblique9pt7b); // Select the font
   spr.setTextColor(TFT_WHITE);
 
-  // GM102B NO2 sensor
-  no = gas.getGM102B();
-  if (no > 999)
-    no = 999;
+  for (int i = 0; i < NB_SENSORS; i++)
+  {
+    uint32_t sensorVal = sensors[i].readFn();
+    if (sensorVal > 999)
+    {
+      sensorVal = 999;
+    }
 
-  // GM302B C2H5CH sensor
-  alcohol = gas.getGM302B();
-  if (alcohol > 999)
-    alcohol = 999;
-
-  // GM502B VOC sensor
-  voc = gas.getGM502B();
-  if (voc > 999)
-    voc = 999;
-
-  // GM702B CO sensor
-  co = gas.getGM702B();
-  if (co > 999)
-    co = 999;
+    if (chart_series[i].size() == MAX_CHART_SIZE)
+    {
+      chart_series[i].pop();
+    }
+    chart_series[i].push(sensorVal);
+  }
 
   if (screen_mode == SENSORS || mode == TRAINING)
   {
-    spr.setTextColor(TFT_WHITE);
-    spr.drawString("NO2:", 60 - 24, 100 - 24, 1); // Print the test text in the custom font
-    spr.drawRoundRect(60 - 24, 100, 80, 40, 5, TFT_WHITE);
-    spr.setTextColor(TFT_WHITE);
-    spr.drawNumber(no, 60 - 20, 100 + 10, 1);
-    spr.setTextColor(TFT_GREEN);
-    spr.drawString("ppm", 60 + 12, 100 + 8, 1);
+    for (int i = 0; i < NB_SENSORS; i++)
+    {
+      int x_ref = 60 +  (i % 2 * 170);
+      int y_ref = 100 + (i / 2 * 80);
 
-    spr.setTextColor(TFT_WHITE);
-    spr.drawString("C2H5CH:", 230 - 24, 100 - 24, 1); // Print the test text in the custom font
-    spr.drawRoundRect(230 - 24, 100, 80, 40, 5, TFT_WHITE);
-    spr.setTextColor(TFT_WHITE);
-    spr.drawNumber(alcohol, 230 - 20, 100 + 10, 1);
-    spr.setTextColor(TFT_GREEN);
-    spr.drawString("ppm", 230 + 12, 100 + 8, 1);
-
-    spr.setTextColor(TFT_WHITE);
-    spr.drawString("VOC:", 60 - 24, 180 - 24, 1); // Print the test text in the custom font
-    spr.drawRoundRect(60 - 24, 180, 80, 40, 5, TFT_WHITE);
-    spr.setTextColor(TFT_WHITE);
-    spr.drawNumber(voc, 60 - 20, 180 + 10, 1);
-    spr.setTextColor(TFT_GREEN);
-    spr.drawString("ppm", 60 + 12, 180 + 8, 1);
-
-    spr.setTextColor(TFT_WHITE);
-    spr.drawString("CO:", 230 - 24, 180 - 24, 1); // Print the test text in the custom font
-    spr.drawRoundRect(230 - 24, 180, 80, 40, 5, TFT_WHITE);
-    spr.setTextColor(TFT_WHITE);
-    spr.drawNumber(co, 230 - 20, 180 + 10, 1);
-    spr.setTextColor(TFT_GREEN);
-    spr.drawString("ppm", 230 + 12, 180 + 8, 1);
+      spr.setTextColor(TFT_WHITE);
+      spr.drawString(sensors[i].name, x_ref - 24, y_ref - 24, 1);
+      spr.drawRoundRect(x_ref - 24, y_ref, 80, 40, 5, TFT_WHITE);
+      spr.setTextColor(TFT_WHITE);
+      spr.drawNumber(chart_series[i].front(), x_ref - 20, y_ref + 10, 1);
+      spr.setTextColor(TFT_GREEN);
+      spr.drawString(sensors[i].unit, x_ref + 12, y_ref + 8, 1);
+    }
   }
 
   if (mode == TRAINING)
