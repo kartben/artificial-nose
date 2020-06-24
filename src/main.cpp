@@ -58,11 +58,14 @@ char title_text[20] = "";
 int mode = TRAINING;
 
 #define SENSORS 0
-#define INFERENCE_RESULTS 1
-int screen_mode = SENSORS;
+#define GRAPH 1
+#define INFERENCE_RESULTS 2
+int screen_mode = GRAPH;
 
 #define MAX_CHART_SIZE 50
-std::vector<doubles> chart_series = std::vector<doubles>(4, doubles());
+std::vector<doubles> chart_series = std::vector<doubles>(NB_SENSORS, doubles());
+
+#define INITIAL_FAN_STATE LOW
 
 /* Private variables ------------------------------------------------------- */
 static bool debug_nn = false; // Set this to true to see e.g. features generated from the raw signal
@@ -76,10 +79,9 @@ void setup()
 {
   // put your setup code here, to run once:
   Serial.begin(115200);
-  Serial.println("Edge Impulse Inferencing Demo");
 
   pinMode(D0, OUTPUT);
-  digitalWrite(D0, HIGH);
+  digitalWrite(D0, INITIAL_FAN_STATE);
 
   pinMode(WIO_KEY_A, INPUT_PULLUP);
   pinMode(WIO_KEY_B, INPUT_PULLUP);
@@ -97,12 +99,6 @@ void setup()
   tft.begin();
   tft.setRotation(3);
   spr.createSprite(tft.width(), tft.height());
-
-  if (EI_CLASSIFIER_RAW_SAMPLES_PER_FRAME != 3)
-  {
-    ei_printf("ERR: EI_CLASSIFIER_RAW_SAMPLES_PER_FRAME should be equal to 3 (the 3 sensor axes)\n");
-    return;
-  }
 }
 
 /**
@@ -134,11 +130,13 @@ int fan = 0;
 */
 void loop()
 {
+  // FAN CONTROL
   if (digitalRead(WIO_KEY_A) == LOW)
     digitalWrite(D0, HIGH);
 
   if (digitalRead(WIO_KEY_B) == LOW)
     digitalWrite(D0, LOW);
+  // END FAN CONTROL
 
   if (digitalRead(WIO_5S_UP) == LOW)
     mode = INFERENCE;
@@ -185,26 +183,53 @@ void loop()
     chart_series[i].push(sensorVal);
   }
 
-  if (screen_mode == SENSORS || mode == TRAINING)
+  switch (screen_mode)
+  {
+  case SENSORS:
   {
     for (int i = 0; i < NB_SENSORS; i++)
     {
-      int x_ref = 60 +  (i % 2 * 170);
+      int x_ref = 60 + (i % 2 * 170);
       int y_ref = 100 + (i / 2 * 80);
 
       spr.setTextColor(TFT_WHITE);
       spr.drawString(sensors[i].name, x_ref - 24, y_ref - 24, 1);
       spr.drawRoundRect(x_ref - 24, y_ref, 80, 40, 5, TFT_WHITE);
       spr.setTextColor(TFT_WHITE);
-      spr.drawNumber(chart_series[i].front(), x_ref - 20, y_ref + 10, 1);
+      spr.drawNumber(chart_series[i].back(), x_ref - 20, y_ref + 10, 1);
       spr.setTextColor(TFT_GREEN);
       spr.drawString(sensors[i].unit, x_ref + 12, y_ref + 8, 1);
     }
+    break;
+  }
+  case GRAPH:
+  {
+    auto content = line_chart(10, 80); //(x,y) where the line graph begins
+    content
+        .height(tft.height() - 80 * 1.2)
+        .width(tft.width() - content.x() * 2)
+        .based_on(0.0)
+        .show_circle(false)
+        .value(chart_series)
+        .x_role_color(TFT_WHITE)
+        .y_role_color(TFT_WHITE)
+        .x_tick_color(TFT_WHITE)
+        .y_tick_color(TFT_WHITE)
+        .x_auxi_role(dash_line().color(TFT_DARKGREY))
+        .color(TFT_RED, TFT_BLUE, TFT_PURPLE, TFT_GREEN)
+        .draw();
+    break;
+  }
+
+  default:
+  {
+    break; // nothing
+  }
   }
 
   if (mode == TRAINING)
   {
-    ei_printf("%d,%d,%d,%d\n", no, alcohol, voc, co);
+    ei_printf("%d,%d,%d,%d\n", (uint32_t)chart_series[0].back(), (uint32_t)chart_series[1].back(), (uint32_t)chart_series[2].back(), (uint32_t)chart_series[3].back());
   }
   else
   { // INFERENCE
@@ -219,11 +244,10 @@ void loop()
       // Determine the next tick (and then sleep later)
       uint64_t next_tick = micros() + (EI_CLASSIFIER_INTERVAL_MS * 1000);
 
-      buffer[ix + 0] = no;
-      buffer[ix + 1] = alcohol;
-      buffer[ix + 2] = voc;
-      buffer[ix + 3] = co;
-      //        ei_printf("Sampled: %f,%f,%f,%f\n", buffer[ix + 0], buffer[ix + 1], buffer[ix + 2], buffer[ix + 3]);
+      for (int i = 0; i < NB_SENSORS; i++)
+      {
+        buffer[ix + i] = chart_series[i].back();
+      }
 
       delayMicroseconds(next_tick - micros());
     }
