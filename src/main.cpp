@@ -25,6 +25,8 @@
 /* Includes ---------------------------------------------------------------- */
 #include <alcohol_inference.h>
 
+#include <CircularBuffer.h>
+
 #include <Multichannel_Gas_GMXXX.h>
 #include <Wire.h>
 GAS_GMXXX<TwoWire> *gas = new GAS_GMXXX<TwoWire>();
@@ -53,17 +55,19 @@ SENSOR_INFO sensors[4] = {
 
 char title_text[20] = "";
 
-#define TRAINING 0
-#define INFERENCE 1
-int mode = TRAINING;
+enum MODE { TRAINING, INFERENCE };
+enum MODE mode = TRAINING;
 
-#define SENSORS 0
-#define GRAPH 1
-#define INFERENCE_RESULTS 2
-int screen_mode = GRAPH;
+enum SCREEN_MODE { SENSORS, GRAPH, INFERENCE_RESULTS };
+enum SCREEN_MODE screen_mode = GRAPH;
 
 #define MAX_CHART_SIZE 50
 std::vector<doubles> chart_series = std::vector<doubles>(NB_SENSORS, doubles());
+
+// Allocate a buffer for the values we'll read from the gas sensor
+CircularBuffer<float, EI_CLASSIFIER_DSP_INPUT_FRAME_SIZE> buffer;
+
+uint64_t next_sampling_tick= micros();
 
 #define INITIAL_FAN_STATE LOW
 
@@ -138,23 +142,34 @@ void loop()
     digitalWrite(D0, LOW);
   // END FAN CONTROL
 
-  if (digitalRead(WIO_5S_UP) == LOW)
-    mode = INFERENCE;
-  if (digitalRead(WIO_5S_DOWN) == LOW)
-    mode = TRAINING;
+  if (digitalRead(WIO_5S_PRESS) == LOW)
+    mode = (mode == INFERENCE) ? TRAINING : INFERENCE ;
 
-  if (digitalRead(WIO_5S_LEFT) == LOW)
-    screen_mode = SENSORS;
-  if (digitalRead(WIO_5S_RIGHT) == LOW)
-    screen_mode = INFERENCE_RESULTS;
+  if (digitalRead(WIO_5S_LEFT) == LOW) {
+    switch(screen_mode) {
+      case INFERENCE_RESULTS:
+        screen_mode = GRAPH;
+      case GRAPH:
+        screen_mode = SENSORS;
+        break;
+    }
+  }
+
+  if (digitalRead(WIO_5S_RIGHT) == LOW) {
+    switch(screen_mode) {
+      case SENSORS:
+        screen_mode = GRAPH;
+      case GRAPH:
+        screen_mode = INFERENCE_RESULTS;
+        break;
+    }
+  }
+
 
   if (mode == TRAINING)
   {
     strcpy(title_text, "Training mode");
   }
-
-  int val;
-  int no, alcohol, co, voc;
 
   spr.fillSprite(TFT_BLACK);
   spr.setFreeFont(&FreeSansBoldOblique18pt7b);
@@ -168,6 +183,11 @@ void loop()
   spr.setFreeFont(&FreeSansBoldOblique9pt7b); // Select the font
   spr.setTextColor(TFT_WHITE);
 
+  uint64_t new_sampling_tick = -1 ;
+  if(micros() > next_sampling_tick) {
+    new_sampling_tick = micros() + (EI_CLASSIFIER_INTERVAL_MS * 1000);
+    next_sampling_tick = new_sampling_tick;
+  }
   for (int i = 0; i < NB_SENSORS; i++)
   {
     uint32_t sensorVal = sensors[i].readFn();
@@ -181,6 +201,9 @@ void loop()
       chart_series[i].pop();
     }
     chart_series[i].push(sensorVal);
+    if(new_sampling_tick != -1) {
+      buffer.unshift(sensorVal);
+    }
   }
 
   switch (screen_mode)
@@ -234,79 +257,77 @@ void loop()
   else
   { // INFERENCE
 
-    ei_printf("Sampling...\n");
-
-    // Allocate a buffer here for the values we'll read from the gas sensor
-    float buffer[EI_CLASSIFIER_DSP_INPUT_FRAME_SIZE] = {0};
-
-    for (size_t ix = 0; ix < EI_CLASSIFIER_DSP_INPUT_FRAME_SIZE; ix += 4)
+    if (!buffer.isFull()) {
+      ei_printf("Need more samples to start infering.\n");
+    }
+    else
     {
-      // Determine the next tick (and then sleep later)
-      uint64_t next_tick = micros() + (EI_CLASSIFIER_INTERVAL_MS * 1000);
+      // Turn the raw buffer into a signal which we can then classify
+      float buffer2[EI_CLASSIFIER_DSP_INPUT_FRAME_SIZE];
 
-      for (int i = 0; i < NB_SENSORS; i++)
-      {
-        buffer[ix + i] = chart_series[i].back();
+      ei_printf("BUFFER SIZE: %d", buffer.size());
+
+      for(int i = 0 ; i < buffer.size() ; i++) {
+        buffer2[i] = buffer[i];
       }
 
-      delayMicroseconds(next_tick - micros());
-    }
-
-    // Turn the raw buffer in a signal which we can the classify
-    signal_t signal;
-    int err = numpy::signal_from_buffer(buffer, EI_CLASSIFIER_DSP_INPUT_FRAME_SIZE, &signal);
-    if (err != 0)
-    {
-      ei_printf("Failed to create signal from buffer (%d)\n", err);
-      return;
-    }
-
-    // Run the classifier
-    ei_impulse_result_t result = {0};
-
-    err = run_classifier(&signal, &result, debug_nn);
-    if (err != EI_IMPULSE_OK)
-    {
-      ei_printf("ERR: Failed to run classifier (%d)\n", err);
-      return;
-    }
-
-    // print the predictions
-    size_t best_prediction = 0;
-    ei_printf("Predictions (DSP: %d ms., Classification: %d ms., Anomaly: %d ms.): \n",
-              result.timing.dsp, result.timing.classification, result.timing.anomaly);
-
-    int lineNumber = 60;
-    char lineBuffer[30] = "";
-
-    for (size_t ix = 0; ix < EI_CLASSIFIER_LABEL_COUNT; ix++)
-    {
-      if (result.classification[ix].value >= result.classification[best_prediction].value)
+      signal_t signal;
+      int err = numpy::signal_from_buffer(buffer2, EI_CLASSIFIER_DSP_INPUT_FRAME_SIZE, &signal);
+      if (err != 0)
       {
-        best_prediction = ix;
+        ei_printf("Failed to create signal from buffer (%d)\n", err);
+        return;
       }
 
-      ei_printf("    %s: %.5f\n", result.classification[ix].label, result.classification[ix].value);
+      // Run the classifier
+      ei_impulse_result_t result = {0};
 
-      if (mode == INFERENCE && screen_mode == INFERENCE_RESULTS)
+      err = run_classifier(&signal, &result, debug_nn);
+      if (err != EI_IMPULSE_OK)
       {
+        ei_printf("ERR: Failed to run classifier (%d)\n", err);
+        return;
+      }
+
+      // print the predictions
+      size_t best_prediction = 0;
+      ei_printf("Predictions (DSP: %d ms., Classification: %d ms., Anomaly: %d ms.): \n",
+                result.timing.dsp, result.timing.classification, result.timing.anomaly);
+
+      int lineNumber = 60;
+      char lineBuffer[30] = "";
+
+      for (size_t ix = 0; ix < EI_CLASSIFIER_LABEL_COUNT; ix++)
+      {
+        if (result.classification[ix].value >= result.classification[best_prediction].value)
+        {
+          best_prediction = ix;
+        }
+
         sprintf(lineBuffer, "    %s: %.5f\n", result.classification[ix].label, result.classification[ix].value);
-        spr.drawString(lineBuffer, 10, lineNumber, 1); // Print the test text in the custom font
-        lineNumber += 20;
+        ei_printf(lineBuffer);
+
+        if (mode == INFERENCE && screen_mode == INFERENCE_RESULTS)
+        {
+          spr.drawString(lineBuffer, 10, lineNumber, 1); // Print the test text in the custom font
+          lineNumber += 20;
+        }
       }
-    }
 
 #if EI_CLASSIFIER_HAS_ANOMALY == 1
-    ei_printf("    anomaly score: %.3f\n", result.anomaly);
+      sprintf(lineBuffer, "    anomaly score: %.3f\n", result.anomaly);
+      ei_printf(lineBuffer);
+      if (mode == INFERENCE && screen_mode == INFERENCE_RESULTS)
+      {
+        spr.drawString(lineBuffer, 10, lineNumber + 15, 1); // Print the test text in the custom font
+      }
 #endif
 
-    strcpy(title_text, result.classification[best_prediction].label);
-    ei_printf("Best prediction: %s", title_text);
+      sprintf(title_text, "%s (%d%%)", result.classification[best_prediction].label, (int)(result.classification[best_prediction].value * 100));
+
+      ei_printf("Best prediction: %s", title_text);
+    }
   }
 
   spr.pushSprite(0, 0);
 }
-
-#if !defined(EI_CLASSIFIER_SENSOR) || EI_CLASSIFIER_SENSOR != EI_CLASSIFIER_SENSOR_ACCELEROMETER
-#error "Invalid model for current sensor"
-#endif
