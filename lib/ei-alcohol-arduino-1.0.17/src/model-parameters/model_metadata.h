@@ -41,18 +41,18 @@
 #define EI_CLASSIFIER_PROJECT_ID                 2389
 #define EI_CLASSIFIER_PROJECT_OWNER              "Benjamin"
 #define EI_CLASSIFIER_PROJECT_NAME               "alcohol"
-#define EI_CLASSIFIER_PROJECT_DEPLOY_VERSION     11
+#define EI_CLASSIFIER_PROJECT_DEPLOY_VERSION     17
 #define EI_CLASSIFIER_NN_INPUT_FRAME_SIZE        28
-#define EI_CLASSIFIER_RAW_SAMPLE_COUNT           12
+#define EI_CLASSIFIER_RAW_SAMPLE_COUNT           10
 #define EI_CLASSIFIER_RAW_SAMPLES_PER_FRAME      4
 #define EI_CLASSIFIER_DSP_INPUT_FRAME_SIZE       (EI_CLASSIFIER_RAW_SAMPLE_COUNT * EI_CLASSIFIER_RAW_SAMPLES_PER_FRAME)
 #define EI_CLASSIFIER_INPUT_WIDTH                0
 #define EI_CLASSIFIER_INPUT_HEIGHT               0
-#define EI_CLASSIFIER_INTERVAL_MS                62.5
+#define EI_CLASSIFIER_INTERVAL_MS                100
 #define EI_CLASSIFIER_OUT_TENSOR_NAME            "y_pred/Softmax_1:0"
 #define EI_CLASSIFIER_LABEL_COUNT                3
-#define EI_CLASSIFIER_HAS_ANOMALY                0
-#define EI_CLASSIFIER_FREQUENCY                  16
+#define EI_CLASSIFIER_HAS_ANOMALY                1
+#define EI_CLASSIFIER_FREQUENCY                  10
 
 #define EI_CLASSIFIER_TFLITE_ARENA_SIZE          6745
 #define EI_CLASSIFIER_TFLITE_INPUT_DATATYPE      EI_CLASSIFIER_DATATYPE_FLOAT32
@@ -74,7 +74,7 @@
 #define EI_CLASSIFIER_SLICES_PER_MODEL_WINDOW    4
 #endif // EI_CLASSIFIER_SLICES_PER_MODEL_WINDOW
 
-const char* ei_classifier_inferencing_categories[] = { "ambient", "hechicera", "zaka" };
+const char* ei_classifier_inferencing_categories[] = { "ambient", "coffee", "el_loro" };
 
 typedef struct {
     uint16_t implementation_version;
