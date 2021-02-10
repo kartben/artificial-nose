@@ -55,10 +55,19 @@ SENSOR_INFO sensors[4] = {
 
 char title_text[20] = "";
 
-enum MODE { TRAINING, INFERENCE };
+enum MODE
+{
+  TRAINING,
+  INFERENCE
+};
 enum MODE mode = TRAINING;
 
-enum SCREEN_MODE { SENSORS, GRAPH, INFERENCE_RESULTS };
+enum SCREEN_MODE
+{
+  SENSORS,
+  GRAPH,
+  INFERENCE_RESULTS
+};
 enum SCREEN_MODE screen_mode = GRAPH;
 
 #define MAX_CHART_SIZE 50
@@ -67,7 +76,7 @@ std::vector<doubles> chart_series = std::vector<doubles>(NB_SENSORS, doubles());
 // Allocate a buffer for the values we'll read from the gas sensor
 CircularBuffer<float, EI_CLASSIFIER_DSP_INPUT_FRAME_SIZE> buffer;
 
-uint64_t next_sampling_tick= micros();
+uint64_t next_sampling_tick = micros();
 
 #define INITIAL_FAN_STATE LOW
 
@@ -143,28 +152,33 @@ void loop()
   // END FAN CONTROL
 
   if (digitalRead(WIO_5S_PRESS) == LOW)
-    mode = (mode == INFERENCE) ? TRAINING : INFERENCE ;
+    mode = (mode == INFERENCE) ? TRAINING : INFERENCE;
 
-  if (digitalRead(WIO_5S_LEFT) == LOW) {
-    switch(screen_mode) {
-      case INFERENCE_RESULTS:
-        screen_mode = GRAPH;
-      case GRAPH:
-        screen_mode = SENSORS;
-        break;
+  if (digitalRead(WIO_5S_LEFT) == LOW)
+  {
+    switch (screen_mode)
+    {
+    case INFERENCE_RESULTS:
+      screen_mode = GRAPH;
+      break;
+    case GRAPH:
+      screen_mode = SENSORS;
+      break;
     }
   }
 
-  if (digitalRead(WIO_5S_RIGHT) == LOW) {
-    switch(screen_mode) {
-      case SENSORS:
-        screen_mode = GRAPH;
-      case GRAPH:
-        screen_mode = INFERENCE_RESULTS;
-        break;
+  if (digitalRead(WIO_5S_RIGHT) == LOW)
+  {
+    switch (screen_mode)
+    {
+    case SENSORS:
+      screen_mode = GRAPH;
+      break;
+    case GRAPH:
+      screen_mode = INFERENCE_RESULTS;
+      break;
     }
   }
-
 
   if (mode == TRAINING)
   {
@@ -183,8 +197,9 @@ void loop()
   spr.setFreeFont(&FreeSansBoldOblique9pt7b); // Select the font
   spr.setTextColor(TFT_WHITE);
 
-  uint64_t new_sampling_tick = -1 ;
-  if(micros() > next_sampling_tick) {
+  uint64_t new_sampling_tick = -1;
+  if (micros() > next_sampling_tick)
+  {
     new_sampling_tick = micros() + (EI_CLASSIFIER_INTERVAL_MS * 1000);
     next_sampling_tick = new_sampling_tick;
   }
@@ -201,7 +216,8 @@ void loop()
       chart_series[i].pop();
     }
     chart_series[i].push(sensorVal);
-    if(new_sampling_tick != -1) {
+    if (new_sampling_tick != -1)
+    {
       buffer.unshift(sensorVal);
     }
   }
@@ -257,7 +273,8 @@ void loop()
   else
   { // INFERENCE
 
-    if (!buffer.isFull()) {
+    if (!buffer.isFull())
+    {
       ei_printf("Need more samples to start infering.\n");
     }
     else
@@ -267,7 +284,8 @@ void loop()
 
       ei_printf("BUFFER SIZE: %d", buffer.size());
 
-      for(int i = 0 ; i < buffer.size() ; i++) {
+      for (int i = 0; i < buffer.size(); i++)
+      {
         buffer2[i] = buffer[i];
       }
 
