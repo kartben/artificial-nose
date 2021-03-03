@@ -23,7 +23,7 @@
  */
 
 /* Includes ---------------------------------------------------------------- */
-#include <alcohol_inference.h>
+#include <artificial_nose_inference.h>
 
 #include <CircularBuffer.h>
 
