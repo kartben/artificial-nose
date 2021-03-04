@@ -186,7 +186,7 @@ void loop()
     new_sampling_tick = micros() + (EI_CLASSIFIER_INTERVAL_MS * 1000);
     next_sampling_tick = new_sampling_tick;
   }
-  for (int i = 0; i < NB_SENSORS; i++)
+  for (int i = NB_SENSORS - 1; i >= 0; i--)
   {
     uint32_t sensorVal = sensors[i].readFn();
     if (sensorVal > 999)
@@ -265,12 +265,12 @@ void loop()
       // Turn the raw buffer into a signal which we can then classify
       float buffer2[EI_CLASSIFIER_DSP_INPUT_FRAME_SIZE];
 
-      ei_printf("BUFFER SIZE: %d", buffer.size());
-
       for (int i = 0; i < buffer.size(); i++)
       {
         buffer2[i] = buffer[i];
+        ei_printf("%f, ", buffer[i]);
       }
+      ei_printf("\n");
 
       signal_t signal;
       int err = numpy::signal_from_buffer(buffer2, EI_CLASSIFIER_DSP_INPUT_FRAME_SIZE, &signal);
@@ -326,7 +326,7 @@ void loop()
 
       sprintf(title_text, "%s (%d%%)", result.classification[best_prediction].label, (int)(result.classification[best_prediction].value * 100));
 
-      ei_printf("Best prediction: %s", title_text);
+      ei_printf("Best prediction: %s\n", title_text);
     }
   }
 
