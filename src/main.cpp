@@ -1,41 +1,18 @@
 #include <Arduino.h>
 
-/* Edge Impulse Arduino examples
- * Copyright (c) 2020 EdgeImpulse Inc.
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- */
-
-/* Includes ---------------------------------------------------------------- */
 #include <artificial_nose_inference.h>
-
 #include <CircularBuffer.h>
 
-#include <Multichannel_Gas_GMXXX.h>
 #include <Wire.h>
+#include <Multichannel_Gas_GMXXX.h>
 GAS_GMXXX<TwoWire> *gas = new GAS_GMXXX<TwoWire>();
 
 #include <TFT_eSPI.h>
 #include "seeed_line_chart.h"
 TFT_eSPI tft;
-// Stock font and GFXFF reference handle
 TFT_eSprite spr = TFT_eSprite(&tft); // Sprite
+#include "fonts/roboto_light_28.h"
+#include "fonts/roboto_medium_28.h"
 
 typedef uint32_t (GAS_GMXXX<TwoWire>::*sensorGetFn)();
 
@@ -186,12 +163,18 @@ void loop()
   }
 
   spr.fillSprite(TFT_BLACK);
-  spr.setFreeFont(&FreeSansBoldOblique18pt7b);
-  spr.setTextColor(TFT_GREEN);
-  spr.drawString(title_text, 60 - 15, 10, 1);
-  for (int8_t line_index = 0; line_index < 5; line_index++)
+
+  for (int8_t line_index = 40; line_index < 50; line_index++) 
   {
-    spr.drawLine(0, 50 + line_index, tft.width(), 50 + line_index, TFT_GREEN);
+    spr.drawLine(0, line_index, tft.width(), line_index, tft.color565( 255 - ((50-line_index) * 25), 255 -((50-line_index) * 25), 255 -((50-line_index) * 25)));
+  }
+
+  spr.setFreeFont(&Roboto_Medium_28);
+  spr.setTextColor(TFT_WHITE);
+  spr.drawString(title_text, 15, 10, 1);
+  for (int8_t line_index = 0; line_index <= 2; line_index++)
+  {
+    spr.drawLine(0, 50 + line_index, tft.width(), 50 + line_index, TFT_WHITE);
   }
 
   spr.setFreeFont(&FreeSansBoldOblique9pt7b); // Select the font
