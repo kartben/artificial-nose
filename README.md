@@ -1,20 +1,17 @@
 This repository contains all the instructions, source code, and resources for building your very own DIY artificial nose, powered by TinyML.
 
----
-
-- [Introduction](#introduction)
-- [Pre-requisites](#pre-requisites)
-
----
-
 ## Introduction
 
-xx
+Some time back in May 2020, like I'm guessing many other people, I spent quite some time trying to perfect my bread recipe, including trying to determine when my sourdough starter would be in the ideal condition to bake perfect baguettes.
 
-## Pre-requisites
+Fast-forward to a few weeks later, I had assembled a full-blown (pun intended) artificial nose, and I am sharing all the instructions, source code, bill of materials, etc. in this repo. Enjoy! 👃
 
-xx
+## Repository contents
 
+* 💰 [Bill of materials](./bom/README.md) ;
+* ⚡ [Schematics & Wiring diagram](./schematics/README.md) ;
+* 👩‍💻 [Firmware source code](./firmware) ;
+* 🧊 [3D enclosure model files](./enclosure/README.md).
 
 ## Author <!-- omit in toc -->
 
