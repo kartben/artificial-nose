@@ -11,7 +11,7 @@ GAS_GMXXX<TwoWire> *gas = new GAS_GMXXX<TwoWire>();
 #include "seeed_line_chart.h"
 TFT_eSPI tft;
 TFT_eSprite spr = TFT_eSprite(&tft); // Sprite
-#include "fonts/roboto_light_28.h"
+
 #include "fonts/roboto_medium_28.h"
 
 typedef uint32_t (GAS_GMXXX<TwoWire>::*sensorGetFn)();
@@ -21,13 +21,14 @@ typedef struct SENSOR_INFO
   char *name;
   char *unit;
   std::function<uint32_t()> readFn;
+  uint16_t color;
 } SENSOR_INFO;
 
 SENSOR_INFO sensors[4] = {
-    {"NO2", "ppm", std::bind(&GAS_GMXXX<TwoWire>::getGM102B, gas)},
-    {"C2H5NH", "ppm", std::bind(&GAS_GMXXX<TwoWire>::getGM302B, gas)},
-    {"VOC", "ppm", std::bind(&GAS_GMXXX<TwoWire>::getGM502B, gas)},
-    {"CO", "ppm", std::bind(&GAS_GMXXX<TwoWire>::getGM702B, gas)}};
+    {"NO2",     "ppm", std::bind(&GAS_GMXXX<TwoWire>::getGM102B, gas), TFT_RED},
+    {"C2H5NH",  "ppm", std::bind(&GAS_GMXXX<TwoWire>::getGM302B, gas), TFT_BLUE},
+    {"VOC",     "ppm", std::bind(&GAS_GMXXX<TwoWire>::getGM502B, gas), TFT_PURPLE},
+    {"CO",      "ppm", std::bind(&GAS_GMXXX<TwoWire>::getGM702B, gas), TFT_GREEN}};
 #define NB_SENSORS 4
 
 char title_text[20] = "";
@@ -240,6 +241,17 @@ void loop()
         .x_auxi_role(dash_line().color(TFT_DARKGREY))
         .color(TFT_RED, TFT_BLUE, TFT_PURPLE, TFT_GREEN)
         .draw();
+
+
+    for (int i = 0 ; i < NB_SENSORS ; i++) {
+      spr.setFreeFont(&FreeSans9pt7b);
+      spr.setTextColor(sensors[i].color);
+      spr.setTextDatum(BC_DATUM);
+      spr.drawString(sensors[i].name, 70 + (i * 70), 236, 1);
+    }
+
+    spr.setTextDatum(TL_DATUM); // reset to default
+
     break;
   }
 
