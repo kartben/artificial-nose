@@ -1,5 +1,8 @@
 #include <Arduino.h>
 
+#include <AceButton.h>
+using namespace ace_button;
+
 #include <artificial_nose_inference.h>
 #include <CircularBuffer.h>
 
@@ -58,10 +61,94 @@ uint64_t next_sampling_tick = micros();
 
 #define INITIAL_FAN_STATE LOW
 
-/* Private variables ------------------------------------------------------- */
 static bool debug_nn = false; // Set this to true to see e.g. features generated from the raw signal
 
 void draw_chart();
+
+enum class ButtonId
+{
+  A = 0,
+  B,
+  C,
+  LEFT,
+  RIGHT,
+  UP,
+  DOWN,
+  PRESS
+};
+static const int ButtonNumber = 8;
+static AceButton Buttons[ButtonNumber];
+
+static void ButtonEventHandler(AceButton *button, uint8_t eventType, uint8_t buttonState)
+{
+  const uint8_t id = button->getId();
+  if (ButtonNumber <= id)
+    return;
+
+  switch (eventType)
+  {
+  case AceButton::kEventReleased:
+    switch (static_cast<ButtonId>(id))
+    {
+    case ButtonId::A:
+      digitalWrite(D0, HIGH); // Turn fan ON
+      break;
+    case ButtonId::B:
+      digitalWrite(D0, LOW); // Turn fan OFF
+      break;
+    case ButtonId::PRESS:
+      mode = (mode == INFERENCE) ? TRAINING : INFERENCE;
+      break;
+    case ButtonId::LEFT:
+      switch (screen_mode)
+      {
+      case INFERENCE_RESULTS:
+        screen_mode = GRAPH;
+        break;
+      case GRAPH:
+        screen_mode = SENSORS;
+        break;
+      }
+      break;
+    case ButtonId::RIGHT:
+      switch (screen_mode)
+      {
+      case SENSORS:
+        screen_mode = GRAPH;
+        break;
+      case GRAPH:
+        screen_mode = INFERENCE_RESULTS;
+        break;
+      }
+      break;
+    }
+    break;
+  }
+}
+
+static void ButtonInit()
+{
+  Buttons[static_cast<int>(ButtonId::A)].init(WIO_KEY_A, HIGH, static_cast<uint8_t>(ButtonId::A));
+  Buttons[static_cast<int>(ButtonId::B)].init(WIO_KEY_B, HIGH, static_cast<uint8_t>(ButtonId::B));
+  Buttons[static_cast<int>(ButtonId::C)].init(WIO_KEY_C, HIGH, static_cast<uint8_t>(ButtonId::C));
+  Buttons[static_cast<int>(ButtonId::LEFT)].init(WIO_5S_LEFT, HIGH, static_cast<uint8_t>(ButtonId::LEFT));
+  Buttons[static_cast<int>(ButtonId::RIGHT)].init(WIO_5S_RIGHT, HIGH, static_cast<uint8_t>(ButtonId::RIGHT));
+  Buttons[static_cast<int>(ButtonId::UP)].init(WIO_5S_UP, HIGH, static_cast<uint8_t>(ButtonId::UP));
+  Buttons[static_cast<int>(ButtonId::DOWN)].init(WIO_5S_DOWN, HIGH, static_cast<uint8_t>(ButtonId::DOWN));
+  Buttons[static_cast<int>(ButtonId::PRESS)].init(WIO_5S_PRESS, HIGH, static_cast<uint8_t>(ButtonId::PRESS));
+
+  ButtonConfig* buttonConfig = ButtonConfig::getSystemButtonConfig();
+  buttonConfig->setEventHandler(ButtonEventHandler);
+  buttonConfig->setFeature(ButtonConfig::kFeatureClick);
+}
+
+static void ButtonDoWork()
+{
+  for (int i = 0; static_cast<size_t>(i) < std::extent<decltype(Buttons)>::value; ++i)
+  {
+      Buttons[i].check();
+  }
+}
 
 /**
 * @brief      Arduino setup function
@@ -83,6 +170,8 @@ void setup()
   pinMode(WIO_5S_LEFT, INPUT_PULLUP);
   pinMode(WIO_5S_RIGHT, INPUT_PULLUP);
   pinMode(WIO_5S_PRESS, INPUT_PULLUP);
+
+  ButtonInit();
 
   gas->begin(Wire, 0x08); // use the hardware I2C
 
@@ -121,42 +210,7 @@ int fan = 0;
 */
 void loop()
 {
-  // FAN CONTROL
-  if (digitalRead(WIO_KEY_A) == LOW)
-    digitalWrite(D0, HIGH);
-
-  if (digitalRead(WIO_KEY_B) == LOW)
-    digitalWrite(D0, LOW);
-  // END FAN CONTROL
-
-  if (digitalRead(WIO_5S_PRESS) == LOW)
-    mode = (mode == INFERENCE) ? TRAINING : INFERENCE;
-
-  if (digitalRead(WIO_5S_LEFT) == LOW)
-  {
-    switch (screen_mode)
-    {
-    case INFERENCE_RESULTS:
-      screen_mode = GRAPH;
-      break;
-    case GRAPH:
-      screen_mode = SENSORS;
-      break;
-    }
-  }
-
-  if (digitalRead(WIO_5S_RIGHT) == LOW)
-  {
-    switch (screen_mode)
-    {
-    case SENSORS:
-      screen_mode = GRAPH;
-      break;
-    case GRAPH:
-      screen_mode = INFERENCE_RESULTS;
-      break;
-    }
-  }
+  ButtonDoWork();
 
   if (mode == TRAINING)
   {
