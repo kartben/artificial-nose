@@ -15,7 +15,10 @@ GAS_GMXXX<TwoWire> *gas = new GAS_GMXXX<TwoWire>();
 TFT_eSPI tft;
 TFT_eSprite spr = TFT_eSprite(&tft); // Sprite
 
-#include "fonts/roboto_medium_28.h"
+#define DARK_BACKGROUND 0
+#define TEXT_COLOR (DARK_BACKGROUND ? TFT_WHITE : TFT_BLACK)
+
+#include "fonts/roboto_bold_28.h"
 
 typedef uint32_t (GAS_GMXXX<TwoWire>::*sensorGetFn)();
 
@@ -217,15 +220,14 @@ void loop()
     strcpy(title_text, "Training mode");
   }
 
+  #if DARK_BACKGROUND
   spr.fillSprite(TFT_BLACK);
+  #else
+  spr.fillSprite(TFT_WHITE);
+  #endif
 
-  for (int8_t line_index = 40; line_index < 50; line_index++) 
-  {
-    spr.drawLine(0, line_index, tft.width(), line_index, tft.color565( 255 - ((50-line_index) * 25), 255 -((50-line_index) * 25), 255 -((50-line_index) * 25)));
-  }
-
-  spr.setFreeFont(&Roboto_Medium_28);
-  spr.setTextColor(TFT_WHITE);
+  spr.setFreeFont(&Roboto_Bold_28);
+  spr.setTextColor(TEXT_COLOR);
   spr.drawString(title_text, 15, 10, 1);
   for (int8_t line_index = 0; line_index <= 2; line_index++)
   {
@@ -233,7 +235,7 @@ void loop()
   }
 
   spr.setFreeFont(&FreeSansBoldOblique9pt7b); // Select the font
-  spr.setTextColor(TFT_WHITE);
+  spr.setTextColor(TEXT_COLOR);
 
   uint64_t new_sampling_tick = -1;
   if (micros() > next_sampling_tick)
@@ -269,10 +271,9 @@ void loop()
       int x_ref = 60 + (i % 2 * 170);
       int y_ref = 100 + (i / 2 * 80);
 
-      spr.setTextColor(TFT_WHITE);
+      spr.setTextColor(TEXT_COLOR);
       spr.drawString(sensors[i].name, x_ref - 24, y_ref - 24, 1);
-      spr.drawRoundRect(x_ref - 24, y_ref, 80, 40, 5, TFT_WHITE);
-      spr.setTextColor(TFT_WHITE);
+      spr.drawRoundRect(x_ref - 24, y_ref, 80, 40, 5, TEXT_COLOR);
       spr.drawNumber(chart_series[i].back(), x_ref - 20, y_ref + 10, 1);
       spr.setTextColor(TFT_GREEN);
       spr.drawString(sensors[i].unit, x_ref + 12, y_ref + 8, 1);
@@ -281,17 +282,17 @@ void loop()
   }
   case GRAPH:
   {
-    auto content = line_chart(10, 80); //(x,y) where the line graph begins
+    auto content = line_chart(10, 60); //(x,y) where the line graph begins
     content
-        .height(tft.height() - 80 * 1.2)
+        .height(tft.height() - 70 * 1.2)
         .width(tft.width() - content.x() * 2)
         .based_on(0.0)
         .show_circle(false)
         .value(chart_series)
-        .x_role_color(TFT_WHITE)
-        .y_role_color(TFT_WHITE)
-        .x_tick_color(TFT_WHITE)
-        .y_tick_color(TFT_WHITE)
+        .x_role_color(TEXT_COLOR)
+        .y_role_color(TEXT_COLOR)
+        .x_tick_color(TEXT_COLOR)
+        .y_tick_color(TEXT_COLOR)
         .x_auxi_role(dash_line().color(TFT_DARKGREY))
         .color(TFT_RED, TFT_BLUE, TFT_PURPLE, TFT_GREEN)
         .draw();
