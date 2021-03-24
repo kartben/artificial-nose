@@ -6,7 +6,7 @@ using namespace ace_button;
 #include <artificial_nose_inference.h>
 #include <CircularBuffer.h>
 
-#include "coffee_image_black_bg.h"
+#include "baguette.h"
 
 #include <Wire.h>
 #include <Multichannel_Gas_GMXXX.h>
@@ -402,7 +402,7 @@ void loop()
   // tft.setSwapBytes(false);
   // tft.pushImage(0, 0, 320, 240, Untitled);
   // spr.setSwapBytes(true);
-  spr.pushImage(0, 0, 320, 240, coffee);
+  spr.pushImage(0, 0, 320, 240, baguette);
   spr.pushSprite(0, 0);
 
   // Uncomment block below to dump hex-encoded TFT sprite to serial **/ 
