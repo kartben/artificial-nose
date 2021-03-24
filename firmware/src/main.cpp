@@ -6,7 +6,7 @@ using namespace ace_button;
 #include <artificial_nose_inference.h>
 #include <CircularBuffer.h>
 
-#include "coffee_image.h"
+#include "coffee_image_black_bg.h"
 
 #include <Wire.h>
 #include <Multichannel_Gas_GMXXX.h>
