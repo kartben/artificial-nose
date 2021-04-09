@@ -17,6 +17,7 @@ TFT_eSprite spr = TFT_eSprite(&tft); // Sprite
 
 #define DARK_BACKGROUND 0
 #define TEXT_COLOR (DARK_BACKGROUND ? TFT_WHITE : TFT_BLACK)
+#define BG_COLOR (DARK_BACKGROUND ? TFT_BLACK : TFT_WHITE)
 
 #include "fonts/roboto_bold_28.h"
 
@@ -220,18 +221,14 @@ void loop()
     strcpy(title_text, "Training mode");
   }
 
-  #if DARK_BACKGROUND
-  spr.fillSprite(TFT_BLACK);
-  #else
-  spr.fillSprite(TFT_WHITE);
-  #endif
+  spr.fillSprite(BG_COLOR);
 
   spr.setFreeFont(&Roboto_Bold_28);
   spr.setTextColor(TEXT_COLOR);
   spr.drawString(title_text, 15, 10, 1);
   for (int8_t line_index = 0; line_index <= 2; line_index++)
   {
-    spr.drawLine(0, 50 + line_index, tft.width(), 50 + line_index, TFT_WHITE);
+    spr.drawLine(0, 50 + line_index, tft.width(), 50 + line_index, TEXT_COLOR);
   }
 
   spr.setFreeFont(&FreeSansBoldOblique9pt7b); // Select the font
