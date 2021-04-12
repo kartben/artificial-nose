@@ -1,5 +1,41 @@
 #include <Arduino.h>
 
+#include <unistd.h>
+int freeMemory() {
+  char top;
+#ifdef __arm__
+  return &top - reinterpret_cast<char*>(sbrk(0));
+#elif defined(CORE_TEENSY) || (ARDUINO > 103 && ARDUINO != 151)
+  return &top - __brkval;
+#else  // __arm__
+  return __brkval ? &top - __brkval : &top - __malloc_heap_start;
+#endif  // __arm__
+}
+
+
+#include "SPI.h"
+
+#include "Config.h"
+#include "Storage.h"
+#include "Signature.h"
+#include "AzureDpsClient.h"
+#include "CliMode.h"
+#include <rpcWiFiClientSecure.h>
+#include <PubSubClient.h>
+#include <WiFiUdp.h>
+#include <NTP.h>
+#include <azure/core/az_json.h>
+#include <azure/core/az_result.h>
+#include <azure/core/az_span.h>
+#include <azure/iot/az_iot_hub_client.h>
+#define MQTT_PACKET_SIZE 1024
+
+WiFiClientSecure wifi_client;
+PubSubClient mqtt_client(wifi_client);
+WiFiUDP wifi_udp;
+NTP ntp(wifi_udp);
+
+
 #include <AceButton.h>
 using namespace ace_button;
 
@@ -10,9 +46,6 @@ using namespace ace_button;
 #include <Multichannel_Gas_GMXXX.h>
 GAS_GMXXX<TwoWire> *gas = new GAS_GMXXX<TwoWire>();
 
-#include <TFT_eSPI.h>
-TFT_eSPI tft;
-
 typedef uint32_t (GAS_GMXXX<TwoWire>::*sensorGetFn)();
 
 typedef struct SENSOR_INFO
@@ -22,6 +55,8 @@ typedef struct SENSOR_INFO
   std::function<uint32_t()> readFn;
   uint32_t last_val;
 } SENSOR_INFO;
+
+int a = configTOTAL_HEAP_SIZE;
 
 SENSOR_INFO sensors[4] = {
     {"NO2",     "ppm", std::bind(&GAS_GMXXX<TwoWire>::measure_NO2,    gas), 0 },
@@ -119,7 +154,8 @@ static void ButtonDoWork()
 */
 void setup()
 {
-  // put your setup code here, to run once:
+  Storage::Load();
+
   Serial.begin(115200);
 
   pinMode(D0, OUTPUT);
@@ -131,13 +167,39 @@ void setup()
 
   pinMode(WIO_5S_PRESS, INPUT_PULLUP);
 
+  delay(2000);
+
+  if (digitalRead(WIO_KEY_A) == LOW &&
+      digitalRead(WIO_KEY_B) == LOW &&
+      digitalRead(WIO_KEY_C) == LOW   )
+  {
+      ei_printf("In configuration mode\r\n");
+      CliMode();
+  }
+
+
   ButtonInit();
 
   gas->begin(Wire, 0x08); // use the hardware I2C
 
-  // put your setup code here, to run once:
-  tft.begin();
-  tft.setRotation(3);
+  // Connect to wi-fi
+  Serial.println("bla");
+  ei_printf("Connecting to SSID: %s. Free mem: %d\r\n", IOT_CONFIG_WIFI_SSID, freeMemory());
+  do
+  {
+      ei_printf(".");
+      WiFi.begin(IOT_CONFIG_WIFI_SSID, IOT_CONFIG_WIFI_PASSWORD);
+      delay(500);
+  }
+  while (WiFi.status() != WL_CONNECTED);
+  ei_printf("Connected\r\n");
+
+  ////////////////////
+  // Sync time server
+
+  ntp.begin();
+
+  ei_printf("Current year: %d\r\n", ntp.year());
   
 }
 
@@ -148,7 +210,7 @@ void setup()
 */
 void ei_printf(const char *format, ...)
 {
-  static char print_buf[512] = {0};
+  static char print_buf[200] = {0};
 
   va_list args;
   va_start(args, format);
@@ -267,20 +329,5 @@ void loop()
       ei_printf("Best prediction: %s\n", title_text);
     }
   }
-
-
-  // Uncomment block below to dump hex-encoded TFT sprite to serial **/ 
-
-  /** 
-
-    uint16_t width = tft.width(), height = tft.height();
-    // Image data: width * height * 2 bytes
-    for (int y = 0; y < height ; y++) {
-      for (int x=0; x<width; x++) {
-        Serial.printf("%04X", tft.readPixel(x,y));
-      }
-    }
-
-    **/ 
 
 }

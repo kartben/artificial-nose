@@ -1,0 +1,12 @@
+{
+    "name": "azure-sdk-for-c",
+    "version": "1.0.0",
+    "description": "The Azure SDK for Embedded C is designed to allow small embedded (IoT) devices to communicate with Azure services.",
+    "keywords": "",
+    "license": "MIT",
+    "homepage": "https://github.com/Azure/azure-sdk-for-c",
+    "build":
+    {
+        "includeDir": "inc"
+    }
+  }
