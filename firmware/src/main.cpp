@@ -68,6 +68,17 @@ const char* ROOT_CA_BALTIMORE =
 std::string HubHost;
 std::string DeviceId;
 
+
+////////////////////////////////////////////////////////////////////////////////
+// Display
+
+#include <LovyanGFX.hpp>
+#include "Display.h"
+
+static LGFX Gfx_;
+static Display Display_(Gfx_);
+
+
 #include <AceButton.h>
 using namespace ace_button;
 
@@ -398,6 +409,7 @@ static az_result SendTelemetry()
     {
         ++sendCount;
         ei_printf("Sent telemetry %d\r\n", sendCount);
+        Display_.Printf("Sent telemetry %d\r\n", sendCount);
     }
 
     return AZ_OK;
@@ -430,6 +442,9 @@ void setup()
   Storage::Load();
 
   Serial.begin(115200);
+
+  Display_.Init();
+  Display_.SetBrightness(127);
 
   pinMode(D0, OUTPUT);
   digitalWrite(D0, INITIAL_FAN_STATE);
