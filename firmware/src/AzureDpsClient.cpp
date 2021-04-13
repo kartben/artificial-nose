@@ -1,6 +1,6 @@
 #include "AzureDpsClient.h"
-#include <azure/core/az_result.h>
-#include <azure/core/az_span.h>
+#include <az_result.h>
+#include <az_span.h>
 
 static constexpr size_t SignatureMaxSize = 256;
 static constexpr size_t MqttClientIdMaxSize = 128;

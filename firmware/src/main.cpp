@@ -23,10 +23,10 @@ int freeMemory() {
 #include <PubSubClient.h>
 #include <WiFiUdp.h>
 #include <NTP.h>
-#include <azure/core/az_json.h>
-#include <azure/core/az_result.h>
-#include <azure/core/az_span.h>
-#include <azure/iot/az_iot_hub_client.h>
+#include <az_json.h>
+#include <az_result.h>
+#include <az_span.h>
+#include <az_iot_hub_client.h>
 #define MQTT_PACKET_SIZE 1024
 
 WiFiClientSecure wifi_client;
@@ -374,7 +374,7 @@ static az_result SendTelemetry()
     AZ_RETURN_IF_FAILED(az_json_writer_append_end_object(&json_builder));
     const az_span out_payload{ az_json_writer_get_bytes_used_in_destination(&json_builder) };
 
-        ei_printf("payload %s\r\n", telemetry_payload);
+    ei_printf("Free mem: %d\r\n", freeMemory());
 
 
     static int sendCount = 0;
