@@ -217,6 +217,9 @@ enum SCREEN_MODE
 };
 enum SCREEN_MODE screen_mode = GRAPH;
 
+int latest_inference_idx = -1;
+float latest_inference_confidence_level = -1.;
+
 // Allocate a buffer for the values we'll read from the gas sensor
 CircularBuffer<float, EI_CLASSIFIER_DSP_INPUT_FRAME_SIZE> buffer;
 
@@ -512,6 +515,27 @@ void loop()
 
       sprintf(title_text, "%s (%d%%)", result.classification[best_prediction].label, (int)(result.classification[best_prediction].value * 100));
       ei_printf("Best prediction: %s\n", title_text);
+
+      // check if we need to report a change to the IoT platform. 
+      // 2 cases: new scent has been detected, or confidence level of a scent previously reported as changed by >10 percentage points
+      if(best_prediction != latest_inference_idx || 
+         best_prediction == latest_inference_idx && (result.classification[best_prediction].value - latest_inference_confidence_level > .10) ) 
+      {
+        StaticJsonDocument<JSON_MAX_SIZE> doc;
+        doc["latestInferenceResult"] = title_text;
+
+        char json[JSON_MAX_SIZE];
+        serializeJson(doc, json);
+
+        static int requestId = 444; char b[12];
+        AziotHub_.SendTwinPatch(itoa(requestId++, b, 10), json);
+
+        Display_.Printf("Reporting: %s\r\n", title_text);
+
+        latest_inference_idx = best_prediction;
+        latest_inference_confidence_level = result.classification[best_prediction].value;
+      }
+
     }
   }
 
