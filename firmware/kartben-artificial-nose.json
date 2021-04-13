@@ -19,6 +19,21 @@
       "displayName": {
         "en": "Latest inference result"
       }
+    },
+    {
+      "@type": [
+        "Property",
+        "TimeSpan"
+      ],
+      "name": "telemetryInterval",
+      "unit": "second",
+      "displayName": {
+        "en": "Telemetry interval",
+        "ja": "送信間隔"
+      },
+      "schema": "integer",
+      "writable": true
     }
+
   ]
 }

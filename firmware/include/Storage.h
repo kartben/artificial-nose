@@ -2,21 +2,30 @@
 
 #include <string>
 
+namespace ExtFlashLoader
+{
+	class QSPIFlash;
+}
+
 class Storage
 {
-public:
-	static std::string WiFiSSID;
-	static std::string WiFiPassword;
-	static std::string IdScope;
-	static std::string RegistrationId;
-	static std::string SymmetricKey;
+private:
+    Storage(const Storage&) = delete;
+    Storage& operator=(const Storage&) = delete;
 
 public:
-	static void Load();
-	static void Save();
-	static void Erase();
+	std::string WiFiSSID;
+	std::string WiFiPassword;
+	std::string IdScope;
+	std::string RegistrationId;
+	std::string SymmetricKey;
+
+    Storage(ExtFlashLoader::QSPIFlash& flash);
+	void Load();
+	void Save();
+	void Erase();
 
 private:
-	static int Init;
+	ExtFlashLoader::QSPIFlash& Flash_;
 
 };

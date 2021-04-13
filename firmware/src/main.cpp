@@ -1,5 +1,3 @@
-#include <Arduino.h>
-
 #include <unistd.h>
 int freeMemory() {
   char top;
@@ -12,62 +10,19 @@ int freeMemory() {
 #endif  // __arm__
 }
 
-#include "SPI.h"
+#include <Arduino.h>
+#include "Config.h"
+#include "ConfigurationMode.h"
 
-#include "config.h"
+
+////////////////////////////////////////////////////////////////////////////////
+// Storage
+
+#include <ExtFlashLoader.h>
 #include "Storage.h"
-#include "Signature.h"
-#include "AzureDpsClient.h"
-#include "CliMode.h"
-#include <rpcWiFiClientSecure.h>
-#include <PubSubClient.h>
-#include <WiFiUdp.h>
-#include <NTP.h>
-#include <azure/az_core.h>
-#include <azure/az_iot.h>
-#define MQTT_PACKET_SIZE 1024
 
-WiFiClientSecure wifi_client;
-PubSubClient mqtt_client(wifi_client);
-WiFiUDP wifi_udp;
-NTP ntp(wifi_udp);
-
-const char* ROOT_CA_BALTIMORE =
-"-----BEGIN CERTIFICATE-----\n"
-"MIIDdzCCAl+gAwIBAgIEAgAAuTANBgkqhkiG9w0BAQUFADBaMQswCQYDVQQGEwJJ\n"
-"RTESMBAGA1UEChMJQmFsdGltb3JlMRMwEQYDVQQLEwpDeWJlclRydXN0MSIwIAYD\n"
-"VQQDExlCYWx0aW1vcmUgQ3liZXJUcnVzdCBSb290MB4XDTAwMDUxMjE4NDYwMFoX\n"
-"DTI1MDUxMjIzNTkwMFowWjELMAkGA1UEBhMCSUUxEjAQBgNVBAoTCUJhbHRpbW9y\n"
-"ZTETMBEGA1UECxMKQ3liZXJUcnVzdDEiMCAGA1UEAxMZQmFsdGltb3JlIEN5YmVy\n"
-"VHJ1c3QgUm9vdDCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAKMEuyKr\n"
-"mD1X6CZymrV51Cni4eiVgLGw41uOKymaZN+hXe2wCQVt2yguzmKiYv60iNoS6zjr\n"
-"IZ3AQSsBUnuId9Mcj8e6uYi1agnnc+gRQKfRzMpijS3ljwumUNKoUMMo6vWrJYeK\n"
-"mpYcqWe4PwzV9/lSEy/CG9VwcPCPwBLKBsua4dnKM3p31vjsufFoREJIE9LAwqSu\n"
-"XmD+tqYF/LTdB1kC1FkYmGP1pWPgkAx9XbIGevOF6uvUA65ehD5f/xXtabz5OTZy\n"
-"dc93Uk3zyZAsuT3lySNTPx8kmCFcB5kpvcY67Oduhjprl3RjM71oGDHweI12v/ye\n"
-"jl0qhqdNkNwnGjkCAwEAAaNFMEMwHQYDVR0OBBYEFOWdWTCCR1jMrPoIVDaGezq1\n"
-"BE3wMBIGA1UdEwEB/wQIMAYBAf8CAQMwDgYDVR0PAQH/BAQDAgEGMA0GCSqGSIb3\n"
-"DQEBBQUAA4IBAQCFDF2O5G9RaEIFoN27TyclhAO992T9Ldcw46QQF+vaKSm2eT92\n"
-"9hkTI7gQCvlYpNRhcL0EYWoSihfVCr3FvDB81ukMJY2GQE/szKN+OMY3EU/t3Wgx\n"
-"jkzSswF07r51XgdIGn9w/xZchMB5hbgF/X++ZRGjD8ACtPhSNzkE1akxehi/oCr0\n"
-"Epn3o0WC4zxe9Z2etciefC7IpJ5OCBRLbf1wbWsaY71k5h+3zvDyny67G7fyUIhz\n"
-"ksLi4xaNmjICq44Y3ekQEe5+NauQrz4wlHrQMz2nZQ/1/I6eYs9HRCwBXbsdtTLS\n"
-"R9I4LtD+gdwyah617jzV/OeBHRnDJELqYzmp\n"
-"-----END CERTIFICATE-----";
-
-#define AZ_RETURN_IF_FAILED(exp) \
-  do \
-  { \
-    az_result const _result = (exp); \
-    if (az_result_failed(_result)) \
-    { \
-      return _result; \
-    } \
-  } while (0)
-
-std::string HubHost;
-std::string DeviceId;
-
+static ExtFlashLoader::QSPIFlash Flash_;
+static Storage Storage_(Flash_);
 
 ////////////////////////////////////////////////////////////////////////////////
 // Display
@@ -77,6 +32,144 @@ std::string DeviceId;
 
 static LGFX Gfx_;
 static Display Display_(Gfx_);
+
+////////////////////////////////////////////////////////////////////////////////
+// Network
+
+#include <Network/WiFiManager.h>
+#include <Network/TimeManager.h>
+#include <Aziot/AziotDps.h>
+#include <Aziot/AziotHub.h>
+#include <ArduinoJson.h>
+
+static TimeManager TimeManager_;
+static std::string HubHost_;
+static std::string DeviceId_;
+static AziotHub AziotHub_;
+
+static unsigned long TelemetryInterval_ = TELEMETRY_INTERVAL;   // [msec.]
+
+static void ConnectWiFi()
+{
+    Display_.Printf("Connecting to SSID: %s\n", Storage_.WiFiSSID.c_str());
+	WiFiManager wifiManager;
+	wifiManager.Connect(Storage_.WiFiSSID.c_str(), Storage_.WiFiPassword.c_str());
+	while (!wifiManager.IsConnected())
+	{
+		Display_.Printf(".");
+		delay(500);
+	}
+	Display_.Printf("Connected\n");
+}
+
+static void SyncTimeServer()
+{
+	Display_.Printf("Synchronize time\n");
+	while (!TimeManager_.Update())
+	{
+		Display_.Printf(".");
+		delay(1000);
+	}
+	Display_.Printf("Synchronized\n");
+}
+
+static bool DeviceProvisioning()
+{
+	Display_.Printf("Device provisioning:\n");
+    Display_.Printf(" Id scope = %s\n", Storage_.IdScope.c_str());
+    Display_.Printf(" Registration id = %s\n", Storage_.RegistrationId.c_str());
+
+	AziotDps aziotDps;
+	aziotDps.SetMqttPacketSize(MQTT_PACKET_SIZE);
+
+    if (aziotDps.RegisterDevice(DPS_GLOBAL_DEVICE_ENDPOINT_HOST, Storage_.IdScope, Storage_.RegistrationId, Storage_.SymmetricKey, MODEL_ID, TimeManager_.GetEpochTime() + TOKEN_LIFESPAN, &HubHost_, &DeviceId_) != 0)
+    {
+        Display_.Printf("ERROR: RegisterDevice()\n");
+		return false;
+    }
+
+    Display_.Printf("Device provisioned:\n");
+    Display_.Printf(" Hub host = %s\n", HubHost_.c_str());
+    Display_.Printf(" Device id = %s\n", DeviceId_.c_str());
+
+    return true;
+}
+
+static bool AziotIsConnected()
+{
+    return AziotHub_.IsConnected();
+}
+
+static void AziotDoWork()
+{
+    static unsigned long connectTime = 0;
+    static unsigned long forceDisconnectTime;
+
+    bool repeat;
+    do
+    {
+        repeat = false;
+
+        const auto now = TimeManager_.GetEpochTime();
+        if (!AziotHub_.IsConnected())
+        {
+            if (now >= connectTime)
+            {
+                Serial.printf("Connecting to Azure IoT Hub...\n");
+                if (AziotHub_.Connect(HubHost_, DeviceId_, Storage_.SymmetricKey, MODEL_ID, now + TOKEN_LIFESPAN) != 0)
+                {
+                    Serial.printf("ERROR: Try again in 5 seconds\n");
+                    connectTime = TimeManager_.GetEpochTime() + 5;
+                    return;
+                }
+
+                Serial.printf("SUCCESS\n");
+                forceDisconnectTime = TimeManager_.GetEpochTime() + static_cast<unsigned long>(TOKEN_LIFESPAN * RECONNECT_RATE);
+
+                AziotHub_.RequestTwinDocument("get_twin");
+            }
+        }
+        else
+        {
+            if (now >= forceDisconnectTime)
+            {
+                Serial.printf("Disconnect\n");
+                AziotHub_.Disconnect();
+                connectTime = 0;
+
+                repeat = true;
+            }
+            else
+            {
+                AziotHub_.DoWork();
+            }
+        }
+    }
+    while (repeat);
+}
+
+template <typename T>
+static void AziotSendConfirm(const char* requestId, const char* name, T value, int ackCode, int ackVersion)
+{
+	StaticJsonDocument<JSON_MAX_SIZE> doc;
+	doc[name]["value"] = value;
+	doc[name]["ac"] = ackCode;
+	doc[name]["av"] = ackVersion;
+
+	char json[JSON_MAX_SIZE];
+	serializeJson(doc, json);
+
+	AziotHub_.SendTwinPatch(requestId, json);
+}
+
+template <size_t desiredCapacity>
+static void AziotSendTelemetry(const StaticJsonDocument<desiredCapacity>& jsonDoc)
+{
+	char json[jsonDoc.capacity()];
+	serializeJson(jsonDoc, json, sizeof(json));
+
+	AziotHub_.SendTelemetry(json);
+}
 
 
 #include <AceButton.h>
@@ -98,8 +191,6 @@ typedef struct SENSOR_INFO
   std::function<uint32_t()> readFn;
   uint32_t last_val;
 } SENSOR_INFO;
-
-int a = configTOTAL_HEAP_SIZE;
 
 SENSOR_INFO sensors[4] = {
     {"NO2",     "ppm", std::bind(&GAS_GMXXX<TwoWire>::measure_NO2,    gas), 0 },
@@ -147,6 +238,40 @@ enum class ButtonId
 static const int ButtonNumber = 4;
 static AceButton Buttons[ButtonNumber];
 
+
+
+static void ReceivedTwinDocument(const char* json, const char* requestId)
+{
+	StaticJsonDocument<JSON_MAX_SIZE> doc;
+	if (deserializeJson(doc, json)) return;
+	JsonVariant ver = doc["desired"]["$version"];
+	if (ver.isNull()) return;
+    
+	JsonVariant interval = doc["desired"]["telemetryInterval"];
+	if (!interval.isNull())
+	{
+		Serial.printf("TelemetryInterval = %d\n", interval.as<int>());
+		TelemetryInterval_ = interval.as<int>() * 1000;
+	}
+	AziotSendConfirm<int>("twin_confirm", "telemetryInterval", TelemetryInterval_ / 1000, 200, interval.isNull() ? 1 : ver.as<int>());
+}
+
+static void ReceivedTwinDesiredPatch(const char* json, const char* version)
+{
+	StaticJsonDocument<JSON_MAX_SIZE> doc;
+	if (deserializeJson(doc, json)) return;
+	JsonVariant ver = doc["$version"];
+	if (ver.isNull()) return;
+
+	JsonVariant interval = doc["telemetryInterval"];
+	if (!interval.isNull())
+	{
+		Serial.printf("telemetryInterval = %d\n", interval.as<int>());
+		TelemetryInterval_ = interval.as<int>() * 1000;
+
+		AziotSendConfirm<int>("twin_confirm", "telemetryInterval", TelemetryInterval_ / 1000, 200, ver.as<int>());
+	}
+}
 
 /**
 * @brief      Printf function uses vsnprintf and output using Arduino Serial
@@ -214,240 +339,17 @@ static void ButtonDoWork()
 }
 
 
-////////////////////////////////////////////////////////////////////////////////
-// Azure IoT DPS
-
-static AzureDpsClient DpsClient;
-static unsigned long DpsPublishTimeOfQueryStatus = 0;
-
-static void MqttSubscribeCallbackDPS(char* topic, byte* payload, unsigned int length);
-
-static int RegisterDeviceToDPS(const std::string& endpoint, const std::string& idScope, const std::string& registrationId, const std::string& symmetricKey, const uint64_t& expirationEpochTime, std::string* hubHost, std::string* deviceId)
-{
-    std::string endpointAndPort{ endpoint };
-    endpointAndPort += ":";
-    endpointAndPort += std::to_string(8883);
-
-    if (DpsClient.Init(endpointAndPort, idScope, registrationId) != 0) return -1;
-
-    const std::string mqttClientId = DpsClient.GetMqttClientId();
-    const std::string mqttUsername = DpsClient.GetMqttUsername();
-
-    const std::vector<uint8_t> signature = DpsClient.GetSignature(expirationEpochTime);
-    const std::string encryptedSignature = GenerateEncryptedSignature(symmetricKey, signature);
-    const std::string mqttPassword = DpsClient.GetMqttPassword(encryptedSignature, expirationEpochTime);
-
-    const std::string registerPublishTopic = DpsClient.GetRegisterPublishTopic();
-    const std::string registerSubscribeTopic = DpsClient.GetRegisterSubscribeTopic();
-
-    ei_printf("DPS:\r\n");
-    ei_printf(" Endpoint = %s\r\n", endpoint.c_str());
-    ei_printf(" Id scope = %s\r\n", idScope.c_str());
-    ei_printf(" Registration id = %s\r\n", registrationId.c_str());
-    ei_printf(" MQTT client id = %s\r\n", mqttClientId.c_str());
-    ei_printf(" MQTT username = %s\r\n", mqttUsername.c_str());
-    //Log(" MQTT password = %s" DLM, mqttPassword.c_str());
-
-    wifi_client.setCACert(ROOT_CA_BALTIMORE);
-    mqtt_client.setBufferSize(MQTT_PACKET_SIZE);
-    mqtt_client.setServer(endpoint.c_str(), 8883);
-    mqtt_client.setCallback(MqttSubscribeCallbackDPS);
-    ei_printf("Connecting to Azure IoT Hub DPS...\r\n");
-    if (!mqtt_client.connect(mqttClientId.c_str(), mqttUsername.c_str(), mqttPassword.c_str())) return -2;
-
-    mqtt_client.subscribe(registerSubscribeTopic.c_str());
-    mqtt_client.publish(registerPublishTopic.c_str(), "{payload:{\"modelId\":\"" IOT_CONFIG_MODEL_ID "\"}}");
-
-    while (!DpsClient.IsRegisterOperationCompleted())
-    {
-        mqtt_client.loop();
-        if (DpsPublishTimeOfQueryStatus > 0 && millis() >= DpsPublishTimeOfQueryStatus)
-        {
-            mqtt_client.publish(DpsClient.GetQueryStatusPublishTopic().c_str(), "");
-            ei_printf("Client sent operation query message\r\n");
-            DpsPublishTimeOfQueryStatus = 0;
-        }
-    }
-
-    if (!DpsClient.IsAssigned()) return -3;
-
-    mqtt_client.disconnect();
-
-    *hubHost = DpsClient.GetHubHost();
-    *deviceId = DpsClient.GetDeviceId();
-
-    ei_printf("Device provisioned:\r\n");
-    ei_printf(" Hub host = %s\r\n", hubHost->c_str());
-    ei_printf(" Device id = %s\r\n", deviceId->c_str());
-
-    return 0;
-}
-
-static void MqttSubscribeCallbackDPS(char* topic, byte* payload, unsigned int length)
-{
-    ei_printf("Subscribe:\r\n %s\r\n %.*s\r\n", topic, length, (const char*)payload);
-
-    if (DpsClient.RegisterSubscribeWork(topic, std::vector<uint8_t>(payload, payload + length)) != 0)
-    {
-        ei_printf("Failed to parse topic and/or payload\r\n");
-        return;
-    }
-
-    if (!DpsClient.IsRegisterOperationCompleted())
-    {
-        const int waitSeconds = DpsClient.GetWaitBeforeQueryStatusSeconds();
-        ei_printf("Querying after %u  seconds...\r\n", waitSeconds);
-
-        DpsPublishTimeOfQueryStatus = millis() + waitSeconds * 1000;
-    }
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// Azure IoT Hub
-
-static az_iot_hub_client HubClient;
-
-static int SendCommandResponse(az_iot_hub_client_method_request* request, uint16_t status, az_span response);
-static void MqttSubscribeCallbackHub(char* topic, byte* payload, unsigned int length);
-
-static int ConnectToHub(az_iot_hub_client* iot_hub_client, const std::string& host, const std::string& deviceId, const std::string& symmetricKey, const uint64_t& expirationEpochTime)
-{
-    static std::string deviceIdCache;
-    deviceIdCache = deviceId;
-
-    const az_span hostSpan{ az_span_create((uint8_t*)&host[0], host.size()) };
-    const az_span deviceIdSpan{ az_span_create((uint8_t*)&deviceIdCache[0], deviceIdCache.size()) };
-    az_iot_hub_client_options options = az_iot_hub_client_options_default();
-    options.model_id = AZ_SPAN_LITERAL_FROM_STR(IOT_CONFIG_MODEL_ID);
-    if (az_result_failed(az_iot_hub_client_init(iot_hub_client, hostSpan, deviceIdSpan, &options))) return -1;
-
-    char mqttClientId[128];
-    size_t client_id_length;
-    if (az_result_failed(az_iot_hub_client_get_client_id(iot_hub_client, mqttClientId, sizeof(mqttClientId), &client_id_length))) return -4;
-
-    char mqttUsername[256];
-    if (az_result_failed(az_iot_hub_client_get_user_name(iot_hub_client, mqttUsername, sizeof(mqttUsername), NULL))) return -5;
-
-    char mqttPassword[300];
-    uint8_t signatureBuf[256];
-    az_span signatureSpan = az_span_create(signatureBuf, sizeof(signatureBuf));
-    az_span signatureValidSpan;
-    if (az_result_failed(az_iot_hub_client_sas_get_signature(iot_hub_client, expirationEpochTime, signatureSpan, &signatureValidSpan))) return -2;
-    const std::vector<uint8_t> signature(az_span_ptr(signatureValidSpan), az_span_ptr(signatureValidSpan) + az_span_size(signatureValidSpan));
-    const std::string encryptedSignature = GenerateEncryptedSignature(symmetricKey, signature);
-    az_span encryptedSignatureSpan = az_span_create((uint8_t*)&encryptedSignature[0], encryptedSignature.size());
-    if (az_result_failed(az_iot_hub_client_sas_get_password(iot_hub_client, expirationEpochTime, encryptedSignatureSpan, AZ_SPAN_EMPTY, mqttPassword, sizeof(mqttPassword), NULL))) return -3;
-
-    ei_printf("Hub:\r\n");
-    ei_printf(" Host = %s\r\n", host.c_str());
-    ei_printf(" Device id = %s\r\n", deviceIdCache.c_str());
-    ei_printf(" MQTT client id = %s\r\n", mqttClientId);
-    ei_printf(" MQTT username = %s\r\n", mqttUsername);
-    //Log(" MQTT password = %s" DLM, mqttPassword);
-
-    wifi_client.setCACert(ROOT_CA_BALTIMORE);
-    mqtt_client.setBufferSize(MQTT_PACKET_SIZE);
-    mqtt_client.setServer(host.c_str(), 8883);
-    mqtt_client.setCallback(MqttSubscribeCallbackHub);
-
-    if (!mqtt_client.connect(mqttClientId, mqttUsername, mqttPassword)) return -6;
-
-    mqtt_client.subscribe(AZ_IOT_HUB_CLIENT_METHODS_SUBSCRIBE_TOPIC);
-    mqtt_client.subscribe(AZ_IOT_HUB_CLIENT_C2D_SUBSCRIBE_TOPIC);
-
-    return 0;
-}
-
-
-static az_result SendTelemetry()
-{
-    char telemetry_topic[128];
-    char topic_properties_buffer[64];
-    az_iot_message_properties properties;
-    if(az_result_failed(az_iot_message_properties_init(&properties, AZ_SPAN_FROM_BUFFER(topic_properties_buffer), 0)))
-    {
-      ei_printf("Failed MQTT topic properties init\r\n");
-      return AZ_ERROR_NOT_SUPPORTED;
-    }
-
-    if (az_result_failed(az_iot_message_properties_append(&properties, AZ_SPAN_LITERAL_FROM_STR("$.sub"), AZ_SPAN_LITERAL_FROM_STR("gas_sensor"))))
-    {
-      ei_printf("Failed MQTT topic properties - component name append\r\n");
-      return AZ_ERROR_NOT_SUPPORTED;
-    }
-
-    if (az_result_failed(az_iot_hub_client_telemetry_get_publish_topic(&HubClient, &properties, telemetry_topic, sizeof(telemetry_topic), NULL)))
-    {
-        ei_printf("Failed az_iot_hub_client_telemetry_get_publish_topic\r\n");
-        return AZ_ERROR_NOT_SUPPORTED;
-    }
-
-    az_json_writer json_builder;
-    char telemetry_payload[200];
-    AZ_RETURN_IF_FAILED(az_json_writer_init(&json_builder, AZ_SPAN_FROM_BUFFER(telemetry_payload), NULL));
-    AZ_RETURN_IF_FAILED(az_json_writer_append_begin_object(&json_builder));
-    AZ_RETURN_IF_FAILED(az_json_writer_append_property_name(&json_builder, AZ_SPAN_LITERAL_FROM_STR(TELEMETRY_NO2)));
-    AZ_RETURN_IF_FAILED(az_json_writer_append_double(&json_builder, sensors[0].last_val, 3));
-    AZ_RETURN_IF_FAILED(az_json_writer_append_property_name(&json_builder, AZ_SPAN_LITERAL_FROM_STR(TELEMETRY_C2H5NH)));
-    AZ_RETURN_IF_FAILED(az_json_writer_append_double(&json_builder, sensors[1].last_val, 3));
-    AZ_RETURN_IF_FAILED(az_json_writer_append_property_name(&json_builder, AZ_SPAN_LITERAL_FROM_STR(TELEMETRY_VOC)));
-    AZ_RETURN_IF_FAILED(az_json_writer_append_double(&json_builder, sensors[2].last_val, 3));
-    AZ_RETURN_IF_FAILED(az_json_writer_append_property_name(&json_builder, AZ_SPAN_LITERAL_FROM_STR(TELEMETRY_CO)));
-    AZ_RETURN_IF_FAILED(az_json_writer_append_int32(&json_builder, sensors[3].last_val));
-    AZ_RETURN_IF_FAILED(az_json_writer_append_end_object(&json_builder));
-    const az_span out_payload{ az_json_writer_get_bytes_used_in_destination(&json_builder) };
-
-    ei_printf("Free mem: %d\r\n", freeMemory());
-
-
-    static int sendCount = 0;
-    if (!mqtt_client.publish(telemetry_topic, az_span_ptr(out_payload), az_span_size(out_payload), false))
-    {
-        ei_printf("ERROR: Send telemetry %d\r\n", sendCount);
-    }
-    else
-    {
-        ++sendCount;
-        ei_printf("Sent telemetry %d\r\n", sendCount);
-        Display_.Printf("Sent telemetry %d\r\n", sendCount);
-    }
-
-    return AZ_OK;
-}
-
-static void MqttSubscribeCallbackHub(char* topic, byte* payload, unsigned int length)
-{
-    az_span topic_span = az_span_create((uint8_t *)topic, strlen(topic));
-    az_iot_hub_client_method_request command_request;
-
-    if (az_result_succeeded(az_iot_hub_client_methods_parse_received_topic(&HubClient, topic_span, &command_request)))
-    {
-        ei_printf("Command arrived!\r\n");
-        // Determine if the command is supported and take appropriate actions
-        
-        // TODO re-enable
-        // HandleCommandMessage(az_span_create(payload, length), &command_request);
-    }
-
-    ei_printf("\r\n");
-}
-
-
-
 /**
 * @brief      Arduino setup function
 */
 void setup()
 {
-  Storage::Load();
+  Storage_.Load();
 
   Serial.begin(115200);
 
   Display_.Init();
   Display_.SetBrightness(127);
-
-  pinMode(D0, OUTPUT);
-  digitalWrite(D0, INITIAL_FAN_STATE);
 
   pinMode(WIO_KEY_A, INPUT_PULLUP);
   pinMode(WIO_KEY_B, INPUT_PULLUP);
@@ -462,51 +364,24 @@ void setup()
       digitalRead(WIO_KEY_C) == LOW   )
   {
       ei_printf("In configuration mode\r\n");
-      CliMode();
+      ConfigurationMode(Storage_);
   }
-
 
   ButtonInit();
 
+  pinMode(D0, OUTPUT);
+  digitalWrite(D0, INITIAL_FAN_STATE);
+
   gas->begin(Wire, 0x08); // use the hardware I2C
 
-  // Connect to wi-fi
-  Serial.println("bla");
-  ei_printf("Connecting to SSID: %s. Free mem: %d\r\n", IOT_CONFIG_WIFI_SSID, freeMemory());
-  do
-  {
-      ei_printf(".");
-      WiFi.begin(IOT_CONFIG_WIFI_SSID, IOT_CONFIG_WIFI_PASSWORD);
-      delay(500);
-  }
-  while (WiFi.status() != WL_CONNECTED);
-  ei_printf("Connected\r\n");
+  ConnectWiFi();
+  SyncTimeServer();
+  if (!DeviceProvisioning()) abort();
 
-  ////////////////////
-  // Sync time server
+  AziotHub_.SetMqttPacketSize(MQTT_PACKET_SIZE);
 
-  ntp.begin();
-
-  ei_printf("Current year: %d\r\n", ntp.year());
-
-    ////////////////////
-    // Provisioning
-
-#if defined(USE_CLI) || defined(USE_DPS)
-
-    if (RegisterDeviceToDPS(IOT_CONFIG_GLOBAL_DEVICE_ENDPOINT, IOT_CONFIG_ID_SCOPE, IOT_CONFIG_REGISTRATION_ID, IOT_CONFIG_SYMMETRIC_KEY, ntp.epoch() + TOKEN_LIFESPAN, &HubHost, &DeviceId) != 0)
-    {
-        ei_printf("ERROR PROVISIONING\r\n");
-        while(true) {}
-    }
-
-#else
-
-    HubHost = IOT_CONFIG_IOTHUB;
-    DeviceId = IOT_CONFIG_DEVICE_ID;
-
-#endif // USE_CLI || USE_DPS
-
+  AziotHub_.ReceivedTwinDocumentCallback = ReceivedTwinDocument;
+  AziotHub_.ReceivedTwinDesiredPatchCallback = ReceivedTwinDesiredPatch;  
   
 }
 
@@ -521,42 +396,7 @@ void loop()
 {
   ButtonDoWork();
 
-
-    static uint64_t reconnectTime;
-    if (!mqtt_client.connected())
-    {
-        ei_printf("Connecting to Azure IoT Hub...\r\n");
-        const uint64_t now = ntp.epoch();
-        if (ConnectToHub(&HubClient, HubHost, DeviceId, IOT_CONFIG_SYMMETRIC_KEY, now + TOKEN_LIFESPAN) != 0)
-        {
-            ei_printf("> ERROR.\r\n");
-            ei_printf("> ERROR. Status code =%d. Try again in 5 seconds.\r\n", mqtt_client.state());
-            delay(5000);
-            return;
-        }
-
-        ei_printf("> SUCCESS.\r\n");
-        reconnectTime = now + TOKEN_LIFESPAN * 0.85;
-    }
-    else
-    {
-        if ((uint64_t)ntp.epoch() >= reconnectTime)
-        {
-            ei_printf("Disconnect\r\n");
-            mqtt_client.disconnect();
-            return;
-        }
-
-        mqtt_client.loop();
-
-        static unsigned long nextTelemetrySendTime = 0;
-        if (millis() > nextTelemetrySendTime)
-        {
-            SendTelemetry();
-            nextTelemetrySendTime = millis() + TELEMETRY_FREQUENCY_MILLISECS;
-        }
-
-    }
+  AziotDoWork();
 
   if (mode == TRAINING)
   {
@@ -581,6 +421,24 @@ void loop()
     if (new_sampling_tick != -1)
     {
       buffer.unshift(sensorVal);
+    }
+  }
+
+  // send telemetry?
+  static unsigned long nextTelemetrySendTime = 0;
+
+  if(millis() >= nextTelemetrySendTime) 
+  {
+    if (AziotIsConnected())
+    {
+        StaticJsonDocument<JSON_MAX_SIZE> doc;
+        doc["no2"] = sensors[0].last_val;
+        doc["c2h5nh"] = sensors[1].last_val;
+        doc["voc"] = sensors[2].last_val;
+        doc["co"] = sensors[3].last_val;
+        AziotSendTelemetry<JSON_MAX_SIZE>(doc);
+
+        nextTelemetrySendTime = millis() + TelemetryInterval_;
     }
   }
 

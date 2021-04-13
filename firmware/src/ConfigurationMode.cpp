@@ -1,7 +1,8 @@
 #include <Arduino.h>
-#include "CliMode.h"
+#include "ConfigurationMode.h"
+
 #include "Storage.h"
-#include "Signature.h"
+#include <Network/Signature.h>
 
 #define END_CHAR        ('\r')
 #define TAB_CHAR        ('\t')
@@ -15,6 +16,8 @@
 #define PROMPT          DLM "# "
 
 #define INBUF_SIZE      (1024)
+
+static Storage* Storage_;
 
 struct console_command 
 {
@@ -117,19 +120,19 @@ static void burn_rtl8720_command(int argc, char** argv)
 
 static void reset_factory_settings_command(int argc, char** argv)
 {
-    Storage::Erase();
-    Storage::Load();
+    Storage_->Erase();
+    Storage_->Load();
 
     Serial.print("Reset factory settings successfully." DLM);
 }
 
 static void display_settings_command(int argc, char** argv)
 {
-    Serial.print(String::format("Wi-Fi SSID = %s" DLM, Storage::WiFiSSID.c_str()));
-    Serial.print(String::format("Wi-Fi password = %s" DLM, Storage::WiFiPassword.c_str()));
-    Serial.print(String::format("Id scope of Azure IoT DPS = %s" DLM, Storage::IdScope.c_str()));
-    Serial.print(String::format("Registration id of Azure IoT DPS = %s" DLM, Storage::RegistrationId.c_str()));
-    Serial.print(String::format("Symmetric key of Azure IoT DPS = %s" DLM, Storage::SymmetricKey.c_str()));
+    Serial.print(String::format("Wi-Fi SSID = %s" DLM, Storage_->WiFiSSID.c_str()));
+    Serial.print(String::format("Wi-Fi password = %s" DLM, Storage_->WiFiPassword.c_str()));
+    Serial.print(String::format("Id scope of Azure IoT DPS = %s" DLM, Storage_->IdScope.c_str()));
+    Serial.print(String::format("Registration id of Azure IoT DPS = %s" DLM, Storage_->RegistrationId.c_str()));
+    Serial.print(String::format("Symmetric key of Azure IoT DPS = %s" DLM, Storage_->SymmetricKey.c_str()));
 }
 
 static void wifissid_command(int argc, char** argv)
@@ -140,8 +143,8 @@ static void wifissid_command(int argc, char** argv)
         return;
     }
 
-    Storage::WiFiSSID = argv[1];
-    Storage::Save();
+    Storage_->WiFiSSID = argv[1];
+    Storage_->Save();
 
     Serial.print("Set Wi-Fi SSID successfully." DLM);
 }
@@ -154,8 +157,8 @@ static void wifipwd_command(int argc, char** argv)
         return;
     }
 
-    Storage::WiFiPassword = argv[1];
-    Storage::Save();
+    Storage_->WiFiPassword = argv[1];
+    Storage_->Save();
 
     Serial.print("Set Wi-Fi password successfully." DLM);
 }
@@ -168,8 +171,8 @@ static void az_idscope_command(int argc, char** argv)
         return;
     }
 
-    Storage::IdScope = argv[1];
-    Storage::Save();
+    Storage_->IdScope = argv[1];
+    Storage_->Save();
 
     Serial.print("Set id scope successfully." DLM);
 }
@@ -182,8 +185,8 @@ static void az_regid_command(int argc, char** argv)
         return;
     }
 
-    Storage::RegistrationId = argv[1];
-    Storage::Save();
+    Storage_->RegistrationId = argv[1];
+    Storage_->Save();
 
     Serial.print("Set registration id successfully." DLM);
 }
@@ -196,8 +199,8 @@ static void az_symkey_command(int argc, char** argv)
         return;
     }
 
-    Storage::SymmetricKey = argv[1];
-    Storage::Save();
+    Storage_->SymmetricKey = argv[1];
+    Storage_->Save();
 
     Serial.print("Set symmetric key successfully." DLM);
 }
@@ -210,17 +213,17 @@ static void az_iotc_command(int argc, char** argv)
         return;
     }
 
-    Storage::IdScope = argv[1];
-    Storage::RegistrationId = argv[3];
-    Storage::SymmetricKey = ComputeDerivedSymmetricKey(argv[2], argv[3]);
-    Storage::Save();
+    Storage_->IdScope = argv[1];
+    Storage_->RegistrationId = argv[3];
+    Storage_->SymmetricKey = ComputeDerivedSymmetricKey(argv[2], argv[3]);
+    Storage_->Save();
 
     Serial.print("Set connection information of Azure IoT Central successfully." DLM);
 }
 
 static bool CliGetInput(char* inbuf, int* bp)
 {
-    if (inbuf == NULL) 
+    if (inbuf == nullptr) 
     {
         return false;
     }
@@ -371,8 +374,10 @@ static bool CliHandleInput(char* inbuf)
     return true;
 }
 
-void CliMode()
+[[noreturn]] void ConfigurationMode(Storage& storage)
 {
+    Storage_ = &storage;
+
     print_help();
     Serial.print(PROMPT);
 
