@@ -2,7 +2,7 @@
 
 #include <string>
 #include <vector>
-#include <az_iot_provisioning_client.h>
+#include <azure/az_iot.h>
 
 class AzureDpsClient
 {

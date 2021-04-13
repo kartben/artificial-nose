@@ -23,10 +23,8 @@ int freeMemory() {
 #include <PubSubClient.h>
 #include <WiFiUdp.h>
 #include <NTP.h>
-#include <az_json.h>
-#include <az_result.h>
-#include <az_span.h>
-#include <az_iot_hub_client.h>
+#include <azure/az_core.h>
+#include <azure/az_iot.h>
 #define MQTT_PACKET_SIZE 1024
 
 WiFiClientSecure wifi_client;
