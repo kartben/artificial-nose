@@ -1,0 +1,24 @@
+{
+  "@id": "dtmi:kartben:artificial_nose;1",
+  "@type": "Interface",
+  "@context": "dtmi:dtdl:context;2",
+  "displayName": "Artificial Nose",
+  "description": {
+    "en": "Artificial Nose powered by Wio Terminal + Grove Multichannel Gas Sensor v2."
+  },
+  "contents": [
+    {
+      "@type": "Component",
+      "name": "gas_sensor",
+      "schema": "dtmi:seeedstudio:grove:multichannel_gas_sensor_v2;1"
+    },
+    {
+      "@type": "Property",
+      "name": "latestInferenceResult",
+      "schema": "string",
+      "displayName": {
+        "en": "Latest inference result"
+      }
+    }
+  ]
+}

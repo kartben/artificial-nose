@@ -351,7 +351,21 @@ static int ConnectToHub(az_iot_hub_client* iot_hub_client, const std::string& ho
 static az_result SendTelemetry()
 {
     char telemetry_topic[128];
-    if (az_result_failed(az_iot_hub_client_telemetry_get_publish_topic(&HubClient, NULL, telemetry_topic, sizeof(telemetry_topic), NULL)))
+    char topic_properties_buffer[64];
+    az_iot_message_properties properties;
+    if(az_result_failed(az_iot_message_properties_init(&properties, AZ_SPAN_FROM_BUFFER(topic_properties_buffer), 0)))
+    {
+      ei_printf("Failed MQTT topic properties init\r\n");
+      return AZ_ERROR_NOT_SUPPORTED;
+    }
+
+    if (az_result_failed(az_iot_message_properties_append(&properties, AZ_SPAN_LITERAL_FROM_STR("$.sub"), AZ_SPAN_LITERAL_FROM_STR("gas_sensor"))))
+    {
+      ei_printf("Failed MQTT topic properties - component name append\r\n");
+      return AZ_ERROR_NOT_SUPPORTED;
+    }
+
+    if (az_result_failed(az_iot_hub_client_telemetry_get_publish_topic(&HubClient, &properties, telemetry_topic, sizeof(telemetry_topic), NULL)))
     {
         ei_printf("Failed az_iot_hub_client_telemetry_get_publish_topic\r\n");
         return AZ_ERROR_NOT_SUPPORTED;
@@ -568,15 +582,18 @@ void loop()
     }
     else
     {
+      if(new_sampling_tick == -1) {
+        // no new sample, no need to run a new inference
+        return;
+      }
+
       // Turn the raw buffer into a signal which we can then classify
       float buffer2[EI_CLASSIFIER_DSP_INPUT_FRAME_SIZE];
 
       for (int i = 0; i < buffer.size(); i++)
       {
         buffer2[i] = buffer[i];
-        ei_printf("%f, ", buffer[i]);
       }
-      ei_printf("\n");
 
       signal_t signal;
       int err = numpy::signal_from_buffer(buffer2, EI_CLASSIFIER_DSP_INPUT_FRAME_SIZE, &signal);

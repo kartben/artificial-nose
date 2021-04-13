@@ -34,11 +34,11 @@
 
 #endif // USE_CLI
 
-#define IOT_CONFIG_MODEL_ID					"dtmi:seeedkk:wioterminal:wioterminal_aziot_example;5"
+#define IOT_CONFIG_MODEL_ID					"dtmi:kartben:artificial_nose;1"
 
 #define TOKEN_LIFESPAN                      3600
 
-#define TELEMETRY_FREQUENCY_MILLISECS		2000
+#define TELEMETRY_FREQUENCY_MILLISECS		10000
 #define TELEMETRY_CO	    				"co"
 #define TELEMETRY_VOC		    			"voc"
 #define TELEMETRY_C2H5NH					"c2h5nh"
