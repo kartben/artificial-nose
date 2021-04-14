@@ -28,7 +28,7 @@ public:
     const std::string& GetMqttClientId() const;
     const std::string& GetMqttPassword() const;
 
-    std::string GetTelemetryPublishTopic();
+    std::string GetTelemetryPublishTopic(char * componentName);
     std::string GetTwinDocumentPublishTopic(const char* requestId);
     std::string GetTwinPatchPublishTopic(const char* requestId);
 

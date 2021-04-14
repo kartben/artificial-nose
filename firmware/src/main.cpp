@@ -193,12 +193,12 @@ static bool AziotUpdateWritableProperty(const char* name, T* value, const JsonVa
 
 
 template <size_t desiredCapacity>
-static void AziotSendTelemetry(const StaticJsonDocument<desiredCapacity>& jsonDoc)
+static void AziotSendTelemetry(const StaticJsonDocument<desiredCapacity>& jsonDoc, char* componentName)
 {
 	char json[jsonDoc.capacity()];
 	serializeJson(jsonDoc, json, sizeof(json));
 
-	AziotHub_.SendTelemetry(json);
+	AziotHub_.SendTelemetry(json, componentName);
 }
 
 
@@ -463,7 +463,7 @@ void loop()
         doc["c2h5nh"] = sensors[1].last_val;
         doc["voc"] = sensors[2].last_val;
         doc["co"] = sensors[3].last_val;
-        AziotSendTelemetry<JSON_MAX_SIZE>(doc);
+        AziotSendTelemetry<JSON_MAX_SIZE>(doc, "gas_sensor");
 
         nextTelemetrySendTime = millis() + TelemetryInterval_ * 1000;
     }

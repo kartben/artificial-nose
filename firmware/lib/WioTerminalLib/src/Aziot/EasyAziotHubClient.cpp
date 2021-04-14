@@ -86,10 +86,26 @@ const std::string& EasyAziotHubClient::GetMqttPassword() const
     return MqttPassword_;
 }
 
-std::string EasyAziotHubClient::GetTelemetryPublishTopic()
+
+std::string EasyAziotHubClient::GetTelemetryPublishTopic(char* componentName)
 {
     char telemetryPublishTopic[TELEMETRY_PUBLISH_TOPIC_MAX_SIZE];
-    if (az_result_failed(az_iot_hub_client_telemetry_get_publish_topic(&HubClient_, nullptr, telemetryPublishTopic, sizeof(telemetryPublishTopic), nullptr))) return std::string(); // SDK_API
+    az_iot_message_properties pnp_properties;
+    az_iot_message_properties* properties = &pnp_properties;
+
+
+    if (componentName != nullptr) {
+        az_span componentNameSpan = az_span_create_from_str(componentName);
+
+        static char pnp_properties_buffer[64];
+        static az_span const component_telemetry_prop_span = AZ_SPAN_LITERAL_FROM_STR("$.sub");
+
+        az_iot_message_properties_init(properties, AZ_SPAN_FROM_BUFFER(pnp_properties_buffer), 0);
+        az_iot_message_properties_append(properties, component_telemetry_prop_span, componentNameSpan);
+    }
+
+
+    if (az_result_failed(az_iot_hub_client_telemetry_get_publish_topic(&HubClient_, componentName != nullptr ? properties : NULL, telemetryPublishTopic, sizeof(telemetryPublishTopic), nullptr))) return std::string(); // SDK_API
 
     return telemetryPublishTopic;
 }
@@ -105,6 +121,7 @@ std::string EasyAziotHubClient::GetTwinDocumentPublishTopic(const char* requestI
 std::string EasyAziotHubClient::GetTwinPatchPublishTopic(const char* requestId)
 {
     char twinPatchPublishTopic[TWIN_PATCH_PUBLISH_TOPIC_MAX_SIZE];
+
     if (az_result_failed(az_iot_hub_client_twin_patch_get_publish_topic(&HubClient_, az_span_create_from_str(const_cast<char*>(requestId)), twinPatchPublishTopic, sizeof(twinPatchPublishTopic), nullptr))) return std::string();   // SDK_API
 
     return twinPatchPublishTopic;

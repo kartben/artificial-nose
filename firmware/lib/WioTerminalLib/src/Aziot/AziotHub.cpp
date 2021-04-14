@@ -63,9 +63,9 @@ void AziotHub::Disconnect()
     Mqtt_.disconnect();
 }
 
-void AziotHub::SendTelemetry(const char* payload)
+void AziotHub::SendTelemetry(const char* payload, char* componentName)
 {
-    std::string telemetryTopic = HubClient_.GetTelemetryPublishTopic();
+    std::string telemetryTopic = HubClient_.GetTelemetryPublishTopic(componentName);
 
     static int sendCount = 0;
     if (!Mqtt_.publish(telemetryTopic.c_str(), payload, false))
