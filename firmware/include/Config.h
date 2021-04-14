@@ -2,7 +2,7 @@
 
 constexpr int DISPLAY_BRIGHTNESS = 127;         // 0-255
 
-constexpr int TELEMETRY_INTERVAL = 60 * 1000;   // [msec.]
+constexpr int TELEMETRY_INTERVAL = 60;   // [sec.]
 
 extern const char DPS_GLOBAL_DEVICE_ENDPOINT_HOST[];
 extern const char MODEL_ID[];

@@ -47,7 +47,7 @@ static std::string HubHost_;
 static std::string DeviceId_;
 static AziotHub AziotHub_;
 
-static unsigned long TelemetryInterval_ = TELEMETRY_INTERVAL;   // [msec.]
+static unsigned long TelemetryInterval_ = TELEMETRY_INTERVAL;   // [sec.]
 
 static void ConnectWiFi()
 {
@@ -162,6 +162,36 @@ static void AziotSendConfirm(const char* requestId, const char* name, T value, i
 	AziotHub_.SendTwinPatch(requestId, json);
 }
 
+template <typename T>
+static bool AziotUpdateWritableProperty(const char* name, T* value, const JsonVariant& desiredVersion, const JsonVariant& desired, const JsonVariant& reported = JsonVariant())
+{
+    bool ret = false;
+
+    JsonVariant desiredValue = desired[name];
+    JsonVariant reportedProperty = reported[name];
+
+	if (!desiredValue.isNull())
+    {
+        *value = desiredValue.as<T>();
+        ret = true;
+    }
+
+    if (desiredValue.isNull())
+    {
+        if (reportedProperty.isNull())
+        {
+            AziotSendConfirm<T>("init", name, *value, 200, 1);
+        }
+    }
+    else if (reportedProperty.isNull() || desiredVersion.as<int>() != reportedProperty["av"].as<int>())
+    {
+        AziotSendConfirm<T>("update", name, *value, 200, desiredVersion.as<int>());
+    }
+
+    return ret;
+}
+
+
 template <size_t desiredCapacity>
 static void AziotSendTelemetry(const StaticJsonDocument<desiredCapacity>& jsonDoc)
 {
@@ -247,33 +277,27 @@ static void ReceivedTwinDocument(const char* json, const char* requestId)
 {
 	StaticJsonDocument<JSON_MAX_SIZE> doc;
 	if (deserializeJson(doc, json)) return;
-	JsonVariant ver = doc["desired"]["$version"];
-	if (ver.isNull()) return;
     
-	JsonVariant interval = doc["desired"]["telemetryInterval"];
-	if (!interval.isNull())
-	{
-		Serial.printf("TelemetryInterval = %d\n", interval.as<int>());
-		TelemetryInterval_ = interval.as<int>() * 1000;
-	}
-	AziotSendConfirm<int>("twin_confirm", "telemetryInterval", TelemetryInterval_ / 1000, 200, interval.isNull() ? 1 : ver.as<int>());
+  if (doc["desired"]["$version"].isNull()) return;
+
+    if (AziotUpdateWritableProperty("telemetryInterval", &TelemetryInterval_, doc["desired"]["$version"], doc["desired"], doc["reported"]))
+    {
+		Serial.printf("telemetryInterval = %d\n", TelemetryInterval_);
+    }
 }
 
 static void ReceivedTwinDesiredPatch(const char* json, const char* version)
 {
 	StaticJsonDocument<JSON_MAX_SIZE> doc;
 	if (deserializeJson(doc, json)) return;
-	JsonVariant ver = doc["$version"];
-	if (ver.isNull()) return;
 
-	JsonVariant interval = doc["telemetryInterval"];
-	if (!interval.isNull())
-	{
-		Serial.printf("telemetryInterval = %d\n", interval.as<int>());
-		TelemetryInterval_ = interval.as<int>() * 1000;
+	if (doc["$version"].isNull()) return;
 
-		AziotSendConfirm<int>("twin_confirm", "telemetryInterval", TelemetryInterval_ / 1000, 200, ver.as<int>());
-	}
+  if (AziotUpdateWritableProperty("telemetryInterval", &TelemetryInterval_, doc["$version"], doc.as<JsonVariant>()))
+  {
+    Serial.printf("telemetryInterval = %d\n", TelemetryInterval_);
+  }
+
 }
 
 /**
@@ -441,7 +465,7 @@ void loop()
         doc["co"] = sensors[3].last_val;
         AziotSendTelemetry<JSON_MAX_SIZE>(doc);
 
-        nextTelemetrySendTime = millis() + TelemetryInterval_;
+        nextTelemetrySendTime = millis() + TelemetryInterval_ * 1000;
     }
   }
 
