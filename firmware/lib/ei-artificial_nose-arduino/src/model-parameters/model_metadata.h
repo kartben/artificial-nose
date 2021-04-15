@@ -29,6 +29,7 @@
 #define EI_CLASSIFIER_TFLITE                     2
 #define EI_CLASSIFIER_CUBEAI                     3
 #define EI_CLASSIFIER_TFLITE_FULL                4
+#define EI_CLASSIFIER_TENSAIFLOW                 5
 
 #define EI_CLASSIFIER_SENSOR_UNKNOWN             -1
 #define EI_CLASSIFIER_SENSOR_MICROPHONE          1
@@ -39,10 +40,10 @@
 #define EI_CLASSIFIER_DATATYPE_FLOAT32           1
 #define EI_CLASSIFIER_DATATYPE_INT8              9
 
-#define EI_CLASSIFIER_PROJECT_ID                 2389
-#define EI_CLASSIFIER_PROJECT_OWNER              "kartben"
-#define EI_CLASSIFIER_PROJECT_NAME               "artificial_nose"
-#define EI_CLASSIFIER_PROJECT_DEPLOY_VERSION     29
+#define EI_CLASSIFIER_PROJECT_ID                 21001
+#define EI_CLASSIFIER_PROJECT_OWNER              "Benjamin"
+#define EI_CLASSIFIER_PROJECT_NAME               "my_artificial_nose"
+#define EI_CLASSIFIER_PROJECT_DEPLOY_VERSION     37
 #define EI_CLASSIFIER_NN_INPUT_FRAME_SIZE        20
 #define EI_CLASSIFIER_RAW_SAMPLE_COUNT           15
 #define EI_CLASSIFIER_RAW_SAMPLES_PER_FRAME      4
@@ -50,23 +51,26 @@
 #define EI_CLASSIFIER_INPUT_WIDTH                0
 #define EI_CLASSIFIER_INPUT_HEIGHT               0
 #define EI_CLASSIFIER_INTERVAL_MS                100
-#define EI_CLASSIFIER_OUT_TENSOR_NAME            "y_pred/Softmax_1:0"
-#define EI_CLASSIFIER_LABEL_COUNT                2
+#define EI_CLASSIFIER_LABEL_COUNT                9
 #define EI_CLASSIFIER_HAS_ANOMALY                1
 #define EI_CLASSIFIER_FREQUENCY                  10
 #define EI_CLASSIFIER_USE_QUANTIZED_DSP_BLOCK    0
 
-#define EI_CLASSIFIER_TFLITE_ARENA_SIZE          3328
-#define EI_CLASSIFIER_TFLITE_INPUT_DATATYPE      EI_CLASSIFIER_DATATYPE_FLOAT32
-#define EI_CLASSIFIER_TFLITE_INPUT_QUANTIZED     0
-#define EI_CLASSIFIER_TFLITE_INPUT_SCALE         0
-#define EI_CLASSIFIER_TFLITE_INPUT_ZEROPOINT     0
-#define EI_CLASSIFIER_TFLITE_OUTPUT_DATATYPE     EI_CLASSIFIER_DATATYPE_FLOAT32
-#define EI_CLASSIFIER_TFLITE_OUTPUT_QUANTIZED    0
-#define EI_CLASSIFIER_TFLITE_OUTPUT_SCALE        0
-#define EI_CLASSIFIER_TFLITE_OUTPUT_ZEROPOINT    0
+
+#define EI_CLASSIFIER_OBJECT_DETECTION           0
+
+
+#define EI_CLASSIFIER_TFLITE_ARENA_SIZE          3654
+#define EI_CLASSIFIER_TFLITE_INPUT_DATATYPE      EI_CLASSIFIER_DATATYPE_INT8
+#define EI_CLASSIFIER_TFLITE_INPUT_QUANTIZED     1
+#define EI_CLASSIFIER_TFLITE_INPUT_SCALE         0.003835294395685196
+#define EI_CLASSIFIER_TFLITE_INPUT_ZEROPOINT     -128
+#define EI_CLASSIFIER_TFLITE_OUTPUT_DATATYPE     EI_CLASSIFIER_DATATYPE_INT8
+#define EI_CLASSIFIER_TFLITE_OUTPUT_QUANTIZED    1
+#define EI_CLASSIFIER_TFLITE_OUTPUT_SCALE        0.00390625
+#define EI_CLASSIFIER_TFLITE_OUTPUT_ZEROPOINT    -128
 #define EI_CLASSIFIER_INFERENCING_ENGINE         EI_CLASSIFIER_TFLITE
-#define EI_CLASSIFIER_COMPILED                   1
+#define EI_CLASSIFIER_COMPILED                   0
 #define EI_CLASSIFIER_HAS_TFLITE_OPS_RESOLVER    1
 
 #define EI_CLASSIFIER_SENSOR                     EI_CLASSIFIER_SENSOR_UNKNOWN
@@ -85,7 +89,7 @@
 #endif
 #endif // EI_CLASSIFIER_INFERENCING_ENGINE == EI_CLASSIFIER_TFLITE && EI_CLASSIFIER_USE_FULL_TFLITE == 1
 
-const char* ei_classifier_inferencing_categories[] = { "ambient", "coffee" };
+const char* ei_classifier_inferencing_categories[] = { "ambient", "coffee", "honey", "mastiha", "mezcal", "narguile", "white_pepper", "woodfire", "zaatar" };
 
 typedef struct {
     uint16_t implementation_version;

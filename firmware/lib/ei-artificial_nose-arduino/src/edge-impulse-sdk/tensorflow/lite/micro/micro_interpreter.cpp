@@ -101,6 +101,7 @@ MicroInterpreter::MicroInterpreter(const Model* model,
       tensors_allocated_(false),
       initialization_status_(kTfLiteError),
       context_helper_(error_reporter_, &allocator_) {
+
   Init(profiler);
 }
 

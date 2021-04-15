@@ -15,6 +15,13 @@ limitations under the License.
 #ifndef TENSORFLOW_LITE_KERNELS_INTERNAL_TENSOR_H_
 #define TENSORFLOW_LITE_KERNELS_INTERNAL_TENSOR_H_
 
+#ifdef ECM3532
+#undef _GLIBCXX_HAVE_ENOTSUP
+#undef _GLIBCXX_HAVE_ECANCELED
+#undef _GLIBCXX_HAVE_EOWNERDEAD
+#undef _GLIBCXX_HAVE_ENOTRECOVERABLE
+#endif
+
 #include <complex>
 #include <vector>
 

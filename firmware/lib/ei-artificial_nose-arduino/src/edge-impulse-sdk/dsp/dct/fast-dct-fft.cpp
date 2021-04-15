@@ -106,7 +106,7 @@ int ei::dct::inverse_transform(float vector[], size_t len) {
 		return ei::EIDSP_OUT_OF_MEM;
 	}
 
-	ei_dsp_register_alloc(kiss_fftr_mem_length);
+	ei_dsp_register_alloc(kiss_fftr_mem_length, cfg);
 
 	// Preprocess and transform
 	if (len > 0) {
