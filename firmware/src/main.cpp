@@ -3,15 +3,15 @@
 #include <AceButton.h>
 using namespace ace_button;
 
-#include <artificial_nose_inference.h>
 #include <CircularBuffer.h>
+#include <artificial_nose_inference.h>
 
-#include <Wire.h>
 #include <Multichannel_Gas_GMXXX.h>
-GAS_GMXXX<TwoWire> *gas = new GAS_GMXXX<TwoWire>();
+#include <Wire.h>
+GAS_GMXXX<TwoWire>* gas = new GAS_GMXXX<TwoWire>();
 
-#include <TFT_eSPI.h>
 #include "seeed_line_chart.h"
+#include <TFT_eSPI.h>
 TFT_eSPI tft;
 TFT_eSprite spr = TFT_eSprite(&tft); // Sprite
 
@@ -25,17 +25,18 @@ typedef uint32_t (GAS_GMXXX<TwoWire>::*sensorGetFn)();
 
 typedef struct SENSOR_INFO
 {
-  char *name;
-  char *unit;
+  char* name;
+  char* unit;
   std::function<uint32_t()> readFn;
   uint16_t color;
 } SENSOR_INFO;
 
 SENSOR_INFO sensors[4] = {
-    {"NO2",     "ppm", std::bind(&GAS_GMXXX<TwoWire>::getGM102B, gas), TFT_RED},
-    {"C2H5NH",  "ppm", std::bind(&GAS_GMXXX<TwoWire>::getGM302B, gas), TFT_BLUE},
-    {"VOC",     "ppm", std::bind(&GAS_GMXXX<TwoWire>::getGM502B, gas), TFT_PURPLE},
-    {"CO",      "ppm", std::bind(&GAS_GMXXX<TwoWire>::getGM702B, gas), TFT_GREEN}};
+  { "NO2", "ppm", std::bind(&GAS_GMXXX<TwoWire>::getGM102B, gas), TFT_RED },
+  { "C2H5NH", "ppm", std::bind(&GAS_GMXXX<TwoWire>::getGM302B, gas), TFT_BLUE },
+  { "VOC", "ppm", std::bind(&GAS_GMXXX<TwoWire>::getGM502B, gas), TFT_PURPLE },
+  { "CO", "ppm", std::bind(&GAS_GMXXX<TwoWire>::getGM702B, gas), TFT_GREEN }
+};
 #define NB_SENSORS 4
 
 char title_text[20] = "";
@@ -65,9 +66,11 @@ uint64_t next_sampling_tick = micros();
 
 #define INITIAL_FAN_STATE LOW
 
-static bool debug_nn = false; // Set this to true to see e.g. features generated from the raw signal
+static bool debug_nn = false; // Set this to true to see e.g. features generated
+                              // from the raw signal
 
-void draw_chart();
+void
+draw_chart();
 
 enum class ButtonId
 {
@@ -83,81 +86,90 @@ enum class ButtonId
 static const int ButtonNumber = 8;
 static AceButton Buttons[ButtonNumber];
 
-static void ButtonEventHandler(AceButton *button, uint8_t eventType, uint8_t buttonState)
+static void
+ButtonEventHandler(AceButton* button, uint8_t eventType, uint8_t buttonState)
 {
   const uint8_t id = button->getId();
   if (ButtonNumber <= id)
     return;
 
-  switch (eventType)
-  {
-  case AceButton::kEventReleased:
-    switch (static_cast<ButtonId>(id))
-    {
-    case ButtonId::A:
-      digitalWrite(D0, HIGH); // Turn fan ON
-      break;
-    case ButtonId::B:
-      digitalWrite(D0, LOW); // Turn fan OFF
-      break;
-    case ButtonId::PRESS:
-      mode = (mode == INFERENCE) ? TRAINING : INFERENCE;
-      break;
-    case ButtonId::LEFT:
-      switch (screen_mode)
-      {
-      case INFERENCE_RESULTS:
-        screen_mode = GRAPH;
-        break;
-      case GRAPH:
-        screen_mode = SENSORS;
-        break;
+  switch (eventType) {
+    case AceButton::kEventReleased:
+      switch (static_cast<ButtonId>(id)) {
+        case ButtonId::A:
+          digitalWrite(D0, HIGH); // Turn fan ON
+          break;
+        case ButtonId::B:
+          digitalWrite(D0, LOW); // Turn fan OFF
+          break;
+        case ButtonId::PRESS:
+          mode = (mode == INFERENCE) ? TRAINING : INFERENCE;
+          break;
+        case ButtonId::LEFT:
+          switch (screen_mode) {
+            case INFERENCE_RESULTS:
+              screen_mode = GRAPH;
+              break;
+            case GRAPH:
+              screen_mode = SENSORS;
+              break;
+          }
+          break;
+        case ButtonId::RIGHT:
+          switch (screen_mode) {
+            case SENSORS:
+              screen_mode = GRAPH;
+              break;
+            case GRAPH:
+              screen_mode = INFERENCE_RESULTS;
+              break;
+          }
+          break;
       }
       break;
-    case ButtonId::RIGHT:
-      switch (screen_mode)
-      {
-      case SENSORS:
-        screen_mode = GRAPH;
-        break;
-      case GRAPH:
-        screen_mode = INFERENCE_RESULTS;
-        break;
-      }
-      break;
-    }
-    break;
   }
 }
 
-static void ButtonInit()
+static void
+ButtonInit()
 {
-  Buttons[static_cast<int>(ButtonId::A)].init(WIO_KEY_A, HIGH, static_cast<uint8_t>(ButtonId::A));
-  Buttons[static_cast<int>(ButtonId::B)].init(WIO_KEY_B, HIGH, static_cast<uint8_t>(ButtonId::B));
-  Buttons[static_cast<int>(ButtonId::C)].init(WIO_KEY_C, HIGH, static_cast<uint8_t>(ButtonId::C));
-  Buttons[static_cast<int>(ButtonId::LEFT)].init(WIO_5S_LEFT, HIGH, static_cast<uint8_t>(ButtonId::LEFT));
-  Buttons[static_cast<int>(ButtonId::RIGHT)].init(WIO_5S_RIGHT, HIGH, static_cast<uint8_t>(ButtonId::RIGHT));
-  Buttons[static_cast<int>(ButtonId::UP)].init(WIO_5S_UP, HIGH, static_cast<uint8_t>(ButtonId::UP));
-  Buttons[static_cast<int>(ButtonId::DOWN)].init(WIO_5S_DOWN, HIGH, static_cast<uint8_t>(ButtonId::DOWN));
-  Buttons[static_cast<int>(ButtonId::PRESS)].init(WIO_5S_PRESS, HIGH, static_cast<uint8_t>(ButtonId::PRESS));
+  Buttons[static_cast<int>(ButtonId::A)].init(
+    WIO_KEY_A, HIGH, static_cast<uint8_t>(ButtonId::A));
+  Buttons[static_cast<int>(ButtonId::B)].init(
+    WIO_KEY_B, HIGH, static_cast<uint8_t>(ButtonId::B));
+  Buttons[static_cast<int>(ButtonId::C)].init(
+    WIO_KEY_C, HIGH, static_cast<uint8_t>(ButtonId::C));
+  Buttons[static_cast<int>(ButtonId::LEFT)].init(
+    WIO_5S_LEFT, HIGH, static_cast<uint8_t>(ButtonId::LEFT));
+  Buttons[static_cast<int>(ButtonId::RIGHT)].init(
+    WIO_5S_RIGHT, HIGH, static_cast<uint8_t>(ButtonId::RIGHT));
+  Buttons[static_cast<int>(ButtonId::UP)].init(
+    WIO_5S_UP, HIGH, static_cast<uint8_t>(ButtonId::UP));
+  Buttons[static_cast<int>(ButtonId::DOWN)].init(
+    WIO_5S_DOWN, HIGH, static_cast<uint8_t>(ButtonId::DOWN));
+  Buttons[static_cast<int>(ButtonId::PRESS)].init(
+    WIO_5S_PRESS, HIGH, static_cast<uint8_t>(ButtonId::PRESS));
 
   ButtonConfig* buttonConfig = ButtonConfig::getSystemButtonConfig();
   buttonConfig->setEventHandler(ButtonEventHandler);
   buttonConfig->setFeature(ButtonConfig::kFeatureClick);
 }
 
-static void ButtonDoWork()
+static void
+ButtonDoWork()
 {
-  for (int i = 0; static_cast<size_t>(i) < std::extent<decltype(Buttons)>::value; ++i)
-  {
-      Buttons[i].check();
+  for (int i = 0;
+       static_cast<size_t>(i) < std::extent<decltype(Buttons)>::value;
+       ++i) {
+    Buttons[i].check();
   }
 }
 
 /**
-* @brief      Arduino setup function
-*/
-void setup()
+ * @brief      Arduino setup function
+ */
+void
+setup()
 {
   // put your setup code here, to run once:
   Serial.begin(115200);
@@ -186,21 +198,21 @@ void setup()
 }
 
 /**
-* @brief      Printf function uses vsnprintf and output using Arduino Serial
-*
-* @param[in]  format     Variable argument list
-*/
-void ei_printf(const char *format, ...)
+ * @brief      Printf function uses vsnprintf and output using Arduino Serial
+ *
+ * @param[in]  format     Variable argument list
+ */
+void
+ei_printf(const char* format, ...)
 {
-  static char print_buf[512] = {0};
+  static char print_buf[512] = { 0 };
 
   va_list args;
   va_start(args, format);
   int r = vsnprintf(print_buf, sizeof(print_buf), format, args);
   va_end(args);
 
-  if (r > 0)
-  {
+  if (r > 0) {
     Serial.write(print_buf);
   }
 }
@@ -208,16 +220,16 @@ void ei_printf(const char *format, ...)
 int fan = 0;
 
 /**
-* @brief      Get data and run inferencing
-*
-* @param[in]  debug  Get debug info if true
-*/
-void loop()
+ * @brief      Get data and run inferencing
+ *
+ * @param[in]  debug  Get debug info if true
+ */
+void
+loop()
 {
   ButtonDoWork();
 
-  if (mode == TRAINING)
-  {
+  if (mode == TRAINING) {
     strcpy(title_text, "Training mode");
   }
 
@@ -226,8 +238,7 @@ void loop()
   spr.setFreeFont(&Roboto_Bold_28);
   spr.setTextColor(TEXT_COLOR);
   spr.drawString(title_text, 15, 10, 1);
-  for (int8_t line_index = 0; line_index <= 2; line_index++)
-  {
+  for (int8_t line_index = 0; line_index <= 2; line_index++) {
     spr.drawLine(0, 50 + line_index, tft.width(), 50 + line_index, TEXT_COLOR);
   }
 
@@ -235,53 +246,43 @@ void loop()
   spr.setTextColor(TEXT_COLOR);
 
   uint64_t new_sampling_tick = -1;
-  if (micros() > next_sampling_tick)
-  {
+  if (micros() > next_sampling_tick) {
     new_sampling_tick = micros() + (EI_CLASSIFIER_INTERVAL_MS * 1000);
     next_sampling_tick = new_sampling_tick;
   }
-  for (int i = NB_SENSORS - 1; i >= 0; i--)
-  {
+  for (int i = NB_SENSORS - 1; i >= 0; i--) {
     uint32_t sensorVal = sensors[i].readFn();
-    if (sensorVal > 999)
-    {
+    if (sensorVal > 999) {
       sensorVal = 999;
     }
 
-    if (chart_series[i].size() == MAX_CHART_SIZE)
-    {
+    if (chart_series[i].size() == MAX_CHART_SIZE) {
       chart_series[i].pop();
     }
     chart_series[i].push(sensorVal);
-    if (new_sampling_tick != -1)
-    {
+    if (new_sampling_tick != -1) {
       buffer.unshift(sensorVal);
     }
   }
 
-  switch (screen_mode)
-  {
-  case SENSORS:
-  {
-    for (int i = 0; i < NB_SENSORS; i++)
-    {
-      int x_ref = 60 + (i % 2 * 170);
-      int y_ref = 100 + (i / 2 * 80);
+  switch (screen_mode) {
+    case SENSORS: {
+      for (int i = 0; i < NB_SENSORS; i++) {
+        int x_ref = 60 + (i % 2 * 170);
+        int y_ref = 100 + (i / 2 * 80);
 
-      spr.setTextColor(TEXT_COLOR);
-      spr.drawString(sensors[i].name, x_ref - 24, y_ref - 24, 1);
-      spr.drawRoundRect(x_ref - 24, y_ref, 80, 40, 5, TEXT_COLOR);
-      spr.drawNumber(chart_series[i].back(), x_ref - 20, y_ref + 10, 1);
-      spr.setTextColor(TFT_GREEN);
-      spr.drawString(sensors[i].unit, x_ref + 12, y_ref + 8, 1);
+        spr.setTextColor(TEXT_COLOR);
+        spr.drawString(sensors[i].name, x_ref - 24, y_ref - 24, 1);
+        spr.drawRoundRect(x_ref - 24, y_ref, 80, 40, 5, TEXT_COLOR);
+        spr.drawNumber(chart_series[i].back(), x_ref - 20, y_ref + 10, 1);
+        spr.setTextColor(TFT_GREEN);
+        spr.drawString(sensors[i].unit, x_ref + 12, y_ref + 8, 1);
+      }
+      break;
     }
-    break;
-  }
-  case GRAPH:
-  {
-    auto content = line_chart(10, 60); //(x,y) where the line graph begins
-    content
-        .height(tft.height() - 70 * 1.2)
+    case GRAPH: {
+      auto content = line_chart(10, 60); //(x,y) where the line graph begins
+      content.height(tft.height() - 70 * 1.2)
         .width(tft.width() - content.x() * 2)
         .based_on(0.0)
         .show_circle(false)
@@ -294,87 +295,88 @@ void loop()
         .color(TFT_RED, TFT_BLUE, TFT_PURPLE, TFT_GREEN)
         .draw();
 
+      for (int i = 0; i < NB_SENSORS; i++) {
+        spr.setFreeFont(&FreeSans9pt7b);
+        spr.setTextColor(sensors[i].color);
+        spr.setTextDatum(BC_DATUM);
+        spr.drawString(sensors[i].name, 70 + (i * 70), 236, 1);
+      }
 
-    for (int i = 0 ; i < NB_SENSORS ; i++) {
-      spr.setFreeFont(&FreeSans9pt7b);
-      spr.setTextColor(sensors[i].color);
-      spr.setTextDatum(BC_DATUM);
-      spr.drawString(sensors[i].name, 70 + (i * 70), 236, 1);
+      spr.setTextDatum(TL_DATUM); // reset to default
+
+      break;
     }
 
-    spr.setTextDatum(TL_DATUM); // reset to default
-
-    break;
+    default: {
+      break; // nothing
+    }
   }
 
-  default:
-  {
-    break; // nothing
-  }
-  }
+  if (mode == TRAINING) {
+    ei_printf("%d,%d,%d,%d\n",
+              (uint32_t)chart_series[0].back(),
+              (uint32_t)chart_series[1].back(),
+              (uint32_t)chart_series[2].back(),
+              (uint32_t)chart_series[3].back());
+  } else { // INFERENCE
 
-  if (mode == TRAINING)
-  {
-    ei_printf("%d,%d,%d,%d\n", (uint32_t)chart_series[0].back(), (uint32_t)chart_series[1].back(), (uint32_t)chart_series[2].back(), (uint32_t)chart_series[3].back());
-  }
-  else
-  { // INFERENCE
-
-    if (!buffer.isFull())
-    {
+    if (!buffer.isFull()) {
       ei_printf("Need more samples to start infering.\n");
-    }
-    else
-    {
+    } else {
       // Turn the raw buffer into a signal which we can then classify
       float buffer2[EI_CLASSIFIER_DSP_INPUT_FRAME_SIZE];
 
-      for (int i = 0; i < buffer.size(); i++)
-      {
+      for (int i = 0; i < buffer.size(); i++) {
         buffer2[i] = buffer[i];
         ei_printf("%f, ", buffer[i]);
       }
       ei_printf("\n");
 
       signal_t signal;
-      int err = numpy::signal_from_buffer(buffer2, EI_CLASSIFIER_DSP_INPUT_FRAME_SIZE, &signal);
-      if (err != 0)
-      {
+      int err = numpy::signal_from_buffer(
+        buffer2, EI_CLASSIFIER_DSP_INPUT_FRAME_SIZE, &signal);
+      if (err != 0) {
         ei_printf("Failed to create signal from buffer (%d)\n", err);
         return;
       }
 
       // Run the classifier
-      ei_impulse_result_t result = {0};
+      ei_impulse_result_t result = { 0 };
 
       err = run_classifier(&signal, &result, debug_nn);
-      if (err != EI_IMPULSE_OK)
-      {
+      if (err != EI_IMPULSE_OK) {
         ei_printf("ERR: Failed to run classifier (%d)\n", err);
         return;
       }
 
       // print the predictions
       size_t best_prediction = 0;
-      ei_printf("Predictions (DSP: %d ms., Classification: %d ms., Anomaly: %d ms.): \n",
-                result.timing.dsp, result.timing.classification, result.timing.anomaly);
+      ei_printf("Predictions (DSP: %d ms., Classification: %d ms., Anomaly: %d "
+                "ms.): \n",
+                result.timing.dsp,
+                result.timing.classification,
+                result.timing.anomaly);
 
       int lineNumber = 60;
       char lineBuffer[30] = "";
 
-      for (size_t ix = 0; ix < EI_CLASSIFIER_LABEL_COUNT; ix++)
-      {
-        if (result.classification[ix].value >= result.classification[best_prediction].value)
-        {
+      for (size_t ix = 0; ix < EI_CLASSIFIER_LABEL_COUNT; ix++) {
+        if (result.classification[ix].value >=
+            result.classification[best_prediction].value) {
           best_prediction = ix;
         }
 
-        sprintf(lineBuffer, "    %s: %.5f\n", result.classification[ix].label, result.classification[ix].value);
+        sprintf(lineBuffer,
+                "    %s: %.5f\n",
+                result.classification[ix].label,
+                result.classification[ix].value);
         ei_printf(lineBuffer);
 
-        if (mode == INFERENCE && screen_mode == INFERENCE_RESULTS)
-        {
-          spr.drawString(lineBuffer, 10, lineNumber, 1); // Print the test text in the custom font
+        if (mode == INFERENCE && screen_mode == INFERENCE_RESULTS) {
+          spr.drawString(lineBuffer,
+                         10,
+                         lineNumber,
+                         1); // Print the test text in the custom font
           lineNumber += 20;
         }
       }
@@ -382,13 +384,18 @@ void loop()
 #if EI_CLASSIFIER_HAS_ANOMALY == 1
       sprintf(lineBuffer, "    anomaly score: %.3f\n", result.anomaly);
       ei_printf(lineBuffer);
-      if (mode == INFERENCE && screen_mode == INFERENCE_RESULTS)
-      {
-        spr.drawString(lineBuffer, 10, lineNumber + 15, 1); // Print the test text in the custom font
+      if (mode == INFERENCE && screen_mode == INFERENCE_RESULTS) {
+        spr.drawString(lineBuffer,
+                       10,
+                       lineNumber + 15,
+                       1); // Print the test text in the custom font
       }
 #endif
 
-      sprintf(title_text, "%s (%d%%)", result.classification[best_prediction].label, (int)(result.classification[best_prediction].value * 100));
+      sprintf(title_text,
+              "%s (%d%%)",
+              result.classification[best_prediction].label,
+              (int)(result.classification[best_prediction].value * 100));
 
       ei_printf("Best prediction: %s\n", title_text);
     }
@@ -396,10 +403,9 @@ void loop()
 
   spr.pushSprite(0, 0);
 
+  // Uncomment block below to dump hex-encoded TFT sprite to serial **/
 
-  // Uncomment block below to dump hex-encoded TFT sprite to serial **/ 
-
-  /** 
+  /**
 
     uint16_t width = tft.width(), height = tft.height();
     // Image data: width * height * 2 bytes
@@ -409,6 +415,5 @@ void loop()
       }
     }
 
-    **/ 
-
+    **/
 }
