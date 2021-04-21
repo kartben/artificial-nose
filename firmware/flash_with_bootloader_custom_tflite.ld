@@ -73,11 +73,6 @@ SECTIONS
 		KEEP(*(.isr_vector))
 		*(.text*)
 
-		__tflite_start__ = .;
-	    KEEP (*(.tflite_model))
-		. = __tflite_start__ + 0x1800;
-		__tflite_end__ = .;
-
 		KEEP(*(.init))
 		KEEP(*(.fini))
 
@@ -154,6 +149,11 @@ SECTIONS
 		__data_start__ = .;
 		*(vtable)
 		*(.data*)
+
+		__tflite_start__ = .;
+	    KEEP (*(.tflite_model))
+		. = __tflite_start__ + 0x1800;
+		__tflite_end__ = .;
 
 		. = ALIGN(4);
 		/* preinit data */
