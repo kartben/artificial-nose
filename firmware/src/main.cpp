@@ -32,10 +32,10 @@ typedef struct SENSOR_INFO
 } SENSOR_INFO;
 
 SENSOR_INFO sensors[4] = {
-  { "NO2", "ppm", std::bind(&GAS_GMXXX<TwoWire>::getGM102B, gas), TFT_RED },
-  { "C2H5NH", "ppm", std::bind(&GAS_GMXXX<TwoWire>::getGM302B, gas), TFT_BLUE },
-  { "VOC", "ppm", std::bind(&GAS_GMXXX<TwoWire>::getGM502B, gas), TFT_PURPLE },
-  { "CO", "ppm", std::bind(&GAS_GMXXX<TwoWire>::getGM702B, gas), TFT_GREEN }
+  { "NO2", "ppm", std::bind(&GAS_GMXXX<TwoWire>::measure_NO2, gas), TFT_RED },
+  { "CO", "ppm", std::bind(&GAS_GMXXX<TwoWire>::measure_CO, gas), TFT_GREEN },
+  { "C2H5OH", "ppm", std::bind(&GAS_GMXXX<TwoWire>::measure_C2H5OH, gas), TFT_BLUE },
+  { "VOC", "ppm", std::bind(&GAS_GMXXX<TwoWire>::measure_VOC, gas), TFT_PURPLE }
 };
 #define NB_SENSORS 4
 
