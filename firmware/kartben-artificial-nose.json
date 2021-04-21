@@ -7,11 +7,13 @@
     "en": "Artificial Nose powered by Wio Terminal + Grove Multichannel Gas Sensor v2."
   },
   "contents": [
+
     {
       "@type": "Component",
       "name": "gas_sensor",
       "schema": "dtmi:seeedstudio:grove:multichannel_gas_sensor_v2;1"
     },
+
     {
       "@type": "Property",
       "name": "latestInferenceResult",
@@ -20,6 +22,7 @@
         "en": "Latest inference result"
       }
     },
+
     {
       "@type": [
         "Property",
@@ -33,6 +36,24 @@
       },
       "schema": "integer",
       "writable": true
+    },
+
+    {
+      "@type": "Command",
+      "name": "reboot",
+      "displayName": "Reboot"
+    },
+
+    {
+      "@type": "Command",
+      "name": "downloadTfLiteModel",
+      "displayName": "Download new TensorFlow Lite model",
+      "request": {
+        "name": "url",
+        "displayName": "URL",
+        "description": "HTTP(S) URL to use to download the new model",
+        "schema": "string"
+      }      
     }
 
   ]

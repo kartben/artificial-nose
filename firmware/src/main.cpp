@@ -10,6 +10,9 @@ int freeMemory() {
 #endif  // __arm__
 }
 
+
+auto TFLITE_FLASH_ADDR = reinterpret_cast<uint8_t*>(0x04000000 + 0x1000);
+
 #include <Arduino.h>
 #include "Config.h"
 #include "ConfigurationMode.h"
@@ -49,6 +52,8 @@ static AziotHub AziotHub_;
 
 static unsigned long TelemetryInterval_ = TELEMETRY_INTERVAL;   // [sec.]
 
+#include "HTTPClient.h"
+
 static void ConnectWiFi()
 {
     Display_.Printf("Connecting to SSID: %s\n", Storage_.WiFiSSID.c_str());
@@ -60,8 +65,8 @@ static void ConnectWiFi()
 		delay(500);
 	}
 	Display_.Printf("Connected\n");
-}
 
+}
 static void SyncTimeServer()
 {
 	Display_.Printf("Synchronize time\n");
@@ -300,6 +305,173 @@ static void ReceivedTwinDesiredPatch(const char* json, const char* version)
 
 }
 
+
+static void ReceivedMethod(const char* json, const char* methodName)
+{
+	StaticJsonDocument<JSON_MAX_SIZE> doc;
+	if (deserializeJson(doc, json)) return;
+
+  Serial.printf("Received Method = %s\n", methodName);
+  Serial.printf("    --> payload = %s\n", json);
+
+  Serial.printf("**************\n");
+  Serial.printf("**************\n");
+  Serial.printf("*** REBOOT ***\n");
+  Serial.printf("**************\n");
+  Serial.printf("**************\n");
+  
+  //NVIC_SystemReset();
+
+  {
+
+      HTTPClient http;
+      
+      Serial.printf("downloading from %s\n", doc.as<JsonVariant>().as<char *>());
+
+    const char* EI_CACERT = \
+                          "-----BEGIN CERTIFICATE-----\n" \
+                          "MIIEDzCCAvegAwIBAgIBADANBgkqhkiG9w0BAQUFADBoMQswCQYDVQQGEwJVUzEl\n" \
+                          "MCMGA1UEChMcU3RhcmZpZWxkIFRlY2hub2xvZ2llcywgSW5jLjEyMDAGA1UECxMp\n" \
+                          "U3RhcmZpZWxkIENsYXNzIDIgQ2VydGlmaWNhdGlvbiBBdXRob3JpdHkwHhcNMDQw\n" \
+                          "NjI5MTczOTE2WhcNMzQwNjI5MTczOTE2WjBoMQswCQYDVQQGEwJVUzElMCMGA1UE\n" \
+                          "ChMcU3RhcmZpZWxkIFRlY2hub2xvZ2llcywgSW5jLjEyMDAGA1UECxMpU3RhcmZp\n" \
+                          "ZWxkIENsYXNzIDIgQ2VydGlmaWNhdGlvbiBBdXRob3JpdHkwggEgMA0GCSqGSIb3\n" \
+                          "DQEBAQUAA4IBDQAwggEIAoIBAQC3Msj+6XGmBIWtDBFk385N78gDGIc/oav7PKaf\n" \
+                          "8MOh2tTYbitTkPskpD6E8J7oX+zlJ0T1KKY/e97gKvDIr1MvnsoFAZMej2YcOadN\n" \
+                          "+lq2cwQlZut3f+dZxkqZJRRU6ybH838Z1TBwj6+wRir/resp7defqgSHo9T5iaU0\n" \
+                          "X9tDkYI22WY8sbi5gv2cOj4QyDvvBmVmepsZGD3/cVE8MC5fvj13c7JdBmzDI1aa\n" \
+                          "K4UmkhynArPkPw2vCHmCuDY96pzTNbO8acr1zJ3o/WSNF4Azbl5KXZnJHoe0nRrA\n" \
+                          "1W4TNSNe35tfPe/W93bC6j67eA0cQmdrBNj41tpvi/JEoAGrAgEDo4HFMIHCMB0G\n" \
+                          "A1UdDgQWBBS/X7fRzt0fhvRbVazc1xDCDqmI5zCBkgYDVR0jBIGKMIGHgBS/X7fR\n" \
+                          "zt0fhvRbVazc1xDCDqmI56FspGowaDELMAkGA1UEBhMCVVMxJTAjBgNVBAoTHFN0\n" \
+                          "YXJmaWVsZCBUZWNobm9sb2dpZXMsIEluYy4xMjAwBgNVBAsTKVN0YXJmaWVsZCBD\n" \
+                          "bGFzcyAyIENlcnRpZmljYXRpb24gQXV0aG9yaXR5ggEAMAwGA1UdEwQFMAMBAf8w\n" \
+                          "DQYJKoZIhvcNAQEFBQADggEBAAWdP4id0ckaVaGsafPzWdqbAYcaT1epoXkJKtv3\n" \
+                          "L7IezMdeatiDh6GX70k1PncGQVhiv45YuApnP+yz3SFmH8lU+nLMPUxA2IGvd56D\n" \
+                          "eruix/U0F47ZEUD0/CwqTRV/p2JdLiXTAAsgGh1o+Re49L2L7ShZ3U0WixeDyLJl\n" \
+                          "xy16paq8U4Zt3VekyvggQQto8PT7dL5WXXp59fkdheMtlb71cZBDzI0fmgAKhynp\n" \
+                          "VSJYACPq4xJDKVtHCN2MQWplBqjlIapBtJUhlbl90TSrE9atvNziPTnNvT51cKEY\n" \
+                          "WQPJIrSPnNVeKtelttQKbfi3QBFGmh95DmK/D5fs4C8fF5Q=\n" \
+                          "-----END CERTIFICATE-----\n" ;
+      //client2.setCACert(EI_CACERT);
+
+      //http.begin("https://studio.edgeimpulse.com/v1/api/27085/learn-data/33/model/tflite-int8");
+      http.begin("https://iotc-82505c39-877d-47df-bb84-b66e42ca77cd.azure-devices.net/");
+      int httpCode = http.GET();
+      // file found at server
+      Serial.printf("HTTP STATUS: %d\n", httpCode);
+
+      // int * const p_reg = (int *) 0x04000400;
+
+      // Serial.printf("@p_reg = %d\n", p_reg);
+      // Serial.printf("p_reg = %d\n", *p_reg);
+
+      // *p_reg = 0x1234;
+
+      Flash_.exitFromMemoryMode();
+      Flash_.writeEnable();
+      Flash_.eraseSector(0x1000);
+      Flash_.waitProgram(0);
+      Flash_.enterToMemoryMode();
+
+      // for(int i = 0 ; i < 50 ; i++) {
+      //   Serial.printf("p_reg[%d] = 0x04x (0x%08x)\n", i, p_reg[i], &p_reg[i]);
+      //   p_reg[i] = 0x1234;
+      //   Serial.printf("p_reg[%d] = 0x04x (0x%08x)\n", i, p_reg[i], &p_reg[i]);
+      // }
+
+
+      // int * const p_reg2 = (int *) 0x04000000;
+      // Serial.printf("@p_reg2 = %d\n", p_reg2);
+      // Serial.printf("p_reg2 = %d\n", *p_reg2);
+
+
+
+
+      if(httpCode == HTTP_CODE_OK) {
+
+          // get lenght of document (is -1 when Server sends no Content-Length header)
+          int len = http.getSize();
+
+          // create buffer for read
+          uint8_t buff[256] = { 0 };
+
+          // get tcp stream
+          WiFiClient * stream = http.getStreamPtr();
+
+          int bytesWrittenTotal = 0;
+          int pageOffset = 0;
+          int bytesAlreadyWrittenInPage = 0;
+
+          // read all data from server
+
+          Flash_.exitFromMemoryMode();
+
+          while(http.connected() && (len > 0 || len == -1)) {
+
+              // get available data size
+              size_t size = stream->available();
+
+              Serial.printf("\nBytes available: %d.\n", size);
+
+
+              if(size) {
+                // read up to (256 - bytesAlreadyWrittenInPage) bytes
+                int c = stream->readBytes(buff, ((size > (256 - bytesAlreadyWrittenInPage)) ? (256 - bytesAlreadyWrittenInPage) : size));
+
+    //            memcpy(& TFLITE_FLASH_ADDR[0], buff, c);
+
+                // Flash_.writeEnable();
+                // Serial.printf("Erasing sector at address: %08x.\n", (uint32_t)TFLITE_FLASH_ADDR + bytesWritten)
+                // Flash_.eraseSector((uint32_t)TFLITE_FLASH_ADDR + bytesWritten);
+                // Flash_.waitProgram(0);
+      
+                Flash_.writeEnable();
+                Serial.printf("\nProgramming %d bytes at address: %08x.\n", c, (uint32_t)TFLITE_FLASH_ADDR + (pageOffset * 256) + bytesAlreadyWrittenInPage);
+                Flash_.programPage((uint32_t)TFLITE_FLASH_ADDR + (pageOffset * 256) + bytesAlreadyWrittenInPage, buff, c);
+                Flash_.waitProgram(0);
+                bytesAlreadyWrittenInPage += c;
+                bytesWrittenTotal += c;
+
+                Serial.printf("bytesAlreadyWrittenInPage: %d\n", bytesAlreadyWrittenInPage);
+                Serial.printf("current page: %d\n", pageOffset);
+                Serial.printf("bytesWrittenTotal: %d\n", bytesWrittenTotal);
+                Serial.printf("---\n");
+
+                if(bytesAlreadyWrittenInPage == 256) {
+                  pageOffset++;
+                  bytesAlreadyWrittenInPage = 0;
+                  Serial.printf("Skipping to page %d\n", pageOffset);
+                }
+
+
+    //              ei_printf("%s \n", buff);
+
+                  if(len > 0) {
+                      len -= c;
+                  }
+              }
+              delay(1);
+          }
+
+          Flash_.enterToMemoryMode();
+
+          Serial.println();
+          Serial.print("[HTTP] connection closed or file end.\n");
+
+      } 
+      else {
+        Serial.printf("[HTTP] GET... failed, error: %s\n", http.errorToString(httpCode).c_str());
+      }
+
+
+  }
+
+
+}
+
+
+
 /**
 * @brief      Printf function uses vsnprintf and output using Arduino Serial
 *
@@ -375,6 +547,51 @@ void setup()
 
   Serial.begin(115200);
 
+  delay(2000);
+
+  // ei_printf("%d\n", trained_tflite);
+
+  // for (int i = 0 ; i < 10 ; i++) {
+  //   ei_printf("%02d, ", trained_tflite[i]);
+  // }
+  // ei_printf("\n");
+
+  // ((char*)trained_tflite)[0] = 0;
+  // ((char*)trained_tflite)[1] = 0;
+  // ((char*)trained_tflite)[2] = 0;
+  // ((char*)trained_tflite)[3] = 0;
+  // ((char*)trained_tflite)[4] = 0;
+  // ((char*)trained_tflite)[5] = 0;
+  // // for (int i = 100 ; i < 300 ; i++) {
+  // //   ((char*)trained_tflite)[i] = 0;
+  // // }
+
+  // for (int i = 0 ; i < 10 ; i++) {
+  //   ei_printf("%02d, ", trained_tflite[i]);
+  // }
+  // ei_printf("\n");
+
+  // for(int i = 0 ; i < 200 ; i++) {
+  //   ei_printf("%c", reinterpret_cast<std::uint8_t*>(0x04000000)[i]);
+  // }
+  // ei_printf("\n");
+
+  // for(int i = 0 ; i < 200 ; i++) {
+  //   ei_printf("%c", TFLITE_FLASH_ADDR[i]);
+  // }
+  // ei_printf("\n");
+
+  // for(int i = 0 ; i < 200 ; i++) {
+  //   TFLITE_FLASH_ADDR[i] = 'a';
+  // }
+  // ei_printf("\n");
+
+
+  // for(int i = 0 ; i < 200 ; i++) {
+  //   ei_printf("%c", TFLITE_FLASH_ADDR[i]);
+  // }
+  // ei_printf("\n");
+
   Display_.Init();
   Display_.SetBrightness(127);
 
@@ -409,6 +626,7 @@ void setup()
 
   AziotHub_.ReceivedTwinDocumentCallback = ReceivedTwinDocument;
   AziotHub_.ReceivedTwinDesiredPatchCallback = ReceivedTwinDesiredPatch;  
+  AziotHub_.ReceivedMethodCallback = ReceivedMethod;  
   
 }
 
@@ -471,7 +689,7 @@ void loop()
 
   if (mode == TRAINING)
   {
-    ei_printf("%d,%d,%d,%d\n", sensors[0].last_val, sensors[1].last_val, sensors[2].last_val, sensors[3].last_val);
+    //ei_printf("%d,%d,%d,%d\n", sensors[0].last_val, sensors[1].last_val, sensors[2].last_val, sensors[3].last_val);
   }
   else
   { // INFERENCE
