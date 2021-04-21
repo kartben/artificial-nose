@@ -205,19 +205,19 @@ static void AziotSendTelemetry(const StaticJsonDocument<desiredCapacity>& jsonDo
 #include <AceButton.h>
 using namespace ace_button;
 
-#include <artificial_nose_inference.h>
 #include <CircularBuffer.h>
+#include <artificial_nose_inference.h>
 
-#include <Wire.h>
 #include <Multichannel_Gas_GMXXX.h>
-GAS_GMXXX<TwoWire> *gas = new GAS_GMXXX<TwoWire>();
+#include <Wire.h>
+GAS_GMXXX<TwoWire>* gas = new GAS_GMXXX<TwoWire>();
 
 typedef uint32_t (GAS_GMXXX<TwoWire>::*sensorGetFn)();
 
 typedef struct SENSOR_INFO
 {
-  char *name;
-  char *unit;
+  char* name;
+  char* unit;
   std::function<uint32_t()> readFn;
   uint32_t last_val;
 } SENSOR_INFO;
@@ -257,9 +257,11 @@ uint64_t next_sampling_tick = micros();
 
 #define INITIAL_FAN_STATE LOW
 
-static bool debug_nn = false; // Set this to true to see e.g. features generated from the raw signal
+static bool debug_nn = false; // Set this to true to see e.g. features generated
+                              // from the raw signal
 
-void draw_chart();
+void
+draw_chart();
 
 enum class ButtonId
 {
@@ -345,7 +347,8 @@ static void ButtonEventHandler(AceButton *button, uint8_t eventType, uint8_t but
   }
 }
 
-static void ButtonInit()
+static void
+ButtonInit()
 {
   Buttons[static_cast<int>(ButtonId::A)].init(WIO_KEY_A, HIGH, static_cast<uint8_t>(ButtonId::A));
   Buttons[static_cast<int>(ButtonId::B)].init(WIO_KEY_B, HIGH, static_cast<uint8_t>(ButtonId::B));
@@ -357,19 +360,22 @@ static void ButtonInit()
   buttonConfig->setFeature(ButtonConfig::kFeatureClick);
 }
 
-static void ButtonDoWork()
+static void
+ButtonDoWork()
 {
-  for (int i = 0; static_cast<size_t>(i) < std::extent<decltype(Buttons)>::value; ++i)
-  {
-      Buttons[i].check();
+  for (int i = 0;
+       static_cast<size_t>(i) < std::extent<decltype(Buttons)>::value;
+       ++i) {
+    Buttons[i].check();
   }
 }
 
 
 /**
-* @brief      Arduino setup function
-*/
-void setup()
+ * @brief      Arduino setup function
+ */
+void
+setup()
 {
   Storage_.Load();
 
@@ -415,11 +421,12 @@ void setup()
 int fan = 0;
 
 /**
-* @brief      Get data and run inferencing
-*
-* @param[in]  debug  Get debug info if true
-*/
-void loop()
+ * @brief      Get data and run inferencing
+ *
+ * @param[in]  debug  Get debug info if true
+ */
+void
+loop()
 {
   ButtonDoWork();
 
@@ -431,16 +438,13 @@ void loop()
   }
 
   uint64_t new_sampling_tick = -1;
-  if (micros() > next_sampling_tick)
-  {
+  if (micros() > next_sampling_tick) {
     new_sampling_tick = micros() + (EI_CLASSIFIER_INTERVAL_MS * 1000);
     next_sampling_tick = new_sampling_tick;
   }
-  for (int i = NB_SENSORS - 1; i >= 0; i--)
-  {
+  for (int i = NB_SENSORS - 1; i >= 0; i--) {
     uint32_t sensorVal = sensors[i].readFn();
-    if (sensorVal > 999)
-    {
+    if (sensorVal > 999) {
       sensorVal = 999;
     }
     sensors[i].last_val = sensorVal;
@@ -476,8 +480,7 @@ void loop()
   else
   { // INFERENCE
 
-    if (!buffer.isFull())
-    {
+    if (!buffer.isFull()) {
       ei_printf("Need more samples to start infering.\n");
     }
     else
@@ -490,45 +493,48 @@ void loop()
       // Turn the raw buffer into a signal which we can then classify
       float buffer2[EI_CLASSIFIER_DSP_INPUT_FRAME_SIZE];
 
-      for (int i = 0; i < buffer.size(); i++)
-      {
+      for (int i = 0; i < buffer.size(); i++) {
         buffer2[i] = buffer[i];
       }
 
       signal_t signal;
-      int err = numpy::signal_from_buffer(buffer2, EI_CLASSIFIER_DSP_INPUT_FRAME_SIZE, &signal);
-      if (err != 0)
-      {
+      int err = numpy::signal_from_buffer(
+        buffer2, EI_CLASSIFIER_DSP_INPUT_FRAME_SIZE, &signal);
+      if (err != 0) {
         ei_printf("Failed to create signal from buffer (%d)\n", err);
         return;
       }
 
       // Run the classifier
-      ei_impulse_result_t result = {0};
+      ei_impulse_result_t result = { 0 };
 
       err = run_classifier(&signal, &result, debug_nn);
-      if (err != EI_IMPULSE_OK)
-      {
+      if (err != EI_IMPULSE_OK) {
         ei_printf("ERR: Failed to run classifier (%d)\n", err);
         return;
       }
 
       // print the predictions
       size_t best_prediction = 0;
-      ei_printf("Predictions (DSP: %d ms., Classification: %d ms., Anomaly: %d ms.): \n",
-                result.timing.dsp, result.timing.classification, result.timing.anomaly);
+      ei_printf("Predictions (DSP: %d ms., Classification: %d ms., Anomaly: %d "
+                "ms.): \n",
+                result.timing.dsp,
+                result.timing.classification,
+                result.timing.anomaly);
 
       int lineNumber = 60;
       char lineBuffer[30] = "";
 
-      for (size_t ix = 0; ix < EI_CLASSIFIER_LABEL_COUNT; ix++)
-      {
-        if (result.classification[ix].value >= result.classification[best_prediction].value)
-        {
+      for (size_t ix = 0; ix < EI_CLASSIFIER_LABEL_COUNT; ix++) {
+        if (result.classification[ix].value >=
+            result.classification[best_prediction].value) {
           best_prediction = ix;
         }
 
-        sprintf(lineBuffer, "    %s: %.5f\n", result.classification[ix].label, result.classification[ix].value);
+        sprintf(lineBuffer,
+                "    %s: %.5f\n",
+                result.classification[ix].label,
+                result.classification[ix].value);
         ei_printf(lineBuffer);
 
       }
