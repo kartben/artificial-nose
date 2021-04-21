@@ -13,13 +13,22 @@ GAS_GMXXX<TwoWire>* gas = new GAS_GMXXX<TwoWire>();
 #include "seeed_line_chart.h"
 #include <TFT_eSPI.h>
 TFT_eSPI tft;
-TFT_eSprite spr = TFT_eSprite(&tft); // Sprite
+TFT_eSprite spr = TFT_eSprite(&tft); // main sprite
+TFT_eSprite inferenceSpr =
+  TFT_eSprite(&tft); // inference result sprite (ex. coffee icon)
 
 #define DARK_BACKGROUND 0
 #define TEXT_COLOR (DARK_BACKGROUND ? TFT_WHITE : TFT_BLACK)
 #define BG_COLOR (DARK_BACKGROUND ? TFT_BLACK : TFT_WHITE)
 
 #include "fonts/roboto_bold_28.h"
+
+#include "images/icon_ambient.h"
+#include "images/icon_anomaly.h"
+#include "images/icon_coffee.h"
+#include "images/icon_whiskey.h"
+
+const unsigned short* ICONS_MAP[] = { icon_ambient, icon_whiskey };
 
 typedef uint32_t (GAS_GMXXX<TwoWire>::*sensorGetFn)();
 
@@ -55,6 +64,9 @@ enum SCREEN_MODE
   INFERENCE_RESULTS
 };
 enum SCREEN_MODE screen_mode = GRAPH;
+
+int latest_inference_idx = -1;
+float latest_inference_confidence_level = -1.;
 
 #define MAX_CHART_SIZE 50
 std::vector<doubles> chart_series = std::vector<doubles>(NB_SENSORS, doubles());
@@ -104,6 +116,7 @@ ButtonEventHandler(AceButton* button, uint8_t eventType, uint8_t buttonState)
           break;
         case ButtonId::PRESS:
           mode = (mode == INFERENCE) ? TRAINING : INFERENCE;
+          spr.pushSprite(0, 0);
           break;
         case ButtonId::LEFT:
           switch (screen_mode) {
@@ -194,7 +207,12 @@ setup()
   // put your setup code here, to run once:
   tft.begin();
   tft.setRotation(3);
-  spr.createSprite(tft.width(), tft.height());
+  spr.createSprite(
+    tft.width(),
+    tft.height()); // /!\ this will allocate 320*240*2 = 153.6K of RAM
+  inferenceSpr.setColorDepth(8);
+  inferenceSpr.createSprite(60,
+                            60); // /!\ this will allocate 60*60*1 = 3.6K of RAM
 }
 
 /**
@@ -227,19 +245,21 @@ int fan = 0;
 void
 loop()
 {
+  spr.fillSprite(BG_COLOR);
   ButtonDoWork();
 
   if (mode == TRAINING) {
     strcpy(title_text, "Training mode");
   }
 
-  spr.fillSprite(BG_COLOR);
-
-  spr.setFreeFont(&Roboto_Bold_28);
-  spr.setTextColor(TEXT_COLOR);
-  spr.drawString(title_text, 15, 10, 1);
-  for (int8_t line_index = 0; line_index <= 2; line_index++) {
-    spr.drawLine(0, 50 + line_index, tft.width(), 50 + line_index, TEXT_COLOR);
+  if (screen_mode != INFERENCE_RESULTS) {
+    spr.setFreeFont(&Roboto_Bold_28);
+    spr.setTextColor(TEXT_COLOR);
+    spr.drawString(title_text, 15, 10, 1);
+    for (int8_t line_index = 0; line_index <= 2; line_index++) {
+      spr.drawLine(
+        0, 50 + line_index, tft.width(), 50 + line_index, TEXT_COLOR);
+    }
   }
 
   spr.setFreeFont(&FreeSansBoldOblique9pt7b); // Select the font
@@ -380,24 +400,27 @@ loop()
                 result.classification[ix].label,
                 result.classification[ix].value);
         ei_printf(lineBuffer);
+      }
 
-        if (mode == INFERENCE && screen_mode == INFERENCE_RESULTS) {
-          spr.drawString(lineBuffer,
-                         10,
-                         lineNumber,
-                         1); // Print the test text in the custom font
-          lineNumber += 20;
-        }
+      if (screen_mode == INFERENCE_RESULTS) {
+        spr.pushImage(80, 55, 130, 130, (uint16_t*)ICONS_MAP[best_prediction]);
+        spr.setFreeFont(&Roboto_Bold_28);
+        spr.setTextDatum(CC_DATUM);
+        spr.setTextColor(TEXT_COLOR);
+        spr.drawString(title_text, 160, 200, 1);
       }
 
 #if EI_CLASSIFIER_HAS_ANOMALY == 1
       sprintf(lineBuffer, "    anomaly score: %.3f\n", result.anomaly);
       ei_printf(lineBuffer);
       if (mode == INFERENCE && screen_mode == INFERENCE_RESULTS) {
-        spr.drawString(lineBuffer,
-                       10,
-                       lineNumber + 15,
-                       1); // Print the test text in the custom font
+        // spr.drawString(lineBuffer,
+        //                10,
+        //                lineNumber + 15,
+        //                1); // Print the test text in the custom font
+        if (result.anomaly > 0.7) {
+          spr.pushImage(80, 55, 130, 130, icon_anomaly);
+        }
       }
 #endif
 
@@ -407,10 +430,14 @@ loop()
               (int)(result.classification[best_prediction].value * 100));
 
       ei_printf("Best prediction: %s\n", title_text);
+
+      latest_inference_idx = best_prediction;
+      latest_inference_confidence_level =
+        result.classification[best_prediction].value;
     }
   }
 
-  spr.pushSprite(0, 0);
+  spr.pushSprite(0, 0, TFT_MAGENTA);
 
   // Uncomment block below to dump hex-encoded TFT sprite to serial **/
 

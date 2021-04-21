@@ -23,6 +23,8 @@
 #ifndef _EI_CLASSIFIER_SMOOTH_H_
 #define _EI_CLASSIFIER_SMOOTH_H_
 
+#if EI_CLASSIFIER_OBJECT_DETECTION != 1
+
 #include <stdint.h>
 
 typedef struct ei_classifier_smooth {
@@ -138,5 +140,7 @@ const char* ei_classifier_smooth_update(ei_classifier_smooth_t *smooth, ei_impul
 void ei_classifier_smooth_free(ei_classifier_smooth_t *smooth) {
     free(smooth->last_readings);
 }
+
+#endif // #if EI_CLASSIFIER_OBJECT_DETECTION != 1
 
 #endif // _EI_CLASSIFIER_SMOOTH_H_

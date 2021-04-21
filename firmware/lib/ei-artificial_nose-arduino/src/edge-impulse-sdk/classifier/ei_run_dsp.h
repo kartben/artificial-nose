@@ -41,6 +41,11 @@ namespace {
 
 using namespace ei;
 
+/* extract mfcc slice features variables */
+static uint32_t last_read_sample = 0;
+static float *cache_sample_buffer;
+static uint32_t cache_sample_size = 0;
+
 #if defined(EI_DSP_IMAGE_BUFFER_STATIC_SIZE)
 float ei_dsp_image_buffer[EI_DSP_IMAGE_BUFFER_STATIC_SIZE];
 #endif
@@ -428,7 +433,7 @@ __attribute__((unused)) int extract_mfcc_features(signal_t *signal, matrix_t *ou
     }
 
     // cepstral mean and variance normalization
-    ret = speechpy::processing::cmvnw(output_matrix, config.win_size, true);
+    ret = speechpy::processing::cmvnw(output_matrix, config.win_size, true, false);
     if (ret != EIDSP_OK) {
         ei_printf("ERR: cmvnw failed (%d)\n", ret);
         EIDSP_ERR(ret);
@@ -438,6 +443,25 @@ __attribute__((unused)) int extract_mfcc_features(signal_t *signal, matrix_t *ou
     output_matrix->rows = 1;
 
     return EIDSP_OK;
+}
+
+/**
+ * @brief Preemphasize audio from sample and collect data from cached buffer
+ *        Cached buffer data is already preemphasized
+ */
+static int preemphasized_audio_signal_get_and_align_data(size_t offset, size_t length, float *out_ptr)
+{
+    size_t ix;
+
+    for(ix = 0; (ix + offset) < cache_sample_size; ix++) {
+        *(out_ptr++) = cache_sample_buffer[ix + offset];
+    }
+    offset += ix;
+    length -= ix;
+
+    /* Determine last read sample in signal buffer, so subtract cache buffer */
+    last_read_sample = offset + length - cache_sample_size;
+    return preemphasis->get_data(offset - cache_sample_size, length, out_ptr);
 }
 
 __attribute__((unused)) int extract_mfcc_per_slice_features(signal_t *signal, matrix_t *output_matrix, void *config_ptr, const float sampling_frequency) {
@@ -458,6 +482,9 @@ __attribute__((unused)) int extract_mfcc_per_slice_features(signal_t *signal, ma
     class speechpy::processing::preemphasis pre(signal, config.pre_shift, config.pre_cof);
     preemphasis = &pre;
 
+    /* Increase the buffer length with the cached sample data */
+    signal->total_length += cache_sample_size;
+
     /* Fake an extra frame_length for stack frames calculations. There, 1 frame_length is always
     subtracted and there for never used. But skip the first slice to fit the feature_matrix
     buffer */
@@ -474,7 +501,8 @@ __attribute__((unused)) int extract_mfcc_per_slice_features(signal_t *signal, ma
 
     signal_t preemphasized_audio_signal;
     preemphasized_audio_signal.total_length = signal->total_length;
-    preemphasized_audio_signal.get_data = &preemphasized_audio_signal_get_data;
+    preemphasized_audio_signal.get_data = &preemphasized_audio_signal_get_and_align_data;
+    last_read_sample = 0;
 
     // calculate the size of the MFCC matrix
     matrix_size_t out_matrix_size =
@@ -486,7 +514,6 @@ __attribute__((unused)) int extract_mfcc_per_slice_features(signal_t *signal, ma
         ei_printf("calculated size = %hux%hu\n", out_matrix_size.rows, out_matrix_size.cols);
         EIDSP_ERR(EIDSP_MATRIX_SIZE_MISMATCH);
     }
-
     output_matrix->rows = out_matrix_size.rows;
     output_matrix->cols = out_matrix_size.cols;
 
@@ -508,6 +535,27 @@ __attribute__((unused)) int extract_mfcc_per_slice_features(signal_t *signal, ma
         }
     }
 
+    /* Get back to original sample length */
+    signal->total_length -= cache_sample_size;
+
+    if(cache_sample_buffer) {
+        ei_free(cache_sample_buffer);
+        cache_sample_size = 0;
+        cache_sample_buffer = 0;
+    }
+
+    /* Cache data if not complete sample buffer is read */
+    if(last_read_sample < (uint32_t)signal->total_length) {
+
+        uint32_t missing_samples =  signal->total_length - last_read_sample;
+
+        cache_sample_buffer = (float *)ei_malloc(missing_samples * sizeof(float));
+        if(cache_sample_buffer == NULL) {
+            EIDSP_ERR(EIDSP_OUT_OF_MEM);
+        }
+        preemphasis->get_data(last_read_sample, missing_samples, cache_sample_buffer);
+        cache_sample_size = missing_samples;
+    }
 
     return EIDSP_OK;
 }
@@ -797,10 +845,6 @@ __attribute__((unused)) int extract_image_features_quantized(signal_t *signal, m
 
     size_t output_ix = 0;
 
-    const int32_t iRedToGray = (int32_t)(0.299f * 65536.0f);
-    const int32_t iGreenToGray = (int32_t)(0.587f * 65536.0f);
-    const int32_t iBlueToGray = (int32_t)(0.114f * 65536.0f);
-
 #if defined(EI_DSP_IMAGE_BUFFER_STATIC_SIZE)
     const size_t page_size = EI_DSP_IMAGE_BUFFER_STATIC_SIZE;
 #else
@@ -825,25 +869,20 @@ __attribute__((unused)) int extract_image_features_quantized(signal_t *signal, m
         for (size_t jx = 0; jx < elements_to_read; jx++) {
             uint32_t pixel = static_cast<uint32_t>(input_matrix.buffer[jx]);
 
-            // rgb to 0..1
-            int32_t r = static_cast<int32_t>(pixel >> 16 & 0xff);
-            int32_t g = static_cast<int32_t>(pixel >> 8 & 0xff);
-            int32_t b = static_cast<int32_t>(pixel & 0xff);
+            float r = static_cast<float>(pixel >> 16 & 0xff) / 255.0f;
+            float g = static_cast<float>(pixel >> 8 & 0xff) / 255.0f;
+            float b = static_cast<float>(pixel & 0xff) / 255.0f;
 
             if (channel_count == 3) {
-                output_matrix->buffer[output_ix++] = static_cast<int8_t>(r + EI_CLASSIFIER_TFLITE_INPUT_ZEROPOINT);
-                output_matrix->buffer[output_ix++] = static_cast<int8_t>(g + EI_CLASSIFIER_TFLITE_INPUT_ZEROPOINT);
-                output_matrix->buffer[output_ix++] = static_cast<int8_t>(b + EI_CLASSIFIER_TFLITE_INPUT_ZEROPOINT);
+                output_matrix->buffer[output_ix++] = static_cast<int8_t>(round(r / EI_CLASSIFIER_TFLITE_INPUT_SCALE) + EI_CLASSIFIER_TFLITE_INPUT_ZEROPOINT);
+                output_matrix->buffer[output_ix++] = static_cast<int8_t>(round(g / EI_CLASSIFIER_TFLITE_INPUT_SCALE) + EI_CLASSIFIER_TFLITE_INPUT_ZEROPOINT);
+                output_matrix->buffer[output_ix++] = static_cast<int8_t>(round(b / EI_CLASSIFIER_TFLITE_INPUT_SCALE) + EI_CLASSIFIER_TFLITE_INPUT_ZEROPOINT);
             }
             else {
                 // ITU-R 601-2 luma transform
                 // see: https://pillow.readthedocs.io/en/stable/reference/Image.html#PIL.Image.Image.convert
-                int32_t gray = (iRedToGray * r) + (iGreenToGray * g) + (iBlueToGray * b);
-                gray >>= 16; // scale down to int8_t
-                gray += EI_CLASSIFIER_TFLITE_INPUT_ZEROPOINT;
-                if (gray < - 128) gray = -128;
-                else if (gray > 127) gray = 127;
-                output_matrix->buffer[output_ix++] = static_cast<int8_t>(gray);
+                float v = (0.299f * r) + (0.587f * g) + (0.114f * b);
+                output_matrix->buffer[output_ix++] = static_cast<int8_t>(round(v / EI_CLASSIFIER_TFLITE_INPUT_SCALE) + EI_CLASSIFIER_TFLITE_INPUT_ZEROPOINT);
             }
         }
 
