@@ -307,6 +307,15 @@ loop()
       break;
     }
 
+    case INFERENCE_RESULTS: {
+      if (mode == TRAINING) {
+        spr.drawString("Outputting sensor data to serial.", 10, 60, 1);
+        spr.drawString("Use Edge Impulse CLI on your", 10, 100, 1);
+        spr.drawString("computer to upload training", 10, 120, 1);
+        spr.drawString("data to your project.", 10, 140, 1);
+      }
+    }
+
     default: {
       break; // nothing
     }
