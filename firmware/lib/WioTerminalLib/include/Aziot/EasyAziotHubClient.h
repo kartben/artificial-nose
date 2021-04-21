@@ -16,6 +16,12 @@ public:
         std::string Version;
     };
 
+    struct MethodRequest
+    {
+        std::string RequestId;
+        std::string MethodName;
+    };
+
 public:
     EasyAziotHubClient();
     EasyAziotHubClient(const EasyAziotHubClient&) = delete;
@@ -33,6 +39,7 @@ public:
     std::string GetTwinPatchPublishTopic(const char* requestId);
 
     int ParseTwinTopic(const char* topic, TwinResponse& twinResponse);
+    int ParseMethodRequest(const char* topic, MethodRequest& methodRequest);
 
 private:
     std::string Host_;

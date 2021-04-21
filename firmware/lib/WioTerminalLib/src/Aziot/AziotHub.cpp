@@ -9,6 +9,7 @@ static PubSubClient Mqtt_(Tcp_);
 
 std::function<void(const char* json, const char* requestId)> AziotHub::ReceivedTwinDocumentCallback;
 std::function<void(const char* json, const char* version)> AziotHub::ReceivedTwinDesiredPatchCallback;
+std::function<void(const char* json, const char* methodName)> AziotHub::ReceivedMethodCallback;
 EasyAziotHubClient AziotHub::HubClient_;
 
 AziotHub::AziotHub() :
@@ -54,6 +55,7 @@ int AziotHub::Connect(const std::string& host, const std::string& deviceId, cons
 
     Mqtt_.subscribe(AZ_IOT_HUB_CLIENT_TWIN_RESPONSE_SUBSCRIBE_TOPIC);
     Mqtt_.subscribe(AZ_IOT_HUB_CLIENT_TWIN_PATCH_SUBSCRIBE_TOPIC);
+    Mqtt_.subscribe(AZ_IOT_HUB_CLIENT_METHODS_SUBSCRIBE_TOPIC);
 
     return 0;
 }
@@ -92,17 +94,16 @@ void AziotHub::SendTwinPatch(const char* requestId, const char* payload)
 
 void AziotHub::MqttSubscribeCallback(char* topic, uint8_t* payload, unsigned int length)
 {
-    Serial.printf("Received twin\n");
+    Serial.printf("Received MQTT message\n");
     Serial.printf(" topic  :%s\n", topic);
     Serial.print("payload:");
     for (int i = 0; i < static_cast<int>(length); i++) Serial.print(static_cast<char>(payload[i]));
     Serial.println();
 
+    std::string json(reinterpret_cast<char*>(payload), reinterpret_cast<char*>(payload) + length);
     EasyAziotHubClient::TwinResponse response;
     if (HubClient_.ParseTwinTopic(topic, response) == 0)
     {
-        std::string json(reinterpret_cast<char*>(payload), reinterpret_cast<char*>(payload) + length);
-
         switch (response.ResponseType)
         {
         case AZ_IOT_HUB_CLIENT_TWIN_RESPONSE_TYPE_GET:
@@ -114,5 +115,15 @@ void AziotHub::MqttSubscribeCallback(char* topic, uint8_t* payload, unsigned int
         case AZ_IOT_HUB_CLIENT_TWIN_RESPONSE_TYPE_REPORTED_PROPERTIES:
             break;
         }
+
+        return;
     }
+
+    EasyAziotHubClient::MethodRequest method_request;
+    if (HubClient_.ParseMethodRequest(topic, method_request) == 0)
+    {
+        if (ReceivedMethodCallback != nullptr) ReceivedMethodCallback(json.c_str(), method_request.MethodName.c_str());
+    }
+
+
 }

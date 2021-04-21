@@ -23,6 +23,7 @@ public:
 
     static std::function<void(const char* json, const char* requestId)> ReceivedTwinDocumentCallback;
     static std::function<void(const char* json, const char* version)> ReceivedTwinDesiredPatchCallback;
+    static std::function<void(const char* json, const char* methodName)> ReceivedMethodCallback;
 
 private:
     uint16_t MqttPacketSize_;

@@ -160,3 +160,26 @@ int EasyAziotHubClient::ParseTwinTopic(const char* topic, EasyAziotHubClient::Tw
 
     return 0;
 }
+
+int EasyAziotHubClient::ParseMethodRequest(const char* topic, EasyAziotHubClient::MethodRequest& methodRequest) {
+    az_iot_hub_client_method_request method_request;
+    const az_span topicSpan = az_span_create_from_str(const_cast<char*>(topic));
+    if (az_result_failed(az_iot_hub_client_methods_parse_received_topic(&HubClient_, topicSpan, &method_request))) return -1;
+
+    if (az_span_size(method_request.request_id) <= 0)
+    {
+        methodRequest.RequestId.clear();
+    }
+    else
+    {
+        char requestId[az_span_size(method_request.request_id) + 1];
+        az_span_to_str(requestId, sizeof(requestId), method_request.request_id);
+        methodRequest.RequestId = requestId;
+    }
+
+    char methodName[az_span_size(method_request.name) + 1];
+    az_span_to_str(methodName, sizeof(methodName), method_request.name);
+    methodRequest.MethodName = methodName;
+
+    return 0;
+}
