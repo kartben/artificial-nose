@@ -37,12 +37,12 @@
       "@type": [
         "Telemetry"
       ],
-      "name": "c2h5nh",
+      "name": "c2h5oh",
       "displayName": {
-        "en": "C₂H₅NH (ppm)"
+        "en": "C₂H₅OH (ppm)"
       },
       "description": {
-        "en": "Ethyl Alcohol (C₂H₅NH) Concentration"
+        "en": "Ethyl Alcohol (C₂H₅OH) Concentration"
       },
       "schema": "integer"
     },
