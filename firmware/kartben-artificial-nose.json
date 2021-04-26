@@ -10,6 +10,7 @@
     {
       "@type": "Component",
       "name": "gas_sensor",
+      "displayName": "Gas Sensor",
       "schema": "dtmi:seeedstudio:grove:multichannel_gas_sensor_v2;1"
     },
     {
