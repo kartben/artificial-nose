@@ -44,7 +44,7 @@
 #define EI_CLASSIFIER_PROJECT_ID                 2389
 #define EI_CLASSIFIER_PROJECT_OWNER              "kartben"
 #define EI_CLASSIFIER_PROJECT_NAME               "artificial_nose"
-#define EI_CLASSIFIER_PROJECT_DEPLOY_VERSION     30
+#define EI_CLASSIFIER_PROJECT_DEPLOY_VERSION     33
 #define EI_CLASSIFIER_NN_INPUT_FRAME_SIZE        20
 #define EI_CLASSIFIER_RAW_SAMPLE_COUNT           15
 #define EI_CLASSIFIER_RAW_SAMPLES_PER_FRAME      4
@@ -52,7 +52,7 @@
 #define EI_CLASSIFIER_INPUT_WIDTH                0
 #define EI_CLASSIFIER_INPUT_HEIGHT               0
 #define EI_CLASSIFIER_INTERVAL_MS                100
-#define EI_CLASSIFIER_LABEL_COUNT                2
+#define EI_CLASSIFIER_LABEL_COUNT                3
 #define EI_CLASSIFIER_HAS_ANOMALY                1
 #define EI_CLASSIFIER_FREQUENCY                  10
 #define EI_CLASSIFIER_USE_QUANTIZED_DSP_BLOCK    0
@@ -61,7 +61,7 @@
 #define EI_CLASSIFIER_OBJECT_DETECTION           0
 
 
-#define EI_CLASSIFIER_TFLITE_ARENA_SIZE          3328
+#define EI_CLASSIFIER_TFLITE_ARENA_SIZE          3347
 #define EI_CLASSIFIER_TFLITE_INPUT_DATATYPE      EI_CLASSIFIER_DATATYPE_FLOAT32
 #define EI_CLASSIFIER_TFLITE_INPUT_QUANTIZED     0
 #define EI_CLASSIFIER_TFLITE_INPUT_SCALE         0
@@ -71,7 +71,7 @@
 #define EI_CLASSIFIER_TFLITE_OUTPUT_SCALE        0
 #define EI_CLASSIFIER_TFLITE_OUTPUT_ZEROPOINT    0
 #define EI_CLASSIFIER_INFERENCING_ENGINE         EI_CLASSIFIER_TFLITE
-#define EI_CLASSIFIER_COMPILED                   1
+#define EI_CLASSIFIER_COMPILED                   0
 #define EI_CLASSIFIER_HAS_TFLITE_OPS_RESOLVER    1
 
 #define EI_CLASSIFIER_SENSOR                     EI_CLASSIFIER_SENSOR_UNKNOWN
@@ -90,7 +90,7 @@
 #endif
 #endif // EI_CLASSIFIER_INFERENCING_ENGINE == EI_CLASSIFIER_TFLITE && EI_CLASSIFIER_USE_FULL_TFLITE == 1
 
-const char* ei_classifier_inferencing_categories[] = { "ambient", "whiskey" };
+const char* ei_classifier_inferencing_categories[] = { "ambient", "coffee", "whiskey" };
 
 typedef struct {
     uint16_t implementation_version;
