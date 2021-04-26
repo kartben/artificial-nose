@@ -48,6 +48,7 @@ static std::string DeviceId_;
 static AziotHub AziotHub_;
 
 static unsigned long TelemetryInterval_ = TELEMETRY_INTERVAL;   // [sec.]
+static unsigned long nextTelemetrySendTime = 0;
 
 static void ConnectWiFi()
 {
@@ -284,7 +285,8 @@ static void ReceivedTwinDocument(const char* json, const char* requestId)
 
     if (AziotUpdateWritableProperty("telemetryInterval", &TelemetryInterval_, doc["desired"]["$version"], doc["desired"], doc["reported"]))
     {
-		Serial.printf("telemetryInterval = %d\n", TelemetryInterval_);
+      nextTelemetrySendTime = millis() + TelemetryInterval_;
+      Display_.Printf("New telemetryInterval = %d\n", TelemetryInterval_);
     }
 }
 
@@ -297,7 +299,8 @@ static void ReceivedTwinDesiredPatch(const char* json, const char* version)
 
   if (AziotUpdateWritableProperty("telemetryInterval", &TelemetryInterval_, doc["$version"], doc.as<JsonVariant>()))
   {
-    Serial.printf("telemetryInterval = %d\n", TelemetryInterval_);
+    nextTelemetrySendTime = millis() + TelemetryInterval_;
+    Display_.Printf("New telemetryInterval = %d\n", TelemetryInterval_);
   }
 
 }
@@ -454,9 +457,6 @@ loop()
       buffer.unshift(sensorVal);
     }
   }
-
-  // send telemetry?
-  static unsigned long nextTelemetrySendTime = 0;
 
   if(millis() >= nextTelemetrySendTime) 
   {
