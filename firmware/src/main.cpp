@@ -14,8 +14,6 @@ GAS_GMXXX<TwoWire>* gas = new GAS_GMXXX<TwoWire>();
 #include <TFT_eSPI.h>
 TFT_eSPI tft;
 TFT_eSprite spr = TFT_eSprite(&tft); // main sprite
-TFT_eSprite inferenceSpr =
-  TFT_eSprite(&tft); // inference result sprite (ex. coffee icon)
 
 #define DARK_BACKGROUND 0
 #define TEXT_COLOR (DARK_BACKGROUND ? TFT_WHITE : TFT_BLACK)
@@ -26,9 +24,10 @@ TFT_eSprite inferenceSpr =
 #include "images/icon_ambient.h"
 #include "images/icon_anomaly.h"
 #include "images/icon_coffee.h"
+#include "images/icon_no_anomaly.h"
 #include "images/icon_whiskey.h"
 
-const unsigned short* ICONS_MAP[] = { icon_ambient, icon_whiskey };
+const unsigned short* ICONS_MAP[] = { icon_ambient, icon_coffee, icon_whiskey };
 
 typedef uint32_t (GAS_GMXXX<TwoWire>::*sensorGetFn)();
 
@@ -210,9 +209,6 @@ setup()
   spr.createSprite(
     tft.width(),
     tft.height()); // /!\ this will allocate 320*240*2 = 153.6K of RAM
-  inferenceSpr.setColorDepth(8);
-  inferenceSpr.createSprite(60,
-                            60); // /!\ this will allocate 60*60*1 = 3.6K of RAM
 }
 
 /**
@@ -329,10 +325,10 @@ loop()
 
     case INFERENCE_RESULTS: {
       if (mode == TRAINING) {
-        spr.drawString("Outputting sensor data to serial.", 10, 60, 1);
-        spr.drawString("Use Edge Impulse CLI on your", 10, 100, 1);
-        spr.drawString("computer to upload training", 10, 120, 1);
-        spr.drawString("data to your project.", 10, 140, 1);
+        spr.drawString("Outputting sensor data to serial.", 16, 60, 1);
+        spr.drawString("Use Edge Impulse CLI on your", 16, 100, 1);
+        spr.drawString("computer to upload training", 16, 120, 1);
+        spr.drawString("data to your project.", 16, 140, 1);
       }
     }
 
@@ -403,7 +399,11 @@ loop()
       }
 
       if (screen_mode == INFERENCE_RESULTS) {
-        spr.pushImage(80, 55, 130, 130, (uint16_t*)ICONS_MAP[best_prediction]);
+        if (best_prediction != latest_inference_idx) {
+          // clear icon background
+          spr.pushSprite(0, 0);
+        }
+        spr.pushImage(30, 35, 130, 130, (uint16_t*)ICONS_MAP[best_prediction]);
         spr.setFreeFont(&Roboto_Bold_28);
         spr.setTextDatum(CC_DATUM);
         spr.setTextColor(TEXT_COLOR);
@@ -414,13 +414,11 @@ loop()
       sprintf(lineBuffer, "    anomaly score: %.3f\n", result.anomaly);
       ei_printf(lineBuffer);
       if (mode == INFERENCE && screen_mode == INFERENCE_RESULTS) {
-        // spr.drawString(lineBuffer,
-        //                10,
-        //                lineNumber + 15,
-        //                1); // Print the test text in the custom font
-        if (result.anomaly > 0.7) {
-          spr.pushImage(80, 55, 130, 130, icon_anomaly);
-        }
+        spr.pushImage(160,
+                      35,
+                      130,
+                      130,
+                      (result.anomaly > 0.7) ? icon_anomaly : icon_no_anomaly);
       }
 #endif
 
