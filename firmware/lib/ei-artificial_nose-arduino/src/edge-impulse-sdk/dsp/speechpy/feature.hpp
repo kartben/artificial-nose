@@ -203,6 +203,10 @@ public:
             high_frequency = sampling_frequency / 2;
         }
 
+        if (low_frequency == 0) {
+            low_frequency = 300;
+        }
+
         stack_frames_info_t stack_frame_info = { 0 };
         stack_frame_info.signal = signal;
 

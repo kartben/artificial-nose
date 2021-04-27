@@ -42,7 +42,13 @@ typedef enum {
     EI_IMPULSE_ALLOC_FAILED = -8,
     EI_IMPULSE_ONLY_SUPPORTED_FOR_IMAGES = -9,
     EI_IMPULSE_UNSUPPORTED_INFERENCING_ENGINE = -10,
-    EI_IMPULSE_OUT_OF_MEMORY = -11
+    EI_IMPULSE_OUT_OF_MEMORY = -11,
+    EI_IMPULSE_NOT_SUPPORTED_WITH_I16 = -12,
+    EI_IMPULSE_INPUT_TENSOR_WAS_NULL = -13,
+    EI_IMPULSE_OUTPUT_TENSOR_WAS_NULL = -14,
+    EI_IMPULSE_SCORE_TENSOR_WAS_NULL = -15,
+    EI_IMPULSE_LABEL_TENSOR_WAS_NULL = -16,
+    EI_IMPULSE_TENSORRT_INIT_FAILED = -17
 } EI_IMPULSE_ERROR;
 
 /**
@@ -71,7 +77,13 @@ uint64_t ei_read_timer_us();
  */
 void ei_serial_set_baudrate(int baudrate);
 
-void ei_printf(const char *format, ...);
+/**
+ * @brief      Connect to putchar of target
+ *
+ * @param[in]  c The chararater
+ */
+void ei_putchar(char c);
+
 /**
  * Print wrapper around printf()
  * This is used internally to print debug information.

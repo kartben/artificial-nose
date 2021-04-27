@@ -73,6 +73,8 @@ typedef struct ei_matrix {
     const char *_fn;
     const char *_file;
     int _line;
+    uint32_t _originally_allocated_rows;
+    uint32_t _originally_allocated_cols;
 #endif
 
 #ifdef __cplusplus
@@ -110,11 +112,13 @@ typedef struct ei_matrix {
             _fn = fn;
             _file = file;
             _line = line;
+            _originally_allocated_rows = rows;
+            _originally_allocated_cols = cols;
             if (_fn) {
-                ei_dsp_register_matrix_alloc_internal(fn, file, line, rows, cols, sizeof(float));
+                ei_dsp_register_matrix_alloc_internal(fn, file, line, rows, cols, sizeof(float), buffer);
             }
             else {
-                ei_dsp_register_matrix_alloc(rows, cols, sizeof(float));
+                ei_dsp_register_matrix_alloc(rows, cols, sizeof(float), buffer);
             }
 #endif
         }
@@ -126,10 +130,12 @@ typedef struct ei_matrix {
 
 #if EIDSP_TRACK_ALLOCATIONS
             if (_fn) {
-                ei_dsp_register_matrix_free_internal(_fn, _file, _line, rows, cols, sizeof(float));
+                ei_dsp_register_matrix_free_internal(_fn, _file, _line, _originally_allocated_rows,
+                    _originally_allocated_cols, sizeof(float), buffer);
             }
             else {
-                ei_dsp_register_matrix_free(rows, cols, sizeof(float));
+                ei_dsp_register_matrix_free(_originally_allocated_rows, _originally_allocated_cols,
+                    sizeof(float), buffer);
             }
 #endif
         }
@@ -147,6 +153,8 @@ typedef struct ei_matrix_i16 {
     const char *_fn;
     const char *_file;
     int _line;
+    uint32_t _originally_allocated_rows;
+    uint32_t _originally_allocated_cols;
 #endif
 
 #ifdef __cplusplus
@@ -184,11 +192,13 @@ typedef struct ei_matrix_i16 {
             _fn = fn;
             _file = file;
             _line = line;
+            _originally_allocated_rows = rows;
+            _originally_allocated_cols = cols;
             if (_fn) {
-                ei_dsp_register_matrix_alloc_internal(fn, file, line, rows, cols, sizeof(EIDSP_i16));
+                ei_dsp_register_matrix_alloc_internal(fn, file, line, rows, cols, sizeof(EIDSP_i16), buffer);
             }
             else {
-                ei_dsp_register_matrix_alloc(rows, cols, sizeof(EIDSP_i16));
+                ei_dsp_register_matrix_alloc(rows, cols, sizeof(EIDSP_i16), buffer);
             }
 #endif
         }
@@ -200,10 +210,12 @@ typedef struct ei_matrix_i16 {
 
 #if EIDSP_TRACK_ALLOCATIONS
             if (_fn) {
-                ei_dsp_register_matrix_free_internal(_fn, _file, _line, rows, cols, sizeof(EIDSP_i16));
+                ei_dsp_register_matrix_free_internal(_fn, _file, _line, _originally_allocated_rows,
+                    _originally_allocated_cols, sizeof(EIDSP_i16), buffer);
             }
             else {
-                ei_dsp_register_matrix_free(rows, cols, sizeof(EIDSP_i16));
+                ei_dsp_register_matrix_free(_originally_allocated_rows, _originally_allocated_cols,
+                    sizeof(EIDSP_i16), buffer);
             }
 #endif
         }
@@ -221,6 +233,8 @@ typedef struct ei_matrix_i32 {
     const char *_fn;
     const char *_file;
     int _line;
+    uint32_t _originally_allocated_rows;
+    uint32_t _originally_allocated_cols;
 #endif
 
 #ifdef __cplusplus
@@ -258,11 +272,13 @@ typedef struct ei_matrix_i32 {
             _fn = fn;
             _file = file;
             _line = line;
+            _originally_allocated_rows = rows;
+            _originally_allocated_cols = cols;
             if (_fn) {
-                ei_dsp_register_matrix_alloc_internal(fn, file, line, rows, cols, sizeof(EIDSP_i32));
+                ei_dsp_register_matrix_alloc_internal(fn, file, line, rows, cols, sizeof(EIDSP_i32), buffer);
             }
             else {
-                ei_dsp_register_matrix_alloc(rows, cols, sizeof(EIDSP_i32));
+                ei_dsp_register_matrix_alloc(rows, cols, sizeof(EIDSP_i32), buffer);
             }
 #endif
         }
@@ -274,10 +290,12 @@ typedef struct ei_matrix_i32 {
 
 #if EIDSP_TRACK_ALLOCATIONS
             if (_fn) {
-                ei_dsp_register_matrix_free_internal(_fn, _file, _line, rows, cols, sizeof(EIDSP_i32));
+                ei_dsp_register_matrix_free_internal(_fn, _file, _line, _originally_allocated_rows,
+                    _originally_allocated_cols, sizeof(EIDSP_i32), buffer);
             }
             else {
-                ei_dsp_register_matrix_free(rows, cols, sizeof(EIDSP_i32));
+                ei_dsp_register_matrix_free(_originally_allocated_rows, _originally_allocated_cols,
+                    sizeof(EIDSP_i32), buffer);
             }
 #endif
         }
@@ -299,6 +317,8 @@ typedef struct ei_matrix_i8 {
     const char *_fn;
     const char *_file;
     int _line;
+    uint32_t _originally_allocated_rows;
+    uint32_t _originally_allocated_cols;
 #endif
 
 #ifdef __cplusplus
@@ -336,11 +356,13 @@ typedef struct ei_matrix_i8 {
             _fn = fn;
             _file = file;
             _line = line;
+            _originally_allocated_rows = rows;
+            _originally_allocated_cols = cols;
             if (_fn) {
-                ei_dsp_register_matrix_alloc_internal(fn, file, line, rows, cols, sizeof(int8_t));
+                ei_dsp_register_matrix_alloc_internal(fn, file, line, rows, cols, sizeof(int8_t), buffer);
             }
             else {
-                ei_dsp_register_matrix_alloc(rows, cols, sizeof(int8_t));
+                ei_dsp_register_matrix_alloc(rows, cols, sizeof(int8_t), buffer);
             }
 #endif
         }
@@ -352,10 +374,12 @@ typedef struct ei_matrix_i8 {
 
 #if EIDSP_TRACK_ALLOCATIONS
             if (_fn) {
-                ei_dsp_register_matrix_free_internal(_fn, _file, _line, rows, cols, sizeof(int8_t));
+                ei_dsp_register_matrix_free_internal(_fn, _file, _line, _originally_allocated_rows,
+                    _originally_allocated_cols, sizeof(int8_t), buffer);
             }
             else {
-                ei_dsp_register_matrix_free(rows, cols, sizeof(int8_t));
+                ei_dsp_register_matrix_free(_originally_allocated_rows, _originally_allocated_cols,
+                    sizeof(int8_t), buffer);
             }
 #endif
         }
@@ -383,6 +407,8 @@ typedef struct ei_quantized_matrix {
     const char *_fn;
     const char *_file;
     int _line;
+    uint32_t _originally_allocated_rows;
+    uint32_t _originally_allocated_cols;
 #endif
 
 #ifdef __cplusplus
@@ -425,11 +451,13 @@ typedef struct ei_quantized_matrix {
             _fn = fn;
             _file = file;
             _line = line;
+            _originally_allocated_rows = rows;
+            _originally_allocated_cols = cols;
             if (_fn) {
-                ei_dsp_register_matrix_alloc_internal(fn, file, line, rows, cols, sizeof(uint8_t));
+                ei_dsp_register_matrix_alloc_internal(fn, file, line, rows, cols, sizeof(uint8_t), buffer);
             }
             else {
-                ei_dsp_register_matrix_alloc(rows, cols, sizeof(uint8_t));
+                ei_dsp_register_matrix_alloc(rows, cols, sizeof(uint8_t), buffer);
             }
 #endif
         }
@@ -441,10 +469,12 @@ typedef struct ei_quantized_matrix {
 
 #if EIDSP_TRACK_ALLOCATIONS
             if (_fn) {
-                ei_dsp_register_matrix_free_internal(_fn, _file, _line, rows, cols, sizeof(uint8_t));
+                ei_dsp_register_matrix_free_internal(_fn, _file, _line, _originally_allocated_rows,
+                    _originally_allocated_cols, sizeof(uint8_t), buffer);
             }
             else {
-                ei_dsp_register_matrix_free(rows, cols, sizeof(uint8_t));
+                ei_dsp_register_matrix_free(_originally_allocated_rows, _originally_allocated_cols,
+                    sizeof(uint8_t), buffer);
             }
 #endif
         }

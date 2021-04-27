@@ -19,18 +19,4 @@
 * SOFTWARE.
 */
 
-#ifndef _EI_CLASSIFIER_ANOMALY_TYPES_HEADER_H_
-#define _EI_CLASSIFIER_ANOMALY_TYPES_HEADER_H_
-
-#define EI_CLASSIFIER_HAS_ANOMALY    1
-
-const uint16_t EI_CLASSIFIER_ANOM_AXIS[]  { 3, 8, 13, 18 };
-#define EI_CLASSIFIER_ANOM_AXIS_SIZE      4
-#define EI_CLASSIFIER_ANOM_CLUSTER_COUNT  12
-
-typedef struct {
-float centroid[EI_CLASSIFIER_ANOM_AXIS_SIZE];
-float max_error;
-} ei_classifier_anom_cluster_t;
-
-#endif // _EI_CLASSIFIER_ANOMALY_TYPES_HEADER_H_
+// Empty on purpose

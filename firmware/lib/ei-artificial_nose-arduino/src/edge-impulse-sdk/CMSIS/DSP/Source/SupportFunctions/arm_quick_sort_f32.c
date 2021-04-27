@@ -29,7 +29,7 @@
  */
 
 #include "edge-impulse-sdk/CMSIS/DSP/Include/arm_math.h"
-#include "edge-impulse-sdk/CMSIS/DSP/PrivateInclude/arm_sorting.h"
+#include "edge-impulse-sdk/CMSIS/DSP/Include/arm_sorting.h"
 
 static uint32_t arm_quick_sort_partition_f32(float32_t *pSrc, int32_t first, int32_t last, uint8_t dir)
 {

@@ -33,7 +33,7 @@
 #include "memory.hpp"
 #include "dct/fast-dct-fft.h"
 #include "kissfft/kiss_fftr.h"
-#if EIDSP_USE_CMSIS_FIXED_RFFT
+#if EIDSP_USE_CMSIS_FIXED
 #include "edge-impulse-sdk/CMSIS/DSP/Include/arm_math.h"
 #endif
 
@@ -115,6 +115,38 @@ public:
 
         // and copy the shift buffer back to the beginning of the array
         memcpy(input_array, shift_matrix.buffer, shift * sizeof(int));
+
+        return EIDSP_OK;
+    }
+
+    /**
+     * Roll array elements along a given axis.
+     * Elements that roll beyond the last position are re-introduced at the first.
+     * @param input_array
+     * @param input_array_size
+     * @param shift The number of places by which elements are shifted.
+     * @returns EIDSP_OK if OK
+     */
+    static int roll(int16_t *input_array, size_t input_array_size, int shift) {
+        if (shift < 0) {
+            shift = input_array_size + shift;
+        }
+
+        if (shift == 0) {
+            return EIDSP_OK;
+        }
+
+        // so we need to allocate a buffer of the size of shift...
+        EI_DSP_MATRIX(shift_matrix, 1, shift);
+
+        // we copy from the end of the buffer into the shift buffer
+        memcpy(shift_matrix.buffer, input_array + input_array_size - shift, shift * sizeof(int16_t));
+
+        // now we do a memmove to shift the array
+        memmove(input_array + shift, input_array, (input_array_size - shift) * sizeof(int16_t));
+
+        // and copy the shift buffer back to the beginning of the array
+        memcpy(input_array, shift_matrix.buffer, shift * sizeof(int16_t));
 
         return EIDSP_OK;
     }
@@ -364,7 +396,7 @@ public:
             EIDSP_ERR(EIDSP_OUT_OF_MEM);
         }
 
-#if EIDSP_USE_CMSIS_DSP
+#if EIDSP_USE_CMSIS_FiXED
         const arm_matrix_instance_q15 i_m = {
             static_cast<uint16_t>(columns),
             static_cast<uint16_t>(rows),
@@ -652,7 +684,7 @@ public:
         EIDSP_i16 scale_i16;
         float_to_int16(&scale, &scale_i16, 1);
 
-#if EIDSP_USE_CMSIS_DSP
+#if EIDSP_USE_CMSIS_FiXED
         const arm_matrix_instance_q15 mi = {(uint16_t)matrix->rows, (uint16_t)matrix->cols, matrix->buffer };
         arm_matrix_instance_q15 mo = { (uint16_t)matrix->rows, (uint16_t)matrix->cols, matrix->buffer };
         int status = arm_mat_scale_q15(&mi, scale_i16, 0, &mo);
@@ -682,7 +714,7 @@ public:
         EIDSP_i32 scale_i32;
         float_to_int32(&scale, &scale_i32, 1);
 
-#if EIDSP_USE_CMSIS_DSP
+#if EIDSP_USE_CMSIS_FiXED
         const arm_matrix_instance_q31 mi = { (uint16_t)matrix->rows, (uint16_t)matrix->cols, matrix->buffer };
         arm_matrix_instance_q31 mo = { (uint16_t)matrix->rows, (uint16_t)matrix->cols, matrix->buffer };
         int status = arm_mat_scale_q31(&mi, scale_i32, 0, &mo);
@@ -891,7 +923,7 @@ public:
         }
 
         for (size_t row = 0; row < matrix->rows; row++) {
-#if EIDSP_USE_CMSIS_DSP
+#if EIDSP_USE_CMSIS_FiXED
             EIDSP_i16 rms_result;
             arm_rms_q15(matrix->buffer + (row * matrix->cols), matrix->cols, &rms_result);
             output_matrix->buffer[row] = rms_result;
@@ -954,7 +986,7 @@ public:
         }
 
         for (size_t row = 0; row < input_matrix->rows; row++) {
-#if EIDSP_USE_CMSIS_DSP
+#if EIDSP_USE_CMSIS_FiXED
             EIDSP_i16 mean;
             arm_mean_q15(input_matrix->buffer + (row * input_matrix->cols), input_matrix->cols, &mean);
             output_matrix->buffer[row] = mean;
@@ -1397,7 +1429,7 @@ public:
         // pad to the rigth with zeros
         memset(fft_input.buffer + src_size, 0, (n_fft - src_size) * sizeof(EIDSP_i16));
 
-#if EIDSP_USE_CMSIS_FIXED_RFFT
+#if EIDSP_USE_CMSIS_FIXED
         if (n_fft != 32 && n_fft != 64 && n_fft != 128 && n_fft != 256 &&
             n_fft != 512 && n_fft != 1024 && n_fft != 2048 && n_fft != 4096) {
             EIDSP_ERR(EIDSP_PARAMETER_INVALID); //TODO zero pad so we can use anyway`
@@ -1429,7 +1461,8 @@ public:
             }
         }
 #else
-        #error("No DSP lib defined!  Use CMSIS-DSP for C implementation ( #define EIDSP_USE_CMSIS_FIXED_RFFT 1 )")
+        #error("No DSP lib defined!  Use CMSIS-DSP for C implementation ( #define EIDSP_USE_CMSIS_DSP 1 )")
+}
 #endif
 
         return EIDSP_OK;
@@ -1459,7 +1492,7 @@ public:
 
         // declare input and output arrays
         EI_DSP_i32_MATRIX(fft_input, 1, n_fft << 1);
-        
+
         if (!fft_input.buffer) {
             EIDSP_ERR(EIDSP_OUT_OF_MEM);
         }
@@ -1469,7 +1502,7 @@ public:
         // pad to the rigth with zeros
         memset(fft_input.buffer + src_size, 0, (n_fft - src_size) * sizeof(EIDSP_i32));
 
-#if EIDSP_USE_CMSIS_FIXED_RFFT
+#if EIDSP_USE_CMSIS_FIXED
         if (n_fft != 32 && n_fft != 64 && n_fft != 128 && n_fft != 256 &&
             n_fft != 512 && n_fft != 1024 && n_fft != 2048 && n_fft != 4096) {
             EIDSP_ERR(EIDSP_PARAMETER_INVALID);
@@ -1503,7 +1536,7 @@ public:
             }
         }
 #else
-        #error("No DSP lib defined!  Use CMSIS-DSP for C implementation ( #define EIDSP_USE_CMSIS_FIXED_RFFT 1 )")
+        #error("No DSP lib defined!  Use CMSIS-DSP for C implementation ( #define EIDSP_USE_CMSIS_FIXED 1 )")
 #endif
 
         return EIDSP_OK;
@@ -1623,16 +1656,12 @@ public:
             memset(fft_input.buffer + src_size, 0, (n_fft - src_size) * sizeof(EIDSP_i16));
         }
 
-#if 1//EIDSP_USE_CMSIS_DSP
-        // if (n_fft != 32 && n_fft != 64 && n_fft != 128 && n_fft != 256 &&
-        //     n_fft != 512 && n_fft != 1024 && n_fft != 2048 && n_fft != 4096) {
-        //     int ret = software_rfft(fft_input.buffer, output, n_fft, n_fft_out_features);
-        //     if (ret != EIDSP_OK) {
-        //         EIDSP_ERR(ret);
-        //     }
-        // }
-        // else {
-        {
+#if EIDSP_USE_CMSIS_FIXED
+        if (n_fft != 32 && n_fft != 64 && n_fft != 128 && n_fft != 256 &&
+            n_fft != 512 && n_fft != 1024 && n_fft != 2048 && n_fft != 4096) {
+                EIDSP_ERR(EIDSP_PARAMETER_INVALID); // fixed fft lib does not support arbitrary input length
+        }
+        else {
             // hardware acceleration only works for the powers above...
             arm_rfft_instance_q15 rfft_instance;
             arm_status status = arm_rfft_init_q15(&rfft_instance, n_fft, 0, 1);
@@ -1795,7 +1824,7 @@ public:
      * @returns 0 if OK
      */
     static int int32_to_float(const EIDSP_i32 *input, float *output, size_t length) {
-#if EIDSP_USE_CMSIS_DSP
+#if EIDSP_USE_CMSIS_FiXED
         arm_q31_to_float((q31_t *)input, output, length);
 #else
         for (size_t ix = 0; ix < length; ix++) {
@@ -1814,7 +1843,7 @@ public:
      * @returns 0 if OK
      */
     static int float_to_int32(const float *input, EIDSP_i32 *output, size_t length) {
-#if EIDSP_USE_CMSIS_DSP
+#if EIDSP_USE_CMSIS_FiXED
         arm_float_to_q31((float *)input, (q31_t *)output, length);
 #else
         for (size_t ix = 0; ix < length; ix++) {
@@ -1832,7 +1861,7 @@ public:
      * @returns 0 if OK
      */
     static int int16_to_float(const EIDSP_i16 *input, float *output, size_t length) {
-#if EIDSP_USE_CMSIS_DSP
+#if EIDSP_USE_CMSIS_FiXED
         arm_q15_to_float((q15_t *)input, output, length);
 #else
         for (size_t ix = 0; ix < length; ix++) {
@@ -1851,7 +1880,7 @@ public:
      * @returns 0 if OK
      */
     static int float_to_int16(const float *input, EIDSP_i16 *output, size_t length) {
-#if EIDSP_USE_CMSIS_DSP
+#if EIDSP_USE_CMSIS_FiXED
         arm_float_to_q15((float *)input, output, length);
 #else
         for (size_t ix = 0; ix < length; ix++) {
@@ -1869,7 +1898,7 @@ public:
      * @returns 0 if OK
      */
     static int int8_to_float(const EIDSP_i8 *input, float *output, size_t length) {
-#if EIDSP_USE_CMSIS_DSP
+#if EIDSP_USE_CMSIS_FiXED
         arm_q7_to_float((q7_t *)input, output, length);
 #else
         for (size_t ix = 0; ix < length; ix++) {
@@ -2059,7 +2088,7 @@ private:
             EIDSP_ERR(EIDSP_OUT_OF_MEM);
         }
 
-        ei_dsp_register_alloc(kiss_fftr_mem_length);
+        ei_dsp_register_alloc(kiss_fftr_mem_length, cfg);
 
         // execute the rfft operation
         kiss_fftr(cfg, fft_input, fft_output);
@@ -2085,7 +2114,7 @@ private:
             EIDSP_ERR(EIDSP_OUT_OF_MEM);
         }
 
-        ei_dsp_register_alloc(kiss_fftr_mem_length);
+        ei_dsp_register_alloc(kiss_fftr_mem_length, cfg);
 
         // execute the rfft operation
         kiss_fftr(cfg, fft_input, (kiss_fft_cpx*)output);
