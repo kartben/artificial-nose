@@ -4,7 +4,9 @@ This repository contains all the instructions, source code, and resources for bu
 
 Some time back in May 2020, like I'm guessing many other people, I spent quite some time trying to perfect my bread recipe, including trying to determine when my sourdough starter would be in the ideal condition to bake perfect baguettes.
 
-Fast-forward to a few weeks later, I had assembled a full-blown (pun intended) artificial nose, and I am sharing all the instructions, source code, bill of materials, etc. in this repo. Enjoy! 👃
+Fast-forward to a few weeks later, I had assembled a full-blown (pun intended!) artificial nose. It can be used for a wide variety of applications, from helping folks suffering from anosmia to spot the smell of burning food or spoiled milk, to monitoring the cleanliness of office buildings, etc.
+
+I am sharing in this repository all the instructions, source code, bill of materials, etc. for you to build and train your very own artificial nose. Enjoy! 👃
 
 ## Repository contents
 
