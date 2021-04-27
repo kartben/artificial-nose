@@ -225,9 +225,9 @@ typedef struct SENSOR_INFO
 
 SENSOR_INFO sensors[4] = {
   { "NO2", "ppm", std::bind(&GAS_GMXXX<TwoWire>::measure_NO2, gas), 0 },
+  { "CO", "ppm", std::bind(&GAS_GMXXX<TwoWire>::measure_CO, gas), 0 },
   { "C2H5OH", "ppm", std::bind(&GAS_GMXXX<TwoWire>::measure_C2H5OH, gas), 0 },
   { "VOC", "ppm", std::bind(&GAS_GMXXX<TwoWire>::measure_VOC, gas), 0 },
-  { "CO", "ppm", std::bind(&GAS_GMXXX<TwoWire>::measure_CO, gas), 0 }
 };
 #define NB_SENSORS 4
 
@@ -464,9 +464,9 @@ loop()
     {
         StaticJsonDocument<JSON_MAX_SIZE> doc;
         doc["no2"] = sensors[0].last_val;
-        doc["c2h5oh"] = sensors[1].last_val;
-        doc["voc"] = sensors[2].last_val;
-        doc["co"] = sensors[3].last_val;
+        doc["co"] = sensors[1].last_val;
+        doc["c2h5oh"] = sensors[2].last_val;
+        doc["voc"] = sensors[3].last_val;
         AziotSendTelemetry<JSON_MAX_SIZE>(doc, "gas_sensor");
 
         nextTelemetrySendTime = millis() + TelemetryInterval_ * 1000;
