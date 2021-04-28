@@ -418,7 +418,7 @@ loop()
                       35,
                       130,
                       130,
-                      (result.anomaly > 0.7) ? icon_anomaly : icon_no_anomaly);
+                      (result.anomaly > 0.7 || result.anomaly < -0.7) ? icon_anomaly : icon_no_anomaly);
       }
 #endif
 
