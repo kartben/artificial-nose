@@ -1,0 +1,63 @@
+{
+  "@id": "dtmi:seeedstudio:grove:multichannel_gas_sensor_v2;1",
+  "@type": "Interface",
+  "@context": "dtmi:dtdl:context;2",
+  "displayName": "Grove - Multichannel Gas Sensor v2",
+  "description": {
+    "en": "A sensor that provides stable and reliable gas detection for carbon monoxide, nitrogen dioxide, volatile organic compounds and ethyl alcohol."
+  },
+  "contents": [
+    {
+      "@type": [
+        "Telemetry"
+      ],
+      "name": "voc",
+      "displayName": {
+        "en": "VOC (ppm)"
+      },
+      "description": {
+        "en": "Volatile Organic Compounds (VOC) Concentration"
+      },
+      "schema": "integer"
+    },
+    {
+      "@type": [
+        "Telemetry"
+      ],
+      "name": "no2",
+      "displayName": {
+        "en": "NO₂ (ppm)"
+      },
+      "description": {
+        "en": "Nitrogen Dioxide (NO₂) Concentration"
+      },
+      "schema": "integer"
+    },
+    {
+      "@type": [
+        "Telemetry"
+      ],
+      "name": "c2h5oh",
+      "displayName": {
+        "en": "C₂H₅OH (ppm)"
+      },
+      "description": {
+        "en": "Ethyl Alcohol (C₂H₅OH) Concentration"
+      },
+      "schema": "integer"
+    },
+    {
+      "@type": [
+        "Telemetry"
+      ],
+      "name": "co",
+      "displayName": {
+        "en": "CO (ppm)"
+      },
+      "description": {
+        "en": "Carbon Monoxide (CO) Concentration"
+      },
+      "schema": "integer"
+    }    
+  ]
+}
