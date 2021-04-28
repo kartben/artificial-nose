@@ -51,7 +51,7 @@ void ei_printf(const char *format, ...)
 
 static void ConnectWiFi()
 {
-    ei_printf("Connecting to SSID: %s\n", Storage_.WiFiSSID.c_str());
+  ei_printf("Connecting to SSID: %s\n", Storage_.WiFiSSID.c_str());
 	WiFiManager wifiManager;
 	wifiManager.Connect(Storage_.WiFiSSID.c_str(), Storage_.WiFiPassword.c_str());
 	while (!wifiManager.IsConnected())
@@ -76,28 +76,28 @@ static void SyncTimeServer()
 static bool DeviceProvisioning()
 {
 	ei_printf("Device provisioning:\n");
-    ei_printf(" Id scope = %s\n", Storage_.IdScope.c_str());
-    ei_printf(" Registration id = %s\n", Storage_.RegistrationId.c_str());
+  ei_printf(" Id scope = %s\n", Storage_.IdScope.c_str());
+  ei_printf(" Registration id = %s\n", Storage_.RegistrationId.c_str());
 
 	AziotDps aziotDps;
 	aziotDps.SetMqttPacketSize(MQTT_PACKET_SIZE);
 
-    if (aziotDps.RegisterDevice(DPS_GLOBAL_DEVICE_ENDPOINT_HOST, Storage_.IdScope, Storage_.RegistrationId, Storage_.SymmetricKey, MODEL_ID, TimeManager_.GetEpochTime() + TOKEN_LIFESPAN, &HubHost_, &DeviceId_) != 0)
-    {
-        ei_printf("ERROR: RegisterDevice()\n");
-		return false;
-    }
+  if (aziotDps.RegisterDevice(DPS_GLOBAL_DEVICE_ENDPOINT_HOST, Storage_.IdScope, Storage_.RegistrationId, Storage_.SymmetricKey, MODEL_ID, TimeManager_.GetEpochTime() + TOKEN_LIFESPAN, &HubHost_, &DeviceId_) != 0)
+  {
+    ei_printf("ERROR: RegisterDevice()\n");
+    return false;
+  }
 
-    ei_printf("Device provisioned:\n");
-    ei_printf(" Hub host = %s\n", HubHost_.c_str());
-    ei_printf(" Device id = %s\n", DeviceId_.c_str());
+  ei_printf("Device provisioned:\n");
+  ei_printf(" Hub host = %s\n", HubHost_.c_str());
+  ei_printf(" Device id = %s\n", DeviceId_.c_str());
 
     return true;
 }
 
 static bool AziotIsConnected()
 {
-    return AziotHub_.IsConnected();
+  return AziotHub_.IsConnected();
 }
 
 static void AziotDoWork()
@@ -106,46 +106,42 @@ static void AziotDoWork()
     static unsigned long forceDisconnectTime;
 
     bool repeat;
-    do
-    {
-        repeat = false;
+    do {
+      repeat = false;
 
-        const auto now = TimeManager_.GetEpochTime();
-        if (!AziotHub_.IsConnected())
-        {
-            if (now >= connectTime)
-            {
-                Serial.printf("Connecting to Azure IoT Hub...\n");
-                if (AziotHub_.Connect(HubHost_, DeviceId_, Storage_.SymmetricKey, MODEL_ID, now + TOKEN_LIFESPAN) != 0)
-                {
-                    Serial.printf("ERROR: Try again in 5 seconds\n");
-                    connectTime = TimeManager_.GetEpochTime() + 5;
-                    return;
-                }
+      const auto now = TimeManager_.GetEpochTime();
+      if (!AziotHub_.IsConnected()) {
+        if (now >= connectTime) {
+          // Serial.printf("Connecting to Azure IoT Hub...\n");
+          if (AziotHub_.Connect(HubHost_,
+                                DeviceId_,
+                                Storage_.SymmetricKey,
+                                MODEL_ID,
+                                now + TOKEN_LIFESPAN) != 0) {
+            // Serial.printf("ERROR: Try again in 5 seconds\n");
+            connectTime = TimeManager_.GetEpochTime() + 5;
+            return;
+          }
 
-                Serial.printf("SUCCESS\n");
-                forceDisconnectTime = TimeManager_.GetEpochTime() + static_cast<unsigned long>(TOKEN_LIFESPAN * RECONNECT_RATE);
+          // Serial.printf("SUCCESS\n");
+          forceDisconnectTime =
+            TimeManager_.GetEpochTime() +
+            static_cast<unsigned long>(TOKEN_LIFESPAN * RECONNECT_RATE);
 
-                AziotHub_.RequestTwinDocument("get_twin");
-            }
+          AziotHub_.RequestTwinDocument("get_twin");
         }
-        else
-        {
-            if (now >= forceDisconnectTime)
-            {
-                Serial.printf("Disconnect\n");
-                AziotHub_.Disconnect();
-                connectTime = 0;
+      } else {
+        if (now >= forceDisconnectTime) {
+          Serial.printf("Disconnect\n");
+          AziotHub_.Disconnect();
+          connectTime = 0;
 
-                repeat = true;
-            }
-            else
-            {
-                AziotHub_.DoWork();
-            }
+          repeat = true;
+        } else {
+          AziotHub_.DoWork();
         }
-    }
-    while (repeat);
+      }
+    } while (repeat);
 }
 
 template <typename T>
@@ -283,8 +279,7 @@ uint64_t next_sampling_tick = micros();
 static bool debug_nn = false; // Set this to true to see e.g. features generated
                               // from the raw signal
 
-void
-draw_chart();
+void draw_chart();
 
 enum class ButtonId
 {
@@ -373,8 +368,7 @@ static void ButtonEventHandler(AceButton *button, uint8_t eventType, uint8_t but
   }
 }
 
-static void
-ButtonInit()
+static void ButtonInit()
 {
   Buttons[static_cast<int>(ButtonId::A)].init(
     WIO_KEY_A, HIGH, static_cast<uint8_t>(ButtonId::A));
@@ -398,8 +392,7 @@ ButtonInit()
   buttonConfig->setFeature(ButtonConfig::kFeatureClick);
 }
 
-static void
-ButtonDoWork()
+static void ButtonDoWork()
 {
   for (int i = 0;
        static_cast<size_t>(i) < std::extent<decltype(Buttons)>::value;
@@ -408,12 +401,7 @@ ButtonDoWork()
   }
 }
 
-
-/**
- * @brief      Arduino setup function
- */
-void
-setup()
+void setup()
 {
   Storage_.Load();
 
@@ -468,13 +456,7 @@ setup()
 
 int fan = 0;
 
-/**
- * @brief      Get data and run inferencing
- *
- * @param[in]  debug  Get debug info if true
- */
-void
-loop()
+void loop()
 {
   spr.fillSprite(BG_COLOR);
   ButtonDoWork();
