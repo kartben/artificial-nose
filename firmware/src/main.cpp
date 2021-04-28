@@ -206,6 +206,7 @@ setup()
   // put your setup code here, to run once:
   tft.begin();
   tft.setRotation(3);
+  spr.setColorDepth(8);
   spr.createSprite(
     tft.width(),
     tft.height()); // /!\ this will allocate 320*240*2 = 153.6K of RAM
