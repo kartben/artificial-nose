@@ -70,13 +70,13 @@ void AziotHub::SendTelemetry(const char* payload, char* componentName)
     static int sendCount = 0;
     if (!Mqtt_.publish(telemetryTopic.c_str(), payload, false))
     {
-        Serial.printf("ERROR: Send telemetry %d\n", sendCount);
+        // Serial.printf("ERROR: Send telemetry %d\n", sendCount);
         return; // TODO
     }
     else
     {
         ++sendCount;
-        Serial.printf("Sent telemetry %d\n", sendCount);
+        // Serial.printf("Sent telemetry %d\n", sendCount);
     }
 }
 
@@ -92,11 +92,11 @@ void AziotHub::SendTwinPatch(const char* requestId, const char* payload)
 
 void AziotHub::MqttSubscribeCallback(char* topic, uint8_t* payload, unsigned int length)
 {
-    Serial.printf("Received twin\n");
-    Serial.printf(" topic  :%s\n", topic);
-    Serial.print("payload:");
-    for (int i = 0; i < static_cast<int>(length); i++) Serial.print(static_cast<char>(payload[i]));
-    Serial.println();
+    // Serial.printf("Received twin\n");
+    // Serial.printf(" topic  :%s\n", topic);
+    // Serial.print("payload:");
+    // for (int i = 0; i < static_cast<int>(length); i++) Serial.print(static_cast<char>(payload[i]));
+    // Serial.println();
 
     EasyAziotHubClient::TwinResponse response;
     if (HubClient_.ParseTwinTopic(topic, response) == 0)

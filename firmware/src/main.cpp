@@ -20,6 +20,9 @@ static Storage Storage_(Flash_);
 #include <Aziot/AziotHub.h>
 #include <ArduinoJson.h>
 
+static bool isWifiConfigured = false;
+
+static WiFiManager WifiManager_;
 static TimeManager TimeManager_;
 static std::string HubHost_;
 static std::string DeviceId_;
@@ -52,9 +55,8 @@ void ei_printf(const char *format, ...)
 static void ConnectWiFi()
 {
   ei_printf("Connecting to SSID: %s\n", Storage_.WiFiSSID.c_str());
-	WiFiManager wifiManager;
-	wifiManager.Connect(Storage_.WiFiSSID.c_str(), Storage_.WiFiPassword.c_str());
-	while (!wifiManager.IsConnected())
+	WifiManager_.Connect(Storage_.WiFiSSID.c_str(), Storage_.WiFiPassword.c_str());
+	while (!WifiManager_.IsConnected())
 	{
 		ei_printf(".");
 		delay(500);
@@ -102,6 +104,8 @@ static bool AziotIsConnected()
 
 static void AziotDoWork()
 {
+    if(!isWifiConfigured) return;
+
     static unsigned long connectTime = 0;
     static unsigned long forceDisconnectTime;
 
@@ -132,7 +136,7 @@ static void AziotDoWork()
         }
       } else {
         if (now >= forceDisconnectTime) {
-          Serial.printf("Disconnect\n");
+          // Serial.printf("Disconnect\n");
           AziotHub_.Disconnect();
           connectTime = 0;
 
@@ -225,6 +229,8 @@ TFT_eSprite spr = TFT_eSprite(&tft); // main sprite
 #include "images/icon_no_anomaly.h"
 #include "images/icon_whiskey.h"
 
+#include "images/icon_wifi.h"
+
 const unsigned short* ICONS_MAP[] = { icon_ambient, icon_coffee, icon_whiskey };
 
 typedef uint32_t (GAS_GMXXX<TwoWire>::*sensorGetFn)();
@@ -305,7 +311,7 @@ static void ReceivedTwinDocument(const char* json, const char* requestId)
     if (AziotUpdateWritableProperty("telemetryInterval", &TelemetryInterval_, doc["desired"]["$version"], doc["desired"], doc["reported"]))
     {
       nextTelemetrySendTime = millis() + TelemetryInterval_;
-      ei_printf("New telemetryInterval = %d\n", TelemetryInterval_);
+      // ei_printf("New telemetryInterval = %d\n", TelemetryInterval_);
     }
 }
 
@@ -319,7 +325,7 @@ static void ReceivedTwinDesiredPatch(const char* json, const char* version)
   if (AziotUpdateWritableProperty("telemetryInterval", &TelemetryInterval_, doc["$version"], doc.as<JsonVariant>()))
   {
     nextTelemetrySendTime = millis() + TelemetryInterval_;
-    ei_printf("New telemetryInterval = %d\n", TelemetryInterval_);
+    // ei_printf("New telemetryInterval = %d\n", TelemetryInterval_);
   }
 
 }
@@ -443,15 +449,46 @@ void setup()
     tft.width(),
     tft.height()); // /!\ this will allocate 320*240*2 = 153.6K of RAM
 
-  ConnectWiFi();
-  SyncTimeServer();
-  if (!DeviceProvisioning()) abort();
+  spr.fillSprite(BG_COLOR);
+  spr.setTextColor(TEXT_COLOR);
 
-  AziotHub_.SetMqttPacketSize(MQTT_PACKET_SIZE);
+  spr.setFreeFont(&FreeSans12pt7b);
 
-  AziotHub_.ReceivedTwinDocumentCallback = ReceivedTwinDocument;
-  AziotHub_.ReceivedTwinDesiredPatchCallback = ReceivedTwinDesiredPatch;  
+	if(! Storage_.WiFiSSID.empty()) {
+    isWifiConfigured = true              ;
   
+    spr.drawString("Wi-Fi", 20, 40);
+    spr.pushSprite(0,0);
+    ConnectWiFi();
+    spr.drawXBitmap(320 - 24 - 4, 4, icon_wifi, 24, 24, TFT_GREEN, BG_COLOR);
+    spr.drawString("Wi-Fi ... OK", 20, 40);
+    spr.pushSprite(0,0);
+
+    spr.drawString("Time sync.", 20, 70);
+    spr.pushSprite(0,0);
+    SyncTimeServer();
+    spr.drawString("Time sync. ... OK", 20, 70);
+    spr.pushSprite(0,0);
+
+    spr.drawString("Provisioning", 20, 100);
+    spr.pushSprite(0,0);
+    if (!DeviceProvisioning()) abort();
+    spr.drawString("Provisioning ... OK", 20, 100);
+    spr.pushSprite(0,0);
+
+    spr.drawString("Azure IoT Hub", 20, 130);
+    spr.pushSprite(0,0);
+    AziotDoWork();
+    spr.drawString("Azure IoT Hub ... OK", 20, 130);
+    spr.pushSprite(0,0);
+
+    AziotHub_.SetMqttPacketSize(MQTT_PACKET_SIZE);
+
+    AziotHub_.ReceivedTwinDocumentCallback = ReceivedTwinDocument;
+    AziotHub_.ReceivedTwinDesiredPatchCallback = ReceivedTwinDesiredPatch;  
+
+  }
+ 
 }
 
 int fan = 0;
@@ -459,6 +496,11 @@ int fan = 0;
 void loop()
 {
   spr.fillSprite(BG_COLOR);
+
+  if(isWifiConfigured && WifiManager_.IsConnected()) {
+    spr.drawXBitmap(320 - 24 - 4, 4, icon_wifi, 24, 24, TFT_GREEN, BG_COLOR);
+  }
+
   ButtonDoWork();
   AziotDoWork();
 
@@ -474,6 +516,7 @@ void loop()
       spr.drawLine(
         0, 50 + line_index, tft.width(), 50 + line_index, TEXT_COLOR);
     }
+
   }
 
   spr.setFreeFont(&FreeSansBoldOblique9pt7b); // Select the font
@@ -661,7 +704,7 @@ void loop()
 
       // check if we need to report a change in detected scent to the IoT platform. 
       // 2 cases: new scent has been detected, or confidence level of a scent previously reported as changed by 5+ percentage points
-      if(best_prediction != latest_inference_idx || 
+      if(isWifiConfigured && best_prediction != latest_inference_idx || 
          best_prediction == latest_inference_idx && (result.classification[best_prediction].value - latest_inference_confidence_level > .05) ) 
       {
         StaticJsonDocument<JSON_MAX_SIZE> doc;
