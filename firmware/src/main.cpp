@@ -570,7 +570,7 @@ void loop()
         .x_tick_color(TEXT_COLOR)
         .y_tick_color(TEXT_COLOR)
         .x_auxi_role(dash_line().color(TFT_DARKGREY))
-        .color(TFT_RED, TFT_BLUE, TFT_PURPLE, TFT_GREEN)
+        .color(sensors[0].color, sensors[1].color, sensors[2].color, sensors[3].color)
         .draw();
 
       for (int i = 0; i < NB_SENSORS; i++) {
