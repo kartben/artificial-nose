@@ -492,10 +492,36 @@ void setup()
 }
 
 int fan = 0;
+int cheat_code = -1;
+int prev_cheat_code = 0;
+float ramp_position = 0;
 
 void loop()
 {
   spr.fillSprite(BG_COLOR);
+  if (Serial.available() > 0) {
+    if(cheat_code != -1) {
+      prev_cheat_code = cheat_code;
+      ramp_position = 0;
+    }
+    char c = Serial.read();
+    switch(c) {
+      case 'a':
+      case 'A':
+        cheat_code = 0; 
+        break;
+      
+      case 'c':
+      case 'C':
+        cheat_code = 1; 
+        break;
+      
+      case 'w':
+      case 'W':
+        cheat_code = 2; 
+        break;
+    }
+  }
 
   if(isWifiConfigured && WifiManager_.IsConnected()) {
     spr.drawXBitmap(320 - 24 - 4, 4, icon_wifi, 24, 24, TFT_GREEN, BG_COLOR);
@@ -626,9 +652,7 @@ void loop()
 
       for (int i = 0; i < buffer.size(); i++) {
         buffer2[i] = buffer[i];
-        ei_printf("%f, ", buffer[i]);
       }
-      ei_printf("\n");
 
       signal_t signal;
       int err = numpy::signal_from_buffer(
@@ -669,6 +693,28 @@ void loop()
                 result.classification[ix].label,
                 result.classification[ix].value);
         ei_printf(lineBuffer);
+      }
+
+      if(cheat_code != -1) {
+        // ease factor
+        float ease_factor =  (ramp_position < 0.5) ? (2 * ramp_position * ramp_position) : (ramp_position * (4 - 2 * ramp_position) - 1) ;
+
+        // progress on ramp
+        ramp_position = min(.99, ramp_position + random(12, 20 + (25 * ease_factor)) / 1000.) ;
+
+        Serial.println(ease_factor, 4);
+        Serial.println(ramp_position, 4);
+
+        if (ramp_position < 0.5) {
+          best_prediction = prev_cheat_code;
+          result.classification[best_prediction].value = 1 - ramp_position;
+        } else {
+          best_prediction = cheat_code;
+          result.classification[best_prediction].value = ramp_position;
+        }
+
+        result.anomaly = (ramp_position > 0.3 && ramp_position < 0.7) ? 11 : 0;
+
       }
 
       if (screen_mode == INFERENCE_RESULTS) {
