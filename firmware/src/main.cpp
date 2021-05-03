@@ -281,6 +281,7 @@ CircularBuffer<float, EI_CLASSIFIER_DSP_INPUT_FRAME_SIZE> buffer;
 uint64_t next_sampling_tick = micros();
 
 #define INITIAL_FAN_STATE LOW
+static int fan_state = INITIAL_FAN_STATE;
 
 static bool debug_nn = false; // Set this to true to see e.g. features generated
                               // from the raw signal
@@ -289,8 +290,6 @@ void draw_chart();
 
 enum class ButtonId
 {
-  A = 0,
-  B,
   C,
   LEFT,
   RIGHT,
@@ -298,7 +297,7 @@ enum class ButtonId
   DOWN,
   PRESS
 };
-static const int ButtonNumber = 8;
+static const int ButtonNumber = 6;
 static AceButton Buttons[ButtonNumber];
 
 static void ReceivedTwinDocument(const char* json, const char* requestId)
@@ -339,11 +338,10 @@ static void ButtonEventHandler(AceButton *button, uint8_t eventType, uint8_t but
   switch (eventType) {
     case AceButton::kEventReleased:
       switch (static_cast<ButtonId>(id)) {
-        case ButtonId::A:
-          digitalWrite(D0, HIGH); // Turn fan ON
-          break;
-        case ButtonId::B:
-          digitalWrite(D0, LOW); // Turn fan OFF
+        case ButtonId::C:
+          // Toggle Fan
+          fan_state = (fan_state == HIGH) ? LOW : HIGH ; 
+          digitalWrite(D0, fan_state); // Turn fan ON
           break;
         case ButtonId::PRESS:
           mode = (mode == INFERENCE) ? TRAINING : INFERENCE;
@@ -376,10 +374,6 @@ static void ButtonEventHandler(AceButton *button, uint8_t eventType, uint8_t but
 
 static void ButtonInit()
 {
-  Buttons[static_cast<int>(ButtonId::A)].init(
-    WIO_KEY_A, HIGH, static_cast<uint8_t>(ButtonId::A));
-  Buttons[static_cast<int>(ButtonId::B)].init(
-    WIO_KEY_B, HIGH, static_cast<uint8_t>(ButtonId::B));
   Buttons[static_cast<int>(ButtonId::C)].init(
     WIO_KEY_C, HIGH, static_cast<uint8_t>(ButtonId::C));
   Buttons[static_cast<int>(ButtonId::LEFT)].init(
@@ -414,7 +408,7 @@ void setup()
   Serial.begin(115200);
 
   pinMode(D0, OUTPUT);
-  digitalWrite(D0, INITIAL_FAN_STATE);
+  digitalWrite(D0, fan_state);
 
   pinMode(WIO_KEY_A, INPUT_PULLUP);
   pinMode(WIO_KEY_B, INPUT_PULLUP);
