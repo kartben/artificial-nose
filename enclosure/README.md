@@ -2,6 +2,10 @@
 
 The [main part](nose.stl) (i.e. the 👃 itself) includes a mounting slot for a Grove Multi-channel gas sensor. The [back plate](nose%20back%20plate.stl) that allows to attach a 25mm fan and a Wio Terminal.
 
+The model prints really well using Multi Jet Fusion (MJF) technology, but your mileage may vary based on the technology you use. For filament printing in particular, you might want to tweak the design a bit to minimize the amount of supports needed.
+
+Suggestions and pull requests are most welcome if you end up significantly improving the design, either for better print results or for better overall air flow within the nose!
+
 ## Images
 
 ![3D design file](artificial-nose-enclosure.png)
