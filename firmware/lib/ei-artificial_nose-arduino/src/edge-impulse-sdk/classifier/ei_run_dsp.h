@@ -623,11 +623,14 @@ __attribute__((unused)) int extract_spectrogram_per_slice_features(signal_t *sig
     /* Fake an extra frame_length for stack frames calculations. There, 1 frame_length is always
     subtracted and there for never used. But skip the first slice to fit the feature_matrix
     buffer */
-    if (first_run == true) {
-        signal->total_length += (size_t)(config.frame_length * (float)frequency);
-    }
+    if(config.implementation_version < 2) {
 
-    first_run = true;
+        if (first_run == true) {
+            signal->total_length += (size_t)(config.frame_length * (float)frequency);
+        }
+
+        first_run = true;
+    }
 
     // calculate the size of the MFE matrix
     matrix_size_t out_matrix_size =
@@ -655,6 +658,12 @@ __attribute__((unused)) int extract_spectrogram_per_slice_features(signal_t *sig
     if (ret != EIDSP_OK) {
         ei_printf("ERR: Spectrogram failed (%d)\n", ret);
         EIDSP_ERR(ret);
+    }
+
+    if(config.implementation_version < 2) {
+        if (first_run == true) {
+            signal->total_length -= (size_t)(config.frame_length * (float)frequency);
+        }
     }
 
     output_matrix->cols = out_matrix_size.rows * out_matrix_size.cols;
@@ -728,11 +737,14 @@ __attribute__((unused)) int extract_mfe_per_slice_features(signal_t *signal, mat
     /* Fake an extra frame_length for stack frames calculations. There, 1 frame_length is always
     subtracted and there for never used. But skip the first slice to fit the feature_matrix
     buffer */
-    if (first_run == true) {
-        signal->total_length += (size_t)(config.frame_length * (float)frequency);
-    }
+    if(config.implementation_version < 2) {
 
-    first_run = true;
+        if (first_run == true) {
+            signal->total_length += (size_t)(config.frame_length * (float)frequency);
+        }
+
+        first_run = true;
+    }
 
     // calculate the size of the MFE matrix
     matrix_size_t out_matrix_size =
@@ -761,6 +773,12 @@ __attribute__((unused)) int extract_mfe_per_slice_features(signal_t *signal, mat
     if (ret != EIDSP_OK) {
         ei_printf("ERR: MFCC failed (%d)\n", ret);
         EIDSP_ERR(ret);
+    }
+
+    if(config.implementation_version < 2) {
+        if (first_run == true) {
+            signal->total_length -= (size_t)(config.frame_length * (float)frequency);
+        }
     }
 
     output_matrix->cols = out_matrix_size.rows * out_matrix_size.cols;

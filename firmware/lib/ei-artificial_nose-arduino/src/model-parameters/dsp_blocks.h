@@ -29,7 +29,7 @@
 const size_t ei_dsp_blocks_size = 1;
 ei_model_dsp_t ei_dsp_blocks[ei_dsp_blocks_size] = {
     { // DSP block 36
-        20,
+        24,
         &extract_flatten_features,
         (void*)&ei_dsp_config_36
     }

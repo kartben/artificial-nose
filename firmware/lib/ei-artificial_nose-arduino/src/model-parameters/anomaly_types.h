@@ -24,9 +24,9 @@
 
 #define EI_CLASSIFIER_HAS_ANOMALY    1
 
-const uint16_t EI_CLASSIFIER_ANOM_AXIS[]  { 3, 8, 13, 18 };
+const uint16_t EI_CLASSIFIER_ANOM_AXIS[]  { 3, 9, 15, 21 };
 #define EI_CLASSIFIER_ANOM_AXIS_SIZE      4
-#define EI_CLASSIFIER_ANOM_CLUSTER_COUNT  12
+#define EI_CLASSIFIER_ANOM_CLUSTER_COUNT  48
 
 typedef struct {
 float centroid[EI_CLASSIFIER_ANOM_AXIS_SIZE];
