@@ -29,7 +29,7 @@
  * limitations under the License.
  */
 
-#include "edge-impulse-sdk/CMSIS/DSP/Include/arm_math.h"
+#include "edge-impulse-sdk/CMSIS/DSP/Include/dsp/transform_functions.h"
 
 void arm_radix4_butterfly_inverse_q31(
         q31_t * pSrc,

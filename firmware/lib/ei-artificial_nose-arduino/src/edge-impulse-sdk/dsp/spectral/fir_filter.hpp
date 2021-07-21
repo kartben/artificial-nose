@@ -19,7 +19,9 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-#pragma once
+#ifndef __FIR_FILTER__H__
+#define __FIR_FILTER__H__
+
 #include <vector>
 #include <cmath>
 #include "filters.hpp" //for M_PI
@@ -210,4 +212,6 @@ private:
     int filter_size;
 
     friend class AccelerometerQuantizedTestCase;
+
 };
+#endif  //!__FIR_FILTER__H__

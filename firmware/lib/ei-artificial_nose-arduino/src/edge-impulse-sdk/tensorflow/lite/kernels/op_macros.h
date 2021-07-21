@@ -44,12 +44,19 @@ inline void InfiniteLoop() {
     fprintf(stderr, "%s", (x)); \
   } while (0)
 
+// Report Error for unsupported type by op 'op_name' and returns kTfLiteError.
+#define TF_LITE_UNSUPPORTED_TYPE(context, type, op_name)                    \
+  do {                                                                      \
+    TF_LITE_KERNEL_LOG((context), "%s:%d Type %s is unsupported by op %s.", \
+                       __FILE__, __LINE__, TfLiteTypeGetName(type),         \
+                       (op_name));                                          \
+    return kTfLiteError;                                                    \
+  } while (0)
+
 #define TFLITE_ABORT abort()
 
 #endif  // TF_LITE_MCU_DEBUG_LOG
 
-// Patched by Edge Impulse, skip over asserts on Arduino
-// https://github.com/tensorflow/tensorflow/commit/6d5f02b47af2efb5ed2f5b4ccf34d4abecf8cfde
 #if defined(NDEBUG) || defined(ARDUINO)
 #define TFLITE_ASSERT_FALSE (static_cast<void>(0))
 #else

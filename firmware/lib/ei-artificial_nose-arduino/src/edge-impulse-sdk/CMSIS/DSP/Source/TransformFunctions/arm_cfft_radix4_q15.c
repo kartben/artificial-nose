@@ -29,7 +29,7 @@
  * limitations under the License.
  */
 
-#include "edge-impulse-sdk/CMSIS/DSP/Include/arm_math.h"
+#include "edge-impulse-sdk/CMSIS/DSP/Include/dsp/transform_functions.h"
 
 
 void arm_radix4_butterfly_q15(
@@ -262,7 +262,7 @@ void arm_radix4_butterfly_q15(
 
     /* writing the butterfly processed i0 + fftLen/4 sample */
     /* writing output(xc', yc') in little endian format */
-    write_q15x2_ia (&pSi1, (q31_t) ((out2) & 0xFFFF0000) | (out1 & 0x0000FFFF));
+    write_q15x2_ia (&pSi1, (q31_t) __PKHBT( out1, out2, 0 ));
 
     /*  Butterfly calculations */
     /* U = packed(yd, xd) */
@@ -302,7 +302,7 @@ void arm_radix4_butterfly_q15(
 #endif /* #ifndef ARM_MATH_BIG_ENDIAN */
 
     /* writing output(xb', yb') in little endian format */
-    write_q15x2_ia (&pSi2, ((out2) & 0xFFFF0000) | ((out1) & 0x0000FFFF));
+    write_q15x2_ia (&pSi2, __PKHBT( out1, out2, 0 ));
 
     /* co3 & si3 are read from SIMD Coefficient pointer */
     C3 = read_q15x2 ((q15_t *) pCoef16 + (6U * ic));
@@ -321,7 +321,7 @@ void arm_radix4_butterfly_q15(
 #endif /* #ifndef ARM_MATH_BIG_ENDIAN */
 
     /* writing output(xd', yd') in little endian format */
-    write_q15x2_ia (&pSi3, ((out2) & 0xFFFF0000) | (out1 & 0x0000FFFF));
+    write_q15x2_ia (&pSi3, __PKHBT( out1, out2, 0 ));
 
     /*  Twiddle coefficients index modifier */
     ic = ic + twidCoefModifier;
@@ -419,7 +419,7 @@ void arm_radix4_butterfly_q15(
         /*  writing the butterfly processed i0 + fftLen/4 sample */
         /* xc' = (xa-xb+xc-xd)* co2 + (ya-yb+yc-yd)* (si2) */
         /* yc' = (ya-yb+yc-yd)* co2 - (xa-xb+xc-xd)* (si2) */
-        write_q15x2 (pSi1, ((out2) & 0xFFFF0000) | (out1 & 0x0000FFFF));
+        write_q15x2 (pSi1, __PKHBT( out1, out2, 0 ));
         pSi1 += 2 * n1;
 
         /*  Butterfly calculations */
@@ -456,7 +456,7 @@ void arm_radix4_butterfly_q15(
 
         /* xb' = (xa+yb-xc-yd)* co1 + (ya-xb-yc+xd)* (si1) */
         /* yb' = (ya-xb-yc+xd)* co1 - (xa+yb-xc-yd)* (si1) */
-        write_q15x2 (pSi2, ((out2) & 0xFFFF0000) | (out1 & 0x0000FFFF));
+        write_q15x2 (pSi2, __PKHBT( out1, out2, 0 ));
         pSi2 += 2 * n1;
 
         /*  Butterfly process for the i0+3fftLen/4 sample */
@@ -471,7 +471,7 @@ void arm_radix4_butterfly_q15(
 
         /* xd' = (xa-yb-xc+yd)* co3 + (ya+xb-yc-xd)* (si3) */
         /* yd' = (ya+xb-yc-xd)* co3 - (xa-yb-xc+yd)* (si3) */
-        write_q15x2 (pSi3, ((out2) & 0xFFFF0000) | (out1 & 0x0000FFFF));
+        write_q15x2 (pSi3, __PKHBT( out1, out2, 0 ));
         pSi3 += 2 * n1;
       }
     }
@@ -1128,7 +1128,7 @@ void arm_radix4_butterfly_inverse_q15(
 
     /* writing the butterfly processed i0 + fftLen/4 sample */
     /* writing output(xc', yc') in little endian format */
-    write_q15x2_ia (&pSi1, (q31_t) ((out2) & 0xFFFF0000) | (out1 & 0x0000FFFF));
+    write_q15x2_ia (&pSi1, (q31_t) __PKHBT( out1, out2, 0 ));
 
     /*  Butterfly calculations */
     /* U = packed(yd, xd) */
@@ -1168,7 +1168,7 @@ void arm_radix4_butterfly_inverse_q15(
 #endif /* #ifndef ARM_MATH_BIG_ENDIAN */
 
     /* writing output(xb', yb') in little endian format */
-    write_q15x2_ia (&pSi2, ((out2) & 0xFFFF0000) | ((out1) & 0x0000FFFF));
+    write_q15x2_ia (&pSi2, __PKHBT( out1, out2, 0 ));
 
     /* co3 & si3 are read from SIMD Coefficient pointer */
     C3 = read_q15x2 ((q15_t *) pCoef16 + (6U * ic));
@@ -1187,7 +1187,7 @@ void arm_radix4_butterfly_inverse_q15(
 #endif /* #ifndef ARM_MATH_BIG_ENDIAN */
 
     /* writing output(xd', yd') in little endian format */
-    write_q15x2_ia (&pSi3, ((out2) & 0xFFFF0000) | (out1 & 0x0000FFFF));
+    write_q15x2_ia (&pSi3, __PKHBT( out1, out2, 0 ));
 
     /*  Twiddle coefficients index modifier */
     ic = ic + twidCoefModifier;
@@ -1285,7 +1285,7 @@ void arm_radix4_butterfly_inverse_q15(
         /*  writing the butterfly processed i0 + fftLen/4 sample */
         /* xc' = (xa-xb+xc-xd)* co2 + (ya-yb+yc-yd)* (si2) */
         /* yc' = (ya-yb+yc-yd)* co2 - (xa-xb+xc-xd)* (si2) */
-        write_q15x2 (pSi1, ((out2) & 0xFFFF0000) | (out1 & 0x0000FFFF));
+        write_q15x2 (pSi1, __PKHBT( out1, out2, 0 ));
         pSi1 += 2 * n1;
 
         /*  Butterfly calculations */
@@ -1320,7 +1320,7 @@ void arm_radix4_butterfly_inverse_q15(
 
         /* xb' = (xa+yb-xc-yd)* co1 + (ya-xb-yc+xd)* (si1) */
         /* yb' = (ya-xb-yc+xd)* co1 - (xa+yb-xc-yd)* (si1) */
-        write_q15x2 (pSi2, ((out2) & 0xFFFF0000) | (out1 & 0x0000FFFF));
+        write_q15x2 (pSi2, __PKHBT( out1, out2, 0 ));
         pSi2 += 2 * n1;
 
         /*  Butterfly process for the i0+3fftLen/4 sample */
@@ -1335,7 +1335,7 @@ void arm_radix4_butterfly_inverse_q15(
 
         /* xd' = (xa-yb-xc+yd)* co3 + (ya+xb-yc-xd)* (si3) */
         /* yd' = (ya+xb-yc-xd)* co3 - (xa-yb-xc+yd)* (si3) */
-        write_q15x2 (pSi3, ((out2) & 0xFFFF0000) | (out1 & 0x0000FFFF));
+        write_q15x2 (pSi3, __PKHBT( out1, out2, 0 ));
         pSi3 += 2 * n1;
       }
     }

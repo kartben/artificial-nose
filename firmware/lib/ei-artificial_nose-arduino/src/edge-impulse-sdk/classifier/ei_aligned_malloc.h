@@ -52,7 +52,7 @@ typedef uint16_t offset_t;
 *	We will call malloc with extra bytes for our header and the offset
 *	required to guarantee the desired alignment.
 */
-__attribute__((unused)) void * ei_aligned_malloc(size_t align, size_t size)
+__attribute__((unused)) void * ei_aligned_calloc(size_t align, size_t size)
 {
 	void * ptr = NULL;
 
@@ -66,7 +66,7 @@ __attribute__((unused)) void * ei_aligned_malloc(size_t align, size_t size)
 		 * We also allocate extra bytes to ensure we can meet the alignment
 		 */
 		uint32_t hdr_size = PTR_OFFSET_SZ + (align - 1);
-		void * p = ei_malloc(size + hdr_size);
+		void * p = ei_calloc(size + hdr_size, 1);
 
 		if(p)
 		{

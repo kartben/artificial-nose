@@ -206,7 +206,7 @@ static void AziotSendTelemetry(const StaticJsonDocument<desiredCapacity>& jsonDo
 using namespace ace_button;
 
 #include <CircularBuffer.h>
-#include <artificial_nose_inference.h>
+#include <artificial_nose_inferencing.h>
 
 #include <Multichannel_Gas_GMXXX.h>
 #include <Wire.h>

@@ -30,8 +30,9 @@
 #ifndef _ARM_CONST_STRUCTS_H
 #define _ARM_CONST_STRUCTS_H
 
-#include "edge-impulse-sdk/CMSIS/DSP/Include/arm_math.h"
+#include "edge-impulse-sdk/CMSIS/DSP/Include/arm_math_types.h"
 #include "edge-impulse-sdk/CMSIS/DSP/Include/arm_common_tables.h"
+#include "edge-impulse-sdk/CMSIS/DSP/Include/dsp/transform_functions.h"
 
 #ifdef   __cplusplus
 extern "C"

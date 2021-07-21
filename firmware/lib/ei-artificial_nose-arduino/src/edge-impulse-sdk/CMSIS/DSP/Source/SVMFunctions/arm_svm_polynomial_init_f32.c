@@ -26,16 +26,24 @@
  * limitations under the License.
  */
 
-#include "edge-impulse-sdk/CMSIS/DSP/Include/arm_math.h"
+#include "edge-impulse-sdk/CMSIS/DSP/Include/dsp/svm_functions.h"
 #include <limits.h>
 #include <math.h>
 
-
 /**
- * @addtogroup groupSVM
- * @{
+  @ingroup groupSVM
  */
 
+/**
+  @defgroup polysvm Polynomial SVM
+
+  Polynomial SVM classifier
+ */
+
+/**
+ * @addtogroup polysvm
+ * @{
+ */
 
 
 /**
@@ -85,7 +93,7 @@ void arm_svm_polynomial_init_f32(arm_svm_polynomial_instance_f32 *S,
 
 
 /**
- * @} end of groupSVM group
+ * @} end of polysvm group
  */
 
 #endif // EIDSP_LOAD_CMSIS_DSP_SOURCES

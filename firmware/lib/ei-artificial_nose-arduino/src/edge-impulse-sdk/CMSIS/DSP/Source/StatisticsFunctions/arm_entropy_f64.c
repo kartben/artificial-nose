@@ -26,12 +26,12 @@
  * limitations under the License.
  */
 
-#include "edge-impulse-sdk/CMSIS/DSP/Include/arm_math.h"
+#include "edge-impulse-sdk/CMSIS/DSP/Include/dsp/statistics_functions.h"
 #include <limits.h>
 #include <math.h>
 
 /**
- * @addtogroup groupStats
+ * @addtogroup Entropy
  * @{
  */
 
@@ -69,7 +69,7 @@ float64_t arm_entropy_f64(const float64_t * pSrcA, uint32_t blockSize)
 }
 
 /**
- * @} end of groupStats group
+ * @} end of Entropy group
  */
 
 #endif // EIDSP_LOAD_CMSIS_DSP_SOURCES

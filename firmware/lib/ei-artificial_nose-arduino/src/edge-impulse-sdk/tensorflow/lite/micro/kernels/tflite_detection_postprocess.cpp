@@ -1,11 +1,8 @@
 /* Copyright 2019 The TensorFlow Authors. All Rights Reserved.
-
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
-
     http://www.apache.org/licenses/LICENSE-2.0
-
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -133,7 +130,7 @@ void* Init(TfLiteContext* context, const char* buffer, size_t length) {
   const flexbuffers::Map& m = flexbuffers::GetRoot(buffer_t, length).AsMap();
 
   TFLITE_DCHECK(context->AllocatePersistentBuffer != nullptr);
-  context->AllocatePersistentBuffer(context, sizeof(OpData), (void**)&op_data);
+  op_data = (OpData*)context->AllocatePersistentBuffer(context, sizeof(OpData));
 
   op_data->max_detections = m["max_detections"].AsInt32();
   op_data->max_classes_per_detection = m["max_classes_per_detection"].AsInt32();
@@ -819,30 +816,28 @@ TfLiteStatus Eval(TfLiteContext* context, TfLiteNode* node) {
 }
 }  // namespace
 
-TfLiteRegistration* Register_DETECTION_POSTPROCESS() {
-  static TfLiteRegistration r = {/*init=*/Init,
-                                 /*free=*/Free,
-                                 /*prepare=*/Prepare,
-                                 /*invoke=*/Eval,
-                                 /*profiling_string=*/nullptr,
-                                 /*builtin_code=*/0,
-                                 /*custom_name=*/nullptr,
-                                 /*version=*/0};
-  return &r;
+TfLiteRegistration Register_DETECTION_POSTPROCESS() {
+  return {/*init=*/Init,
+          /*free=*/Free,
+          /*prepare=*/Prepare,
+          /*invoke=*/Eval,
+          /*profiling_string=*/nullptr,
+          /*builtin_code=*/0,
+          /*custom_name=*/nullptr,
+          /*version=*/0};
 }
 
 namespace ops {
 namespace micro {
-TfLiteRegistration* Register_TFLite_Detection_PostProcess() {
-  static TfLiteRegistration r = {/*init=*/Init,
-                                 /*free=*/Free,
-                                 /*prepare=*/Prepare,
-                                 /*invoke=*/Eval,
-                                 /*profiling_string=*/nullptr,
-                                 /*builtin_code=*/0,
-                                 /*custom_name=*/nullptr,
-                                 /*version=*/0};
-  return &r;
+TfLiteRegistration Register_TFLite_Detection_PostProcess() {
+  return {/*init=*/Init,
+          /*free=*/Free,
+          /*prepare=*/Prepare,
+          /*invoke=*/Eval,
+          /*profiling_string=*/nullptr,
+          /*builtin_code=*/0,
+          /*custom_name=*/nullptr,
+          /*version=*/0};
 }
 } // namespace micro
 }

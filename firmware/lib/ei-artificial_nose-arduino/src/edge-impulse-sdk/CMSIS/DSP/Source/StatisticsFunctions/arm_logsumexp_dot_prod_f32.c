@@ -26,13 +26,13 @@
  * limitations under the License.
  */
 
-#include "edge-impulse-sdk/CMSIS/DSP/Include/arm_math.h"
+#include "edge-impulse-sdk/CMSIS/DSP/Include/dsp/statistics_functions.h"
 #include <limits.h>
 #include <math.h>
 
 
 /**
- * @addtogroup groupStats
+ * @addtogroup LogSumExp
  * @{
  */
 
@@ -64,7 +64,7 @@ float32_t arm_logsumexp_dot_prod_f32(const float32_t * pSrcA,
 }
 
 /**
- * @} end of groupStats group
+ * @} end of LogSumExp group
  */
 
 #endif // EIDSP_LOAD_CMSIS_DSP_SOURCES

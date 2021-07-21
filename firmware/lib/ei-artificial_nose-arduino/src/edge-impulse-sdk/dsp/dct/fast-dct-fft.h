@@ -21,7 +21,9 @@
  *   Software.
  */
 
-#pragma once
+#ifndef __FAST_DCT_FFT__H__
+#define __FAST_DCT_FFT__H__
+
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -35,3 +37,5 @@ int inverse_transform(float vector[], size_t len);
 
 } // namespace dct
 } // namespace ei
+
+#endif  //!__FAST-DCT-FFT__H__

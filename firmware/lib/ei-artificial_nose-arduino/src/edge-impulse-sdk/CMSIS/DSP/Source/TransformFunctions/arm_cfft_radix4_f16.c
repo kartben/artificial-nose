@@ -28,7 +28,7 @@
  * limitations under the License.
  */
 
-#include "edge-impulse-sdk/CMSIS/DSP/Include/arm_math_f16.h"
+#include "edge-impulse-sdk/CMSIS/DSP/Include/dsp/transform_functions_f16.h"
 
 #if defined(ARM_FLOAT16_SUPPORTED)
 
@@ -1272,5 +1272,4 @@ float16_t onebyfftLen)
 }
 
 #endif /* #if defined(ARM_FLOAT16_SUPPORTED) */
-
 #endif // EIDSP_LOAD_CMSIS_DSP_SOURCES

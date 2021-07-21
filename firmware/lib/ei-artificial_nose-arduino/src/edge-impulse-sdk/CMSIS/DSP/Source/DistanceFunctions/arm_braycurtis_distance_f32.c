@@ -27,25 +27,14 @@
  * limitations under the License.
  */
 
-#include "edge-impulse-sdk/CMSIS/DSP/Include/arm_math.h"
+#include "edge-impulse-sdk/CMSIS/DSP/Include/dsp/distance_functions.h"
 #include <limits.h>
 #include <math.h>
 
 
 
 /**
- * @ingroup groupDistance
- * @{
- */
-
-/**
- * @defgroup FloatDist Float Distances
- *
- * Distances between two vectors of float values.
- */
-
-/**
-  @addtogroup FloatDist
+  @addtogroup braycurtis
   @{
  */
 
@@ -193,11 +182,8 @@ float32_t arm_braycurtis_distance_f32(const float32_t *pA,const float32_t *pB, u
 
 
 /**
- * @} end of FloatDist group
+ * @} end of braycurtis group
  */
 
-/**
- * @} end of groupDistance group
- */
 
 #endif // EIDSP_LOAD_CMSIS_DSP_SOURCES

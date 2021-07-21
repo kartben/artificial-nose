@@ -1987,6 +1987,38 @@ public:
 
         return r;
     }
+
+    /**
+     * Fast log10 and log2 functions, significantly faster than the ones from math.h (~6x for log10 on M4F)
+     * From https://community.arm.com/developer/tools-software/tools/f/armds-forum/4292/cmsis-dsp-new-functionality-proposal/22621#22621
+     * @param a Input number
+     * @returns Log2 value of a
+     */
+    __attribute__((always_inline)) static inline float log2(float a)
+    {
+        int e;
+        float f = frexpf(fabsf(a), &e);
+        float y = 1.23149591368684f;
+        y *= f;
+        y += -4.11852516267426f;
+        y *= f;
+        y += 6.02197014179219f;
+        y *= f;
+        y += -3.13396450166353f;
+        y += e;
+        return y;
+    }
+
+    /**
+     * Fast log10 and log2 functions, significantly faster than the ones from math.h (~6x for log10 on M4F)
+     * From https://community.arm.com/developer/tools-software/tools/f/armds-forum/4292/cmsis-dsp-new-functionality-proposal/22621#22621
+     * @param a Input number
+     * @returns Log10 value of a
+     */
+    __attribute__((always_inline)) static inline float log10(float a)
+    {
+        return numpy::log2(a) * 0.3010299956639812f;
+    }
 #if defined ( __GNUC__ )
 #pragma GCC diagnostic pop
 #endif
@@ -2000,6 +2032,20 @@ public:
     {
         for (uint32_t ix = 0; ix < matrix->rows * matrix->cols; ix++) {
             matrix->buffer[ix] = numpy::log(matrix->buffer[ix]);
+        }
+
+        return EIDSP_OK;
+    }
+
+    /**
+     * Calculate the log10 of a matrix. Does an in-place replacement.
+     * @param matrix Matrix (MxN)
+     * @returns 0 if OK
+     */
+    static int log10(matrix_t *matrix)
+    {
+        for (uint32_t ix = 0; ix < matrix->rows * matrix->cols; ix++) {
+            matrix->buffer[ix] = numpy::log10(matrix->buffer[ix]);
         }
 
         return EIDSP_OK;
@@ -2057,7 +2103,9 @@ public:
             EIDSP_ERR(r);
         }
 
-        float row_scale = 1.0f / (max_matrix.buffer[0] - min_matrix.buffer[0]);
+        float min_max_diff = (max_matrix.buffer[0] - min_matrix.buffer[0]);
+        /* Prevent divide by 0 by setting minimum value for divider */
+        float row_scale = min_max_diff < 0.001 ? 1.0f : 1.0f / min_max_diff;
 
         r = subtract(&temp_matrix, min_matrix.buffer[0]);
         if (r != EIDSP_OK) {
@@ -2067,6 +2115,45 @@ public:
         r = scale(&temp_matrix, row_scale);
         if (r != EIDSP_OK) {
             EIDSP_ERR(r);
+        }
+
+        return EIDSP_OK;
+    }
+
+    /**
+     * Clip (limit) the values in an array. Does an in-place replacement.
+     * Values outside the interval are clipped to the interval edges.
+     * For example, if an interval of [0, 1] is specified, values smaller than 0 become 0,
+     * and values larger than 1 become 1.
+     * @param matrix
+     * @param min Min value to be clipped
+     * @param max Max value to be clipped
+     */
+    static int clip(matrix_t *matrix, float min, float max) {
+        if (max < min) {
+            EIDSP_ERR(EIDSP_PARAMETER_INVALID);
+        }
+
+        for (size_t ix = 0; ix < matrix->rows * matrix->cols; ix++) {
+            if (min != DBL_MIN && matrix->buffer[ix] < min) {
+                matrix->buffer[ix] = min;
+            }
+            else if (max != DBL_MAX && matrix->buffer[ix] > max) {
+                matrix->buffer[ix] = max;
+            }
+        }
+
+        return EIDSP_OK;
+    }
+
+    /**
+     * Cut the data behind the comma on a matrix. Does an in-place replacement.
+     * E.g. around([ 3.01, 4.89 ]) becomes [3, 4]
+     * @param matrix
+     */
+    static int round(matrix_t *matrix) {
+        for (size_t ix = 0; ix < matrix->rows * matrix->cols; ix++) {
+            matrix->buffer[ix] = ::round(matrix->buffer[ix]);
         }
 
         return EIDSP_OK;

@@ -28,7 +28,7 @@
  * limitations under the License.
  */
 
-#include "edge-impulse-sdk/CMSIS/DSP/Include/arm_math.h"
+#include "edge-impulse-sdk/CMSIS/DSP/Include/dsp/complex_math_functions.h"
 
 /**
   @ingroup groupCmplxMath
@@ -51,7 +51,7 @@
                    The Q31 value -1 (0x80000000) is saturated to the maximum allowable positive value 0x7FFFFFFF.
  */
 
-#if defined(ARM_MATH_MVEI)
+#if defined(ARM_MATH_MVEI) && !defined(ARM_MATH_AUTOVECTORIZE)
 
 void arm_cmplx_conj_q31(
   const q31_t * pSrc,

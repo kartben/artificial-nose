@@ -9,18 +9,6 @@ include(${EI_SDK_FOLDER}/cmake/utils.cmake)
 
 target_include_directories(app PRIVATE
     ${EI_SDK_FOLDER}
-    ${EI_SDK_FOLDER}/third_party/ruy
-    ${EI_SDK_FOLDER}/third_party/gemmlowp
-    ${EI_SDK_FOLDER}/third_party/flatbuffers/include
-    ${EI_SDK_FOLDER}/third_party
-    ${EI_SDK_FOLDER}/tensorflow
-    ${EI_SDK_FOLDER}/dsp
-    ${EI_SDK_FOLDER}/classifier
-    ${EI_SDK_FOLDER}/anomaly
-    ${EI_SDK_FOLDER}/CMSIS/NN/Include
-    ${EI_SDK_FOLDER}/CMSIS/DSP/PrivateInclude
-    ${EI_SDK_FOLDER}/CMSIS/DSP/Include
-    ${EI_SDK_FOLDER}/CMSIS/Core/Include
 )
 
 RECURSIVE_FIND_FILE(SOURCE_FILES "${EI_SDK_FOLDER}" "*.cpp")

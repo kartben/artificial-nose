@@ -44,8 +44,8 @@
 #define EI_CLASSIFIER_PROJECT_ID                 2389
 #define EI_CLASSIFIER_PROJECT_OWNER              "kartben"
 #define EI_CLASSIFIER_PROJECT_NAME               "artificial_nose"
-#define EI_CLASSIFIER_PROJECT_DEPLOY_VERSION     48
-#define EI_CLASSIFIER_NN_INPUT_FRAME_SIZE        24
+#define EI_CLASSIFIER_PROJECT_DEPLOY_VERSION     50
+#define EI_CLASSIFIER_NN_INPUT_FRAME_SIZE        20
 #define EI_CLASSIFIER_RAW_SAMPLE_COUNT           15
 #define EI_CLASSIFIER_RAW_SAMPLES_PER_FRAME      4
 #define EI_CLASSIFIER_DSP_INPUT_FRAME_SIZE       (EI_CLASSIFIER_RAW_SAMPLE_COUNT * EI_CLASSIFIER_RAW_SAMPLES_PER_FRAME)
@@ -61,7 +61,7 @@
 #define EI_CLASSIFIER_OBJECT_DETECTION           0
 
 
-#define EI_CLASSIFIER_TFLITE_ARENA_SIZE          3366
+#define EI_CLASSIFIER_TFLITE_ARENA_SIZE          2579
 #define EI_CLASSIFIER_TFLITE_INPUT_DATATYPE      EI_CLASSIFIER_DATATYPE_FLOAT32
 #define EI_CLASSIFIER_TFLITE_INPUT_QUANTIZED     0
 #define EI_CLASSIFIER_TFLITE_INPUT_SCALE         0
@@ -136,6 +136,7 @@ typedef struct {
     int low_frequency;
     int high_frequency;
     int win_size;
+    int noise_floor_db;
 } ei_dsp_config_mfe_t;
 
 typedef struct {
@@ -163,6 +164,7 @@ typedef struct {
     float frame_length;
     float frame_stride;
     int fft_length;
+    int noise_floor_db;
     bool show_axes;
 } ei_dsp_config_spectrogram_t;
 
@@ -179,16 +181,18 @@ typedef struct {
     bool invert_features;
 } ei_dsp_config_audio_syntiant_t;
 
-ei_dsp_config_flatten_t ei_dsp_config_36 = {
+uint8_t ei_dsp_config_92_axes[] = { 0, 1, 2, 3 };
+const uint32_t ei_dsp_config_92_axes_size = 4;
+ei_dsp_config_flatten_t ei_dsp_config_92 = {
     1,
     4,
-    0.00100f,
+    1.00000f,
     true,
     true,
     true,
     true,
     true,
-    true,
+    false,
     false
 };
 

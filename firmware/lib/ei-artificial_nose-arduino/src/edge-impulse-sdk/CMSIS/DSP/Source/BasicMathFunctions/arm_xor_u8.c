@@ -28,7 +28,7 @@
  * limitations under the License.
  */
 
-#include "edge-impulse-sdk/CMSIS/DSP/Include/arm_math.h"
+#include "edge-impulse-sdk/CMSIS/DSP/Include/dsp/basic_math_functions.h"
 
 /**
   @ingroup groupMath
@@ -57,7 +57,7 @@ void arm_xor_u8(
     uint32_t blkCnt;      /* Loop counter */
 
 #if defined(ARM_MATH_MVEI) && !defined(ARM_MATH_AUTOVECTORIZE)
-    q7x16_t vecSrcA, vecSrcB;
+    uint8x16_t vecSrcA, vecSrcB;
 
     /* Compute 16 outputs at a time */
     blkCnt = blockSize >> 4;

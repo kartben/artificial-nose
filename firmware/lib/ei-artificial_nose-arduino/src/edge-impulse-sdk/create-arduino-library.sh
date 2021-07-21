@@ -32,6 +32,7 @@ rm -rf $SCRIPTPATH/porting/posix/
 rm -rf $SCRIPTPATH/porting/silabs/
 rm -rf $SCRIPTPATH/porting/stm32-cubeai/
 rm -rf $SCRIPTPATH/porting/zephyr/
+rm -rf $SCRIPTPATH/porting/sony/
 rm -rf $SCRIPTPATH/classifier/ei_run_classifier_c*
 rm -rf $SCRIPTPATH/CMSIS/DSP/Source/TransformFunctions/arm_bitreversal2.S
 rm -rf $SCRIPTPATH/third_party/arc_mli_package/
@@ -41,7 +42,9 @@ find . -name '*.cc' -exec sh -c 'mv "$0" "${0%.cc}.cpp"' {} \;
 
 # make sure that abs is undefined on arduino
 find $SCRIPTPATH/ -name 'compatibility.h' -exec bash -c "$SEDCMD 's/#include <cstdint>/#include <cstdint>\\
-#include \"edge-impulse-sdk\/tensorflow\/lite\/type_to_tflitetype.h\"/' {}" {} \;
+#include \"edge-impulse-sdk\/tensorflow\/lite\/portable_type_to_tflitetype.h\"/' {}" {} \;
+find $SCRIPTPATH/ -name 'micro_utils.h' -exec bash -c "$SEDCMD 's/#include <cstdint>/#include <cstdint>\\
+#include \"edge-impulse-sdk\/tensorflow\/lite\/portable_type_to_tflitetype.h\"/' {}" {} \;
 
 # wrap all CMSIS-DSP .c files in a guard (defined in config.hpp)
 find $SCRIPTPATH/CMSIS/DSP/Source -name "*.c" -print0 | while read -d $'\0' file; do

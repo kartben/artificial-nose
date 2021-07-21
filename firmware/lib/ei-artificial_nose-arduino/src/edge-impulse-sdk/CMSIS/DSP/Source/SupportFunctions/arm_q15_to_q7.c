@@ -28,7 +28,7 @@
  * limitations under the License.
  */
 
-#include "edge-impulse-sdk/CMSIS/DSP/Include/arm_math.h"
+#include "edge-impulse-sdk/CMSIS/DSP/Include/dsp/support_functions.h"
 
 /**
   @ingroup groupSupport
@@ -52,7 +52,7 @@
       pDst[n] = (q7_t) pSrc[n] >> 8;   0 <= n < blockSize.
   </pre>
  */
-#if defined(ARM_MATH_MVEI)
+#if defined(ARM_MATH_MVEI) && !defined(ARM_MATH_AUTOVECTORIZE)
 void arm_q15_to_q7(
   const q15_t * pSrc,
         q7_t * pDst,

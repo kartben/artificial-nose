@@ -28,7 +28,7 @@
  * limitations under the License.
  */
 
-#include "edge-impulse-sdk/CMSIS/DSP/Include/arm_math.h"
+#include "edge-impulse-sdk/CMSIS/DSP/Include/dsp/filtering_functions.h"
 
 /**
   @ingroup groupFilters
@@ -232,7 +232,7 @@ arm_status arm_conv_partial_fast_opt_q15(
         y1 = read_q15x2_ia ((q15_t **) &pIn2);
         y2 = read_q15x2_ia ((q15_t **) &pIn2);
 
-        /* multiply and accumlate */
+        /* multiply and accumulate */
         acc0 = __SMLAD(x1, y1, acc0);
         acc2 = __SMLAD(x2, y1, acc2);
 
@@ -243,13 +243,13 @@ arm_status arm_conv_partial_fast_opt_q15(
         x3 = __PKHBT(x1, x2, 0);
 #endif
 
-        /* multiply and accumlate */
+        /* multiply and accumulate */
         acc1 = __SMLADX(x3, y1, acc1);
 
         /* Read next two samples from scratch1 buffer */
         x1 = read_q15x2_ia (&pScr1);
 
-        /* multiply and accumlate */
+        /* multiply and accumulate */
         acc0 = __SMLAD(x2, y2, acc0);
         acc2 = __SMLAD(x1, y2, acc2);
 
@@ -271,7 +271,7 @@ arm_status arm_conv_partial_fast_opt_q15(
         x3 = __PKHBT(x1, x2, 0);
 #endif
 
-        /* multiply and accumlate */
+        /* multiply and accumulate */
         acc3 = __SMLADX(x3, y2, acc3);
 
         /* Decrement loop counter */
@@ -286,7 +286,7 @@ arm_status arm_conv_partial_fast_opt_q15(
 
       while (tapCnt > 0U)
       {
-        /* accumlate the results */
+        /* accumulate the results */
         acc0 += (*pScr1++ * *pIn2);
         acc1 += (*pScr1++ * *pIn2);
         acc2 += (*pScr1++ * *pIn2);
@@ -344,7 +344,7 @@ arm_status arm_conv_partial_fast_opt_q15(
         /* Read two samples from smaller buffer */
         y1 = read_q15x2_ia ((q15_t **) &pIn2);
 
-        /* multiply and accumlate */
+        /* multiply and accumulate */
         acc0 = __SMLAD(x1, y1, acc0);
 
         /* Decrement loop counter */
@@ -356,7 +356,7 @@ arm_status arm_conv_partial_fast_opt_q15(
       /* apply same above for remaining samples of smaller length sequence */
       while (tapCnt > 0U)
       {
-        /* accumlate the results */
+        /* accumulate the results */
         acc0 += (*pScr1++ * *pIn2++);
 
         /* Decrement loop counter */

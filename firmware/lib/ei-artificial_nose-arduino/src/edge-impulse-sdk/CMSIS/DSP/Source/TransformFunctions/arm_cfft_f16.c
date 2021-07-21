@@ -28,11 +28,11 @@
  * limitations under the License.
  */
 
-#include "edge-impulse-sdk/CMSIS/DSP/Include/arm_math_f16.h"
+#include "edge-impulse-sdk/CMSIS/DSP/Include/dsp/transform_functions_f16.h"
 #include "edge-impulse-sdk/CMSIS/DSP/Include/arm_common_tables_f16.h"
 
 
-#if defined(ARM_MATH_MVEF) && !defined(ARM_MATH_AUTOVECTORIZE)
+#if defined(ARM_MATH_MVE_FLOAT16) && !defined(ARM_MATH_AUTOVECTORIZE)
 
 #include "edge-impulse-sdk/CMSIS/DSP/Include/arm_helium_utils.h"
 #include "edge-impulse-sdk/CMSIS/DSP/Include/arm_vec_fft.h"
@@ -274,8 +274,8 @@ static void _arm_radix4_butterfly_f16_mve(const arm_cfft_instance_f16 * S,float1
     vecScGathAddr = vecScGathAddr + (uint32_t) pSrc;
 
     /* load scheduling */
-    vecA = vldrwq_gather_base_wb_f32(&vecScGathAddr, 64);
-    vecC = vldrwq_gather_base_f32(vecScGathAddr, 8);
+    vecA = (f16x8_t)vldrwq_gather_base_wb_f32(&vecScGathAddr, 64);
+    vecC = (f16x8_t)vldrwq_gather_base_f32(vecScGathAddr, 8);
 
     blkCnt = (fftLen >> 4);
     while (blkCnt > 0U)
@@ -283,27 +283,27 @@ static void _arm_radix4_butterfly_f16_mve(const arm_cfft_instance_f16 * S,float1
         vecSum0 = vecA + vecC;  /* vecSum0 = vaddq(vecA, vecC) */
         vecDiff0 = vecA - vecC; /* vecSum0 = vsubq(vecA, vecC) */
 
-        vecB = vldrwq_gather_base_f32(vecScGathAddr, 4);
-        vecD = vldrwq_gather_base_f32(vecScGathAddr, 12);
+        vecB = (f16x8_t)vldrwq_gather_base_f32(vecScGathAddr, 4);
+        vecD = (f16x8_t)vldrwq_gather_base_f32(vecScGathAddr, 12);
 
         vecSum1 = vecB + vecD;
         vecDiff1 = vecB - vecD;
 
         /* pre-load for next iteration */
-        vecA = vldrwq_gather_base_wb_f32(&vecScGathAddr, 64);
-        vecC = vldrwq_gather_base_f32(vecScGathAddr, 8);
+        vecA = (f16x8_t)vldrwq_gather_base_wb_f32(&vecScGathAddr, 64);
+        vecC = (f16x8_t)vldrwq_gather_base_f32(vecScGathAddr, 8);
 
         vecTmp0 = vecSum0 + vecSum1;
-        vstrwq_scatter_base_f32(vecScGathAddr, -64, vecTmp0);
+        vstrwq_scatter_base_f32(vecScGathAddr, -64, (f32x4_t)vecTmp0);
 
         vecTmp0 = vecSum0 - vecSum1;
-        vstrwq_scatter_base_f32(vecScGathAddr, -64 + 4, vecTmp0);
+        vstrwq_scatter_base_f32(vecScGathAddr, -64 + 4, (f32x4_t)vecTmp0);
 
         vecTmp0 = MVE_CMPLX_SUB_A_ixB(vecDiff0, vecDiff1);
-        vstrwq_scatter_base_f32(vecScGathAddr, -64 + 8, vecTmp0);
+        vstrwq_scatter_base_f32(vecScGathAddr, -64 + 8, (f32x4_t)vecTmp0);
 
         vecTmp0 = MVE_CMPLX_ADD_A_ixB(vecDiff0, vecDiff1);
-        vstrwq_scatter_base_f32(vecScGathAddr, -64 + 12, vecTmp0);
+        vstrwq_scatter_base_f32(vecScGathAddr, -64 + 12, (f32x4_t)vecTmp0);
 
         blkCnt--;
     }
@@ -482,8 +482,8 @@ static void _arm_radix4_butterfly_inverse_f16_mve(const arm_cfft_instance_f16 * 
     /*
      * load scheduling
      */
-    vecA = vldrwq_gather_base_wb_f32(&vecScGathAddr, 64);
-    vecC = vldrwq_gather_base_f32(vecScGathAddr, 8);
+    vecA = (f16x8_t)vldrwq_gather_base_wb_f32(&vecScGathAddr, 64);
+    vecC = (f16x8_t)vldrwq_gather_base_f32(vecScGathAddr, 8);
 
     blkCnt = (fftLen >> 4);
     while (blkCnt > 0U)
@@ -491,30 +491,30 @@ static void _arm_radix4_butterfly_inverse_f16_mve(const arm_cfft_instance_f16 * 
         vecSum0 = vecA + vecC;  /* vecSum0 = vaddq(vecA, vecC) */
         vecDiff0 = vecA - vecC; /* vecSum0 = vsubq(vecA, vecC) */
 
-        vecB = vldrwq_gather_base_f32(vecScGathAddr, 4);
-        vecD = vldrwq_gather_base_f32(vecScGathAddr, 12);
+        vecB = (f16x8_t)vldrwq_gather_base_f32(vecScGathAddr, 4);
+        vecD = (f16x8_t)vldrwq_gather_base_f32(vecScGathAddr, 12);
 
         vecSum1 = vecB + vecD;
         vecDiff1 = vecB - vecD;
 
-        vecA = vldrwq_gather_base_wb_f32(&vecScGathAddr, 64);
-        vecC = vldrwq_gather_base_f32(vecScGathAddr, 8);
+        vecA = (f16x8_t)vldrwq_gather_base_wb_f32(&vecScGathAddr, 64);
+        vecC = (f16x8_t)vldrwq_gather_base_f32(vecScGathAddr, 8);
 
         vecTmp0 = vecSum0 + vecSum1;
         vecTmp0 = vecTmp0 * onebyfftLen;
-        vstrwq_scatter_base_f32(vecScGathAddr, -64, vecTmp0);
+        vstrwq_scatter_base_f32(vecScGathAddr, -64, (f32x4_t)vecTmp0);
 
         vecTmp0 = vecSum0 - vecSum1;
         vecTmp0 = vecTmp0 * onebyfftLen;
-        vstrwq_scatter_base_f32(vecScGathAddr, -64 + 4, vecTmp0);
+        vstrwq_scatter_base_f32(vecScGathAddr, -64 + 4, (f32x4_t)vecTmp0);
 
         vecTmp0 = MVE_CMPLX_ADD_A_ixB(vecDiff0, vecDiff1);
         vecTmp0 = vecTmp0 * onebyfftLen;
-        vstrwq_scatter_base_f32(vecScGathAddr, -64 + 8, vecTmp0);
+        vstrwq_scatter_base_f32(vecScGathAddr, -64 + 8, (f32x4_t)vecTmp0);
 
         vecTmp0 = MVE_CMPLX_SUB_A_ixB(vecDiff0, vecDiff1);
         vecTmp0 = vecTmp0 * onebyfftLen;
-        vstrwq_scatter_base_f32(vecScGathAddr, -64 + 12, vecTmp0);
+        vstrwq_scatter_base_f32(vecScGathAddr, -64 + 12, (f32x4_t)vecTmp0);
 
         blkCnt--;
     }

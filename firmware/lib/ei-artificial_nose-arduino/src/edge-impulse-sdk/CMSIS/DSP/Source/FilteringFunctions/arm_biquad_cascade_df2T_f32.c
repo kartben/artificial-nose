@@ -28,7 +28,7 @@
  * limitations under the License.
  */
 
-#include "edge-impulse-sdk/CMSIS/DSP/Include/arm_math.h"
+#include "edge-impulse-sdk/CMSIS/DSP/Include/dsp/filtering_functions.h"
 
 /**
   @ingroup groupFilters
@@ -91,8 +91,8 @@ void arm_biquad_cascade_df2T_f32(
 
         /* b1Coeffs = {b0, b1, b2, x} */
         /* b1Coeffs = { x, x, a1, a2} */
-        b1Coeffs = vshlcq_s32(b0Coeffs, &tmp, 32);
-        a1Coeffs = vshlcq_s32(a0Coeffs, &tmp, 32);
+        b1Coeffs = (f32x4_t)vshlcq_s32((int32x4_t)b0Coeffs, &tmp, 32);
+        a1Coeffs = (f32x4_t)vshlcq_s32((int32x4_t)a0Coeffs, &tmp, 32);
 
         sample = blockSize / 2;
 

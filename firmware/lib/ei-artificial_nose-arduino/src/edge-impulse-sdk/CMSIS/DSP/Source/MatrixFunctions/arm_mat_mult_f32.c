@@ -28,7 +28,7 @@
  * limitations under the License.
  */
 
-#include "edge-impulse-sdk/CMSIS/DSP/Include/arm_math.h"
+#include "edge-impulse-sdk/CMSIS/DSP/Include/dsp/matrix_functions.h"
 
 /**
  * @ingroup groupMatrix
@@ -908,7 +908,7 @@ arm_status arm_mat_mult_f32(
         /* matrix multiplication */
         while (colCnt > 0U)
         {
-          /* c(m,n) = a(1,1) * b(1,1) + a(1,2) * b(2,1) + .... + a(m,p) * b(p,n) */
+          /* c(m,p) = a(m,1) * b(1,p) + a(m,2) * b(2,p) + .... + a(m,n) * b(n,p) */
 
           /* Perform the multiply-accumulates */
           sum += *pIn1++ * *pIn2;
@@ -939,7 +939,7 @@ arm_status arm_mat_mult_f32(
 
         while (colCnt > 0U)
         {
-          /* c(m,n) = a(1,1) * b(1,1) + a(1,2) * b(2,1) + .... + a(m,p) * b(p,n) */
+          /* c(m,p) = a(m,1) * b(1,p) + a(m,2) * b(2,p) + .... + a(m,n) * b(n,p) */
 
           /* Perform the multiply-accumulates */
           sum += *pIn1++ * *pIn2;

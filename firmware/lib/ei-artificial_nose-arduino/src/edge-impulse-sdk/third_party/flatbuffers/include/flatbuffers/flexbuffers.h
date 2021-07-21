@@ -493,9 +493,19 @@ class Reference {
           return static_cast<double>(ReadUInt64(Indirect(), byte_width_));
         case FBT_NULL: return 0.0;
         case FBT_STRING: {
+#if 1
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wnull-dereference"
+          // TODO(b/173239141): Patched via micro/tools/make/flexbuffers_download.sh
+          // Introduce a segfault for an unsupported code path for TFLM.
+          return *(static_cast<double*>(nullptr));
+#pragma GCC diagnostic pop
+#else
+          // This is the original code
           double d;
           flatbuffers::StringToNumber(AsString().c_str(), &d);
           return d;
+#endif
         }
         case FBT_VECTOR: return static_cast<double>(AsVector().size());
         case FBT_BOOL:
@@ -1256,7 +1266,7 @@ class Builder FLATBUFFERS_FINAL_CLASS {
   // auto id = builder.LastValue();  // Remember where we stored it.
   // .. more code goes here ..
   // builder.ReuseValue(id);  // Refers to same double by offset.
-  // LastValue works regardless of wether the value has a key or not.
+  // LastValue works regardless of whether the value has a key or not.
   // Works on any data type.
   struct Value;
   Value LastValue() { return stack_.back(); }
@@ -1417,7 +1427,10 @@ class Builder FLATBUFFERS_FINAL_CLASS {
     Value(uint64_t u, Type t, BitWidth bw)
         : u_(u), type_(t), min_bit_width_(bw) {}
 
-    Value(float f) : f_(f), type_(FBT_FLOAT), min_bit_width_(BIT_WIDTH_32) {}
+    Value(float f)
+        : f_(static_cast<double>(f)),
+          type_(FBT_FLOAT),
+          min_bit_width_(BIT_WIDTH_32) {}
     Value(double f) : f_(f), type_(FBT_FLOAT), min_bit_width_(WidthF(f)) {}
 
     uint8_t StoredPackedType(BitWidth parent_bit_width_ = BIT_WIDTH_8) const {
@@ -1522,7 +1535,8 @@ class Builder FLATBUFFERS_FINAL_CLASS {
     Type vector_type = FBT_KEY;
     // Check bit widths and types for all elements.
     for (size_t i = start; i < stack_.size(); i += step) {
-      auto elem_width = stack_[i].ElemWidth(buf_.size(), i + prefix_elems);
+      auto elem_width =
+          stack_[i].ElemWidth(buf_.size(), i - start + prefix_elems);
       bit_width = (std::max)(bit_width, elem_width);
       if (typed) {
         if (i == start) {

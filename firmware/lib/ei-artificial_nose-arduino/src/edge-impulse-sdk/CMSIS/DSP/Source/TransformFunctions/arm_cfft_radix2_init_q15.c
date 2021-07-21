@@ -28,7 +28,7 @@
  * limitations under the License.
  */
 
-#include "edge-impulse-sdk/CMSIS/DSP/Include/arm_math.h"
+#include "edge-impulse-sdk/CMSIS/DSP/Include/dsp/transform_functions.h"
 #include "edge-impulse-sdk/CMSIS/DSP/Include/arm_common_tables.h"
 
 /**
@@ -74,8 +74,15 @@ arm_status arm_cfft_radix2_init_q15(
   uint8_t ifftFlag,
   uint8_t bitReverseFlag)
 {
+   /*  Initialise the default arm status */
+  arm_status status = ARM_MATH_ARGUMENT_ERROR;
+
+#if !defined(ARM_DSP_CONFIG_TABLES) || defined(ARM_FFT_ALLOW_TABLES)
+
+#if !defined(ARM_DSP_CONFIG_TABLES) || defined(ARM_ALL_FFT_TABLES) || defined(ARM_TABLE_TWIDDLECOEF_Q15_4096)
+
   /*  Initialise the default arm status */
-  arm_status status = ARM_MATH_SUCCESS;
+  status = ARM_MATH_SUCCESS;
 
   /*  Initialise the FFT length */
   S->fftLen = fftLen;
@@ -86,6 +93,8 @@ arm_status arm_cfft_radix2_init_q15(
   S->ifftFlag = ifftFlag;
   /*  Initialise the Flag for calculation Bit reversal or not */
   S->bitReverseFlag = bitReverseFlag;
+
+#if !defined(ARM_DSP_CONFIG_TABLES) || defined(ARM_ALL_FFT_TABLES) || defined(ARM_TABLE_BITREVIDX_FXT_4096)
 
   /*  Initializations of structure parameters depending on the FFT length */
   switch (S->fftLen)
@@ -98,7 +107,7 @@ arm_status arm_cfft_radix2_init_q15(
     /*  Initialise the bit reversal table modifier */
     S->bitRevFactor = 1U;
     /*  Initialise the bit reversal table pointer */
-    S->pBitRevTable = (uint16_t *) armBitRevTable;
+    S->pBitRevTable = (uint16_t *) armBitRevIndexTable_fixed_4096;
 
     break;
 
@@ -110,7 +119,7 @@ arm_status arm_cfft_radix2_init_q15(
     /*  Initialise the bit reversal table modifier */
     S->bitRevFactor = 2U;
     /*  Initialise the bit reversal table pointer */
-    S->pBitRevTable = (uint16_t *) & armBitRevTable[1];
+    S->pBitRevTable = (uint16_t *) & armBitRevIndexTable_fixed_4096[1];
 
     break;
 
@@ -118,7 +127,7 @@ arm_status arm_cfft_radix2_init_q15(
     /*  Initializations of structure parameters for 1024 point FFT */
     S->twidCoefModifier = 4U;
     S->bitRevFactor = 4U;
-    S->pBitRevTable = (uint16_t *) & armBitRevTable[3];
+    S->pBitRevTable = (uint16_t *) & armBitRevIndexTable_fixed_4096[3];
 
     break;
 
@@ -126,7 +135,7 @@ arm_status arm_cfft_radix2_init_q15(
     /*  Initializations of structure parameters for 512 point FFT */
     S->twidCoefModifier = 8U;
     S->bitRevFactor = 8U;
-    S->pBitRevTable = (uint16_t *) & armBitRevTable[7];
+    S->pBitRevTable = (uint16_t *) & armBitRevIndexTable_fixed_4096[7];
 
     break;
 
@@ -134,7 +143,7 @@ arm_status arm_cfft_radix2_init_q15(
     /*  Initializations of structure parameters for 256 point FFT */
     S->twidCoefModifier = 16U;
     S->bitRevFactor = 16U;
-    S->pBitRevTable = (uint16_t *) & armBitRevTable[15];
+    S->pBitRevTable = (uint16_t *) & armBitRevIndexTable_fixed_4096[15];
 
     break;
 
@@ -142,7 +151,7 @@ arm_status arm_cfft_radix2_init_q15(
     /*  Initializations of structure parameters for 128 point FFT */
     S->twidCoefModifier = 32U;
     S->bitRevFactor = 32U;
-    S->pBitRevTable = (uint16_t *) & armBitRevTable[31];
+    S->pBitRevTable = (uint16_t *) & armBitRevIndexTable_fixed_4096[31];
 
     break;
 
@@ -150,7 +159,7 @@ arm_status arm_cfft_radix2_init_q15(
     /*  Initializations of structure parameters for 64 point FFT */
     S->twidCoefModifier = 64U;
     S->bitRevFactor = 64U;
-    S->pBitRevTable = (uint16_t *) & armBitRevTable[63];
+    S->pBitRevTable = (uint16_t *) & armBitRevIndexTable_fixed_4096[63];
 
     break;
 
@@ -158,7 +167,7 @@ arm_status arm_cfft_radix2_init_q15(
     /*  Initializations of structure parameters for 32 point FFT */
     S->twidCoefModifier = 128U;
     S->bitRevFactor = 128U;
-    S->pBitRevTable = (uint16_t *) & armBitRevTable[127];
+    S->pBitRevTable = (uint16_t *) & armBitRevIndexTable_fixed_4096[127];
 
     break;
 
@@ -166,7 +175,7 @@ arm_status arm_cfft_radix2_init_q15(
     /*  Initializations of structure parameters for 16 point FFT */
     S->twidCoefModifier = 256U;
     S->bitRevFactor = 256U;
-    S->pBitRevTable = (uint16_t *) & armBitRevTable[255];
+    S->pBitRevTable = (uint16_t *) & armBitRevIndexTable_fixed_4096[255];
 
     break;
 
@@ -176,6 +185,9 @@ arm_status arm_cfft_radix2_init_q15(
     break;
   }
 
+#endif
+#endif
+#endif
   return (status);
 }
 

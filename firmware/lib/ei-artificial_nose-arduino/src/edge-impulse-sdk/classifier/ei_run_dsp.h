@@ -26,6 +26,7 @@
 #include "model-parameters/model_metadata.h"
 #include "edge-impulse-sdk/dsp/spectral/spectral.hpp"
 #include "edge-impulse-sdk/dsp/speechpy/speechpy.hpp"
+#include "edge-impulse-sdk/classifier/ei_signal_with_range.h"
 
 #if defined(__cplusplus) && EI_C_LINKAGE == 1
 extern "C" {
@@ -41,14 +42,14 @@ namespace {
 
 using namespace ei;
 
-/* extract mfcc slice features variables */
-static uint32_t last_read_sample = 0;
-static float *cache_sample_buffer;
-static uint32_t cache_sample_size = 0;
-
 #if defined(EI_DSP_IMAGE_BUFFER_STATIC_SIZE)
 float ei_dsp_image_buffer[EI_DSP_IMAGE_BUFFER_STATIC_SIZE];
 #endif
+
+// this is the frame we work on... allocate it statically so we share between invocations
+static float *ei_dsp_cont_current_frame = nullptr;
+static size_t ei_dsp_cont_current_frame_size = 0;
+static int ei_dsp_cont_current_frame_ix = 0;
 
 __attribute__((unused)) int extract_spectral_analysis_features(signal_t *signal, matrix_t *output_matrix, void *config_ptr, const float frequency) {
     ei_dsp_config_spectral_analysis_t config = *((ei_dsp_config_spectral_analysis_t*)config_ptr);
@@ -92,6 +93,10 @@ __attribute__((unused)) int extract_spectral_analysis_features(signal_t *signal,
     // convert spectral_power_edges (string) into float array
     char *spectral_ptr = spectral_str;
     while (spectral_ptr != NULL) {
+        while((*spectral_ptr) == ' ') {
+            spectral_ptr++;
+        }
+
         edges_matrix_in.buffer[edge_matrix_ix++] = atof(spectral_ptr);
 
         // find next (spectral) delimiter (or '\0' character)
@@ -399,10 +404,14 @@ __attribute__((unused)) int extract_mfcc_features(signal_t *signal, matrix_t *ou
         EIDSP_ERR(EIDSP_BLOCK_VERSION_INCORRECT);
     }
 
+    if (signal->total_length == 0) {
+        EIDSP_ERR(EIDSP_PARAMETER_INVALID);
+    }
+
     const uint32_t frequency = static_cast<uint32_t>(sampling_frequency);
 
     // preemphasis class to preprocess the audio...
-    class speechpy::processing::preemphasis pre(signal, config.pre_shift, config.pre_cof);
+    class speechpy::processing::preemphasis pre(signal, config.pre_shift, config.pre_cof, false);
     preemphasis = &pre;
 
     signal_t preemphasized_audio_signal;
@@ -415,8 +424,8 @@ __attribute__((unused)) int extract_mfcc_features(signal_t *signal, matrix_t *ou
             signal->total_length, frequency, config.frame_length, config.frame_stride, config.num_cepstral, config.implementation_version);
     /* Only throw size mismatch error calculated buffer doesn't fit for continuous inferencing */
     if (out_matrix_size.rows * out_matrix_size.cols > output_matrix->rows * output_matrix->cols) {
-        ei_printf("out_matrix = %hux%hu\n", output_matrix->rows, output_matrix->cols);
-        ei_printf("calculated size = %hux%hu\n", out_matrix_size.rows, out_matrix_size.cols);
+        ei_printf("out_matrix = %dx%d\n", (int)output_matrix->rows, (int)output_matrix->cols);
+        ei_printf("calculated size = %dx%d\n", (int)out_matrix_size.rows, (int)out_matrix_size.cols);
         EIDSP_ERR(EIDSP_MATRIX_SIZE_MISMATCH);
     }
 
@@ -445,26 +454,54 @@ __attribute__((unused)) int extract_mfcc_features(signal_t *signal, matrix_t *ou
     return EIDSP_OK;
 }
 
-/**
- * @brief Preemphasize audio from sample and collect data from cached buffer
- *        Cached buffer data is already preemphasized
- */
-static int preemphasized_audio_signal_get_and_align_data(size_t offset, size_t length, float *out_ptr)
-{
-    size_t ix;
 
-    for(ix = 0; (ix + offset) < cache_sample_size; ix++) {
-        *(out_ptr++) = cache_sample_buffer[ix + offset];
+static int extract_mfcc_run_slice(signal_t *signal, matrix_t *output_matrix, ei_dsp_config_mfcc_t *config, const float sampling_frequency, matrix_size_t *matrix_size_out, int implementation_version) {
+    uint32_t frequency = (uint32_t)sampling_frequency;
+
+    int x;
+
+    // calculate the size of the spectrogram matrix
+    matrix_size_t out_matrix_size =
+        speechpy::feature::calculate_mfcc_buffer_size(
+            signal->total_length, frequency, config->frame_length, config->frame_stride, config->num_cepstral,
+            implementation_version);
+
+    // we roll the output matrix back so we have room at the end...
+    x = numpy::roll(output_matrix->buffer, output_matrix->rows * output_matrix->cols,
+        -(out_matrix_size.rows * out_matrix_size.cols));
+    if (x != EIDSP_OK) {
+        EIDSP_ERR(x);
     }
-    offset += ix;
-    length -= ix;
 
-    /* Determine last read sample in signal buffer, so subtract cache buffer */
-    last_read_sample = offset + length - cache_sample_size;
-    return preemphasis->get_data(offset - cache_sample_size, length, out_ptr);
+    // slice in the output matrix to write to
+    // the offset in the classification matrix here is always at the end
+    size_t output_matrix_offset = (output_matrix->rows * output_matrix->cols) -
+        (out_matrix_size.rows * out_matrix_size.cols);
+
+    matrix_t output_matrix_slice(out_matrix_size.rows, out_matrix_size.cols, output_matrix->buffer + output_matrix_offset);
+
+    // and run the MFCC extraction
+    x = speechpy::feature::mfcc(&output_matrix_slice, signal,
+        frequency, config->frame_length, config->frame_stride, config->num_cepstral, config->num_filters, config->fft_length,
+        config->low_frequency, config->high_frequency, true, implementation_version);
+    if (x != EIDSP_OK) {
+        ei_printf("ERR: MFCC failed (%d)\n", x);
+        EIDSP_ERR(x);
+    }
+
+    matrix_size_out->rows += out_matrix_size.rows;
+    if (out_matrix_size.cols > 0) {
+        matrix_size_out->cols = out_matrix_size.cols;
+    }
+
+    return EIDSP_OK;
 }
 
-__attribute__((unused)) int extract_mfcc_per_slice_features(signal_t *signal, matrix_t *output_matrix, void *config_ptr, const float sampling_frequency) {
+__attribute__((unused)) int extract_mfcc_per_slice_features(signal_t *signal, matrix_t *output_matrix, void *config_ptr, const float sampling_frequency, matrix_size_t *matrix_size_out) {
+#if defined(__cplusplus) && EI_C_LINKAGE == 1
+    ei_printf("ERR: Continuous audio is not supported when EI_C_LINKAGE is defined\n");
+    EIDSP_ERR(EIDSP_NOT_SUPPORTED);
+#else
 
     ei_dsp_config_mfcc_t config = *((ei_dsp_config_mfcc_t*)config_ptr);
 
@@ -476,90 +513,155 @@ __attribute__((unused)) int extract_mfcc_per_slice_features(signal_t *signal, ma
         EIDSP_ERR(EIDSP_BLOCK_VERSION_INCORRECT);
     }
 
+    if (signal->total_length == 0) {
+        EIDSP_ERR(EIDSP_PARAMETER_INVALID);
+    }
+
     const uint32_t frequency = static_cast<uint32_t>(sampling_frequency);
 
     // preemphasis class to preprocess the audio...
-    class speechpy::processing::preemphasis pre(signal, config.pre_shift, config.pre_cof);
+    class speechpy::processing::preemphasis pre(signal, config.pre_shift, config.pre_cof, false);
     preemphasis = &pre;
-
-    /* Increase the buffer length with the cached sample data */
-    signal->total_length += cache_sample_size;
-
-    /* Fake an extra frame_length for stack frames calculations. There, 1 frame_length is always
-    subtracted and there for never used. But skip the first slice to fit the feature_matrix
-    buffer */
-    static bool first_run = false;
-
-    if(config.implementation_version < 2) {
-
-        if (first_run == true) {
-            signal->total_length += (size_t)(config.frame_length * (float)frequency);
-        }
-
-        first_run = true;
-    }
 
     signal_t preemphasized_audio_signal;
     preemphasized_audio_signal.total_length = signal->total_length;
-    preemphasized_audio_signal.get_data = &preemphasized_audio_signal_get_and_align_data;
-    last_read_sample = 0;
+    preemphasized_audio_signal.get_data = &preemphasized_audio_signal_get_data;
 
-    // calculate the size of the MFCC matrix
-    matrix_size_t out_matrix_size =
-        speechpy::feature::calculate_mfcc_buffer_size(
-            signal->total_length, frequency, config.frame_length, config.frame_stride, config.num_cepstral, config.implementation_version);
-    /* Only throw size mismatch error calculated buffer doesn't fit for continuous inferencing */
-    if (out_matrix_size.rows * out_matrix_size.cols > output_matrix->rows * output_matrix->cols) {
-        ei_printf("out_matrix = %hux%hu\n", output_matrix->rows, output_matrix->cols);
-        ei_printf("calculated size = %hux%hu\n", out_matrix_size.rows, out_matrix_size.cols);
-        EIDSP_ERR(EIDSP_MATRIX_SIZE_MISMATCH);
-    }
-    output_matrix->rows = out_matrix_size.rows;
-    output_matrix->cols = out_matrix_size.cols;
+    // Go from the time (e.g. 0.25 seconds to number of frames based on freq)
+    const size_t frame_length_values = frequency * config.frame_length;
+    const size_t frame_stride_values = frequency * config.frame_stride;
+    const int frame_overlap_values = static_cast<int>(frame_length_values) - static_cast<int>(frame_stride_values);
 
-    // and run the MFCC extraction (using 32 rather than 40 filters here to optimize speed on embedded)
-    int ret = speechpy::feature::mfcc(output_matrix, &preemphasized_audio_signal,
-        frequency, config.frame_length, config.frame_stride, config.num_cepstral, config.num_filters, config.fft_length,
-        config.low_frequency, config.high_frequency, true, config.implementation_version);
-    if (ret != EIDSP_OK) {
-        ei_printf("ERR: MFCC failed (%d)\n", ret);
-        EIDSP_ERR(ret);
+    if (frame_overlap_values < 0) {
+        ei_printf("ERR: frame_length (%f) cannot be lower than frame_stride (%f) for continuous classification\n",
+            config.frame_length, config.frame_stride);
+        EIDSP_ERR(EIDSP_PARAMETER_INVALID);
     }
 
-    output_matrix->cols = out_matrix_size.rows * out_matrix_size.cols;
-    output_matrix->rows = 1;
+    int x;
 
-    if(config.implementation_version < 2) {
-        if (first_run == true) {
-            signal->total_length -= (size_t)(config.frame_length * (float)frequency);
-        }
+    // have current frame, but wrong size? then free
+    if (ei_dsp_cont_current_frame && ei_dsp_cont_current_frame_size != frame_length_values) {
+        ei_free(ei_dsp_cont_current_frame);
+        ei_dsp_cont_current_frame = nullptr;
     }
 
-    /* Get back to original sample length */
-    signal->total_length -= cache_sample_size;
+    int implementation_version = config.implementation_version;
 
-    if(cache_sample_buffer) {
-        ei_free(cache_sample_buffer);
-        cache_sample_size = 0;
-        cache_sample_buffer = 0;
-    }
+    // this is the offset in the signal from which we'll work
+    size_t offset_in_signal = 0;
 
-    /* Cache data if not complete sample buffer is read */
-    if(last_read_sample < (uint32_t)signal->total_length) {
-
-        uint32_t missing_samples =  signal->total_length - last_read_sample;
-
-        cache_sample_buffer = (float *)ei_malloc(missing_samples * sizeof(float));
-        if(cache_sample_buffer == NULL) {
+    if (!ei_dsp_cont_current_frame) {
+        ei_dsp_cont_current_frame = (float*)ei_calloc(frame_length_values * sizeof(float), 1);
+        if (!ei_dsp_cont_current_frame) {
             EIDSP_ERR(EIDSP_OUT_OF_MEM);
         }
-        preemphasis->get_data(last_read_sample, missing_samples, cache_sample_buffer);
-        cache_sample_size = missing_samples;
+        ei_dsp_cont_current_frame_size = frame_length_values;
+        ei_dsp_cont_current_frame_ix = 0;
     }
 
-    return EIDSP_OK;
-}
 
+    if ((frame_length_values) > preemphasized_audio_signal.total_length  + ei_dsp_cont_current_frame_ix) {
+        ei_printf("ERR: frame_length (%d) cannot be larger than signal's total length (%d) for continuous classification\n",
+            (int)frame_length_values, (int)preemphasized_audio_signal.total_length  + ei_dsp_cont_current_frame_ix);
+        EIDSP_ERR(EIDSP_PARAMETER_INVALID);
+    }
+
+    matrix_size_out->rows = 0;
+    matrix_size_out->cols = 0;
+
+    // for continuous use v2 stack frame calculations
+    if (implementation_version == 1) {
+        implementation_version = 2;
+    }
+
+    if (ei_dsp_cont_current_frame_ix > (int)ei_dsp_cont_current_frame_size) {
+        ei_printf("ERR: ei_dsp_cont_current_frame_ix is larger than frame size (ix=%d size=%d)\n",
+            ei_dsp_cont_current_frame_ix, (int)ei_dsp_cont_current_frame_size);
+        EIDSP_ERR(EIDSP_PARAMETER_INVALID);
+    }
+
+    // if we still have some code from previous run
+    while (ei_dsp_cont_current_frame_ix > 0) {
+        // then from the current frame we need to read `frame_length_values - ei_dsp_cont_current_frame_ix`
+        // starting at offset 0
+        x = preemphasized_audio_signal.get_data(0, frame_length_values - ei_dsp_cont_current_frame_ix, ei_dsp_cont_current_frame + ei_dsp_cont_current_frame_ix);
+        if (x != EIDSP_OK) {
+            EIDSP_ERR(x);
+        }
+
+        // now ei_dsp_cont_current_frame is complete
+        signal_t frame_signal;
+        x = numpy::signal_from_buffer(ei_dsp_cont_current_frame, frame_length_values, &frame_signal);
+        if (x != EIDSP_OK) {
+            EIDSP_ERR(x);
+        }
+
+        x = extract_mfcc_run_slice(&frame_signal, output_matrix, &config, sampling_frequency, matrix_size_out, implementation_version);
+        if (x != EIDSP_OK) {
+            EIDSP_ERR(x);
+        }
+
+        // if there's overlap between frames we roll through
+        if (frame_stride_values > 0) {
+            numpy::roll(ei_dsp_cont_current_frame, frame_length_values, -frame_stride_values);
+        }
+
+        ei_dsp_cont_current_frame_ix -= frame_stride_values;
+    }
+
+    if (ei_dsp_cont_current_frame_ix < 0) {
+        offset_in_signal = -ei_dsp_cont_current_frame_ix;
+        ei_dsp_cont_current_frame_ix = 0;
+    }
+
+    if (offset_in_signal >= signal->total_length) {
+        offset_in_signal -= signal->total_length;
+        return EIDSP_OK;
+    }
+
+    // now... we need to discard part of the signal...
+    SignalWithRange signal_with_range(&preemphasized_audio_signal, offset_in_signal, signal->total_length);
+
+    signal_t *range_signal = signal_with_range.get_signal();
+    size_t range_signal_orig_length = range_signal->total_length;
+
+    // then we'll just go through normal processing of the signal:
+    x = extract_mfcc_run_slice(range_signal, output_matrix, &config, sampling_frequency, matrix_size_out, implementation_version);
+    if (x != EIDSP_OK) {
+        EIDSP_ERR(x);
+    }
+
+    // Make sure v1 model are reset to the original length;
+    range_signal->total_length = range_signal_orig_length;
+
+    // update offset
+    int length_of_signal_used = speechpy::processing::calculate_signal_used(range_signal->total_length, sampling_frequency,
+        config.frame_length, config.frame_stride, false, implementation_version);
+    offset_in_signal += length_of_signal_used;
+
+    // see what's left?
+    int bytes_left_end_of_frame = signal->total_length - offset_in_signal;
+    bytes_left_end_of_frame += frame_overlap_values;
+
+    if (bytes_left_end_of_frame > 0) {
+        // then read that into the ei_dsp_cont_current_frame buffer
+        x = preemphasized_audio_signal.get_data(
+            (preemphasized_audio_signal.total_length - bytes_left_end_of_frame),
+            bytes_left_end_of_frame,
+            ei_dsp_cont_current_frame);
+        if (x != EIDSP_OK) {
+            EIDSP_ERR(x);
+        }
+    }
+
+    ei_dsp_cont_current_frame_ix = bytes_left_end_of_frame;
+
+    preemphasis = nullptr;
+
+    return EIDSP_OK;
+#endif
+}
 
 __attribute__((unused)) int extract_spectrogram_features(signal_t *signal, matrix_t *output_matrix, void *config_ptr, const float sampling_frequency) {
     ei_dsp_config_spectrogram_t config = *((ei_dsp_config_spectrogram_t*)config_ptr);
@@ -568,6 +670,10 @@ __attribute__((unused)) int extract_spectrogram_features(signal_t *signal, matri
         EIDSP_ERR(EIDSP_MATRIX_SIZE_MISMATCH);
     }
 
+    if (signal->total_length == 0) {
+        EIDSP_ERR(EIDSP_PARAMETER_INVALID);
+    }
+
     const uint32_t frequency = static_cast<uint32_t>(sampling_frequency);
 
     // calculate the size of the MFE matrix
@@ -577,8 +683,8 @@ __attribute__((unused)) int extract_spectrogram_features(signal_t *signal, matri
             config.implementation_version);
     /* Only throw size mismatch error calculated buffer doesn't fit for continuous inferencing */
     if (out_matrix_size.rows * out_matrix_size.cols > output_matrix->rows * output_matrix->cols) {
-        ei_printf("out_matrix = %hux%hu\n", output_matrix->rows, output_matrix->cols);
-        ei_printf("calculated size = %hux%hu\n", out_matrix_size.rows, out_matrix_size.cols);
+        ei_printf("out_matrix = %dx%d\n", (int)output_matrix->rows, (int)output_matrix->cols);
+        ei_printf("calculated size = %dx%d\n", (int)out_matrix_size.rows, (int)out_matrix_size.cols);
         EIDSP_ERR(EIDSP_MATRIX_SIZE_MISMATCH);
     }
 
@@ -598,9 +704,19 @@ __attribute__((unused)) int extract_spectrogram_features(signal_t *signal, matri
         EIDSP_ERR(ret);
     }
 
-    ret = numpy::normalize(output_matrix);
-    if (ret != EIDSP_OK) {
-        EIDSP_ERR(ret);
+    if (config.implementation_version < 3) {
+        ret = numpy::normalize(output_matrix);
+        if (ret != EIDSP_OK) {
+            EIDSP_ERR(ret);
+        }
+    }
+    else {
+        // normalization
+        ret = speechpy::processing::spectrogram_normalization(output_matrix, config.noise_floor_db);
+        if (ret != EIDSP_OK) {
+            ei_printf("ERR: normalization failed (%d)\n", ret);
+            EIDSP_ERR(ret);
+        }
     }
 
     output_matrix->cols = out_matrix_size.rows * out_matrix_size.cols;
@@ -609,7 +725,58 @@ __attribute__((unused)) int extract_spectrogram_features(signal_t *signal, matri
     return EIDSP_OK;
 }
 
-__attribute__((unused)) int extract_spectrogram_per_slice_features(signal_t *signal, matrix_t *output_matrix, void *config_ptr, const float sampling_frequency) {
+
+static int extract_spectrogram_run_slice(signal_t *signal, matrix_t *output_matrix, ei_dsp_config_spectrogram_t *config, const float sampling_frequency, matrix_size_t *matrix_size_out) {
+    uint32_t frequency = (uint32_t)sampling_frequency;
+
+    int x;
+
+    // calculate the size of the spectrogram matrix
+    matrix_size_t out_matrix_size =
+        speechpy::feature::calculate_mfe_buffer_size(
+            signal->total_length, frequency, config->frame_length, config->frame_stride, config->fft_length / 2 + 1,
+            config->implementation_version);
+
+    // we roll the output matrix back so we have room at the end...
+    x = numpy::roll(output_matrix->buffer, output_matrix->rows * output_matrix->cols,
+        -(out_matrix_size.rows * out_matrix_size.cols));
+    if (x != EIDSP_OK) {
+        if (preemphasis) {
+            delete preemphasis;
+        }
+        EIDSP_ERR(x);
+    }
+
+    // slice in the output matrix to write to
+    // the offset in the classification matrix here is always at the end
+    size_t output_matrix_offset = (output_matrix->rows * output_matrix->cols) -
+        (out_matrix_size.rows * out_matrix_size.cols);
+
+    matrix_t output_matrix_slice(out_matrix_size.rows, out_matrix_size.cols, output_matrix->buffer + output_matrix_offset);
+
+    // and run the spectrogram extraction
+    int ret = speechpy::feature::spectrogram(&output_matrix_slice, signal,
+        frequency, config->frame_length, config->frame_stride, config->fft_length, config->implementation_version);
+
+    if (ret != EIDSP_OK) {
+        ei_printf("ERR: Spectrogram failed (%d)\n", ret);
+        EIDSP_ERR(ret);
+    }
+
+    matrix_size_out->rows += out_matrix_size.rows;
+    if (out_matrix_size.cols > 0) {
+        matrix_size_out->cols = out_matrix_size.cols;
+    }
+
+    return EIDSP_OK;
+}
+
+__attribute__((unused)) int extract_spectrogram_per_slice_features(signal_t *signal, matrix_t *output_matrix, void *config_ptr, const float sampling_frequency, matrix_size_t *matrix_size_out) {
+#if defined(__cplusplus) && EI_C_LINKAGE == 1
+    ei_printf("ERR: Continuous audio is not supported when EI_C_LINKAGE is defined\n");
+    EIDSP_ERR(EIDSP_NOT_SUPPORTED);
+#else
+
     ei_dsp_config_spectrogram_t config = *((ei_dsp_config_spectrogram_t*)config_ptr);
 
     static bool first_run = false;
@@ -618,6 +785,10 @@ __attribute__((unused)) int extract_spectrogram_per_slice_features(signal_t *sig
         EIDSP_ERR(EIDSP_MATRIX_SIZE_MISMATCH);
     }
 
+    if (signal->total_length == 0) {
+        EIDSP_ERR(EIDSP_PARAMETER_INVALID);
+    }
+
     const uint32_t frequency = static_cast<uint32_t>(sampling_frequency);
 
     /* Fake an extra frame_length for stack frames calculations. There, 1 frame_length is always
@@ -632,45 +803,137 @@ __attribute__((unused)) int extract_spectrogram_per_slice_features(signal_t *sig
         first_run = true;
     }
 
-    // calculate the size of the MFE matrix
-    matrix_size_t out_matrix_size =
-        speechpy::feature::calculate_mfe_buffer_size(
-            signal->total_length, frequency, config.frame_length, config.frame_stride, config.fft_length / 2 + 1,
-            config.implementation_version);
-    /* Only throw size mismatch error calculated buffer doesn't fit for continuous inferencing */
-    if (out_matrix_size.rows * out_matrix_size.cols > output_matrix->rows * output_matrix->cols) {
-        ei_printf("out_matrix = %hux%hu\n", output_matrix->rows, output_matrix->cols);
-        ei_printf("calculated size = %hux%hu\n", out_matrix_size.rows, out_matrix_size.cols);
-        EIDSP_ERR(EIDSP_MATRIX_SIZE_MISMATCH);
+    // Go from the time (e.g. 0.25 seconds to number of frames based on freq)
+    const size_t frame_length_values = frequency * config.frame_length;
+    const size_t frame_stride_values = frequency * config.frame_stride;
+    const int frame_overlap_values = static_cast<int>(frame_length_values) - static_cast<int>(frame_stride_values);
+
+    if (frame_overlap_values < 0) {
+        ei_printf("ERR: frame_length (%f) cannot be lower than frame_stride (%f) for continuous classification\n",
+            config.frame_length, config.frame_stride);
+        EIDSP_ERR(EIDSP_PARAMETER_INVALID);
     }
 
-    output_matrix->rows = out_matrix_size.rows;
-    output_matrix->cols = out_matrix_size.cols;
-
-    EI_DSP_MATRIX(energy_matrix, output_matrix->rows, 1);
-    if (!energy_matrix.buffer) {
-        EIDSP_ERR(EIDSP_OUT_OF_MEM);
+    if (frame_length_values > signal->total_length) {
+        ei_printf("ERR: frame_length (%d) cannot be larger than signal's total length (%d) for continuous classification\n",
+            (int)frame_length_values, (int)signal->total_length);
+        EIDSP_ERR(EIDSP_PARAMETER_INVALID);
     }
 
-    // and calculate the spectrogram
-    int ret = speechpy::feature::spectrogram(output_matrix, signal,
-        frequency, config.frame_length, config.frame_stride, config.fft_length, config.implementation_version);
-    if (ret != EIDSP_OK) {
-        ei_printf("ERR: Spectrogram failed (%d)\n", ret);
-        EIDSP_ERR(ret);
+    int x;
+
+    // have current frame, but wrong size? then free
+    if (ei_dsp_cont_current_frame && ei_dsp_cont_current_frame_size != frame_length_values) {
+        ei_free(ei_dsp_cont_current_frame);
+        ei_dsp_cont_current_frame = nullptr;
     }
 
-    if(config.implementation_version < 2) {
+    if (!ei_dsp_cont_current_frame) {
+        ei_dsp_cont_current_frame = (float*)ei_calloc(frame_length_values * sizeof(float), 1);
+        if (!ei_dsp_cont_current_frame) {
+            EIDSP_ERR(EIDSP_OUT_OF_MEM);
+        }
+        ei_dsp_cont_current_frame_size = frame_length_values;
+        ei_dsp_cont_current_frame_ix = 0;
+    }
+
+    matrix_size_out->rows = 0;
+    matrix_size_out->cols = 0;
+
+    // this is the offset in the signal from which we'll work
+    size_t offset_in_signal = 0;
+
+    if (ei_dsp_cont_current_frame_ix > (int)ei_dsp_cont_current_frame_size) {
+        ei_printf("ERR: ei_dsp_cont_current_frame_ix is larger than frame size\n");
+        EIDSP_ERR(EIDSP_PARAMETER_INVALID);
+    }
+
+    // if we still have some code from previous run
+    while (ei_dsp_cont_current_frame_ix > 0) {
+        // then from the current frame we need to read `frame_length_values - ei_dsp_cont_current_frame_ix`
+        // starting at offset 0
+        x = signal->get_data(0, frame_length_values - ei_dsp_cont_current_frame_ix, ei_dsp_cont_current_frame + ei_dsp_cont_current_frame_ix);
+        if (x != EIDSP_OK) {
+            EIDSP_ERR(x);
+        }
+
+        // now ei_dsp_cont_current_frame is complete
+        signal_t frame_signal;
+        x = numpy::signal_from_buffer(ei_dsp_cont_current_frame, frame_length_values, &frame_signal);
+        if (x != EIDSP_OK) {
+            EIDSP_ERR(x);
+        }
+
+        x = extract_spectrogram_run_slice(&frame_signal, output_matrix, &config, sampling_frequency, matrix_size_out);
+        if (x != EIDSP_OK) {
+            EIDSP_ERR(x);
+        }
+
+        // if there's overlap between frames we roll through
+        if (frame_stride_values > 0) {
+            numpy::roll(ei_dsp_cont_current_frame, frame_length_values, -frame_stride_values);
+        }
+
+        ei_dsp_cont_current_frame_ix -= frame_stride_values;
+    }
+
+    if (ei_dsp_cont_current_frame_ix < 0) {
+        offset_in_signal = -ei_dsp_cont_current_frame_ix;
+        ei_dsp_cont_current_frame_ix = 0;
+    }
+
+    if (offset_in_signal >= signal->total_length) {
+        offset_in_signal -= signal->total_length;
+        return EIDSP_OK;
+    }
+
+    // now... we need to discard part of the signal...
+    SignalWithRange signal_with_range(signal, offset_in_signal, signal->total_length);
+
+    signal_t *range_signal = signal_with_range.get_signal();
+    size_t range_signal_orig_length = range_signal->total_length;
+
+    // then we'll just go through normal processing of the signal:
+    x = extract_spectrogram_run_slice(range_signal, output_matrix, &config, sampling_frequency, matrix_size_out);
+    if (x != EIDSP_OK) {
+        EIDSP_ERR(x);
+    }
+
+    // update offset
+    int length_of_signal_used = speechpy::processing::calculate_signal_used(range_signal->total_length, sampling_frequency,
+        config.frame_length, config.frame_stride, false, config.implementation_version);
+    offset_in_signal += length_of_signal_used;
+
+    // not sure why this is being manipulated...
+    range_signal->total_length = range_signal_orig_length;
+
+    // see what's left?
+    int bytes_left_end_of_frame = signal->total_length - offset_in_signal;
+    bytes_left_end_of_frame += frame_overlap_values;
+
+    if (bytes_left_end_of_frame > 0) {
+        // then read that into the ei_dsp_cont_current_frame buffer
+        x = signal->get_data(
+            (signal->total_length - bytes_left_end_of_frame),
+            bytes_left_end_of_frame,
+            ei_dsp_cont_current_frame);
+        if (x != EIDSP_OK) {
+            EIDSP_ERR(x);
+        }
+    }
+
+    ei_dsp_cont_current_frame_ix = bytes_left_end_of_frame;
+
+    if (config.implementation_version < 2) {
         if (first_run == true) {
             signal->total_length -= (size_t)(config.frame_length * (float)frequency);
         }
     }
 
-    output_matrix->cols = out_matrix_size.rows * out_matrix_size.cols;
-    output_matrix->rows = 1;
-
     return EIDSP_OK;
+#endif
 }
+
 
 __attribute__((unused)) int extract_mfe_features(signal_t *signal, matrix_t *output_matrix, void *config_ptr, const float sampling_frequency) {
     ei_dsp_config_mfe_t config = *((ei_dsp_config_mfe_t*)config_ptr);
@@ -679,17 +942,42 @@ __attribute__((unused)) int extract_mfe_features(signal_t *signal, matrix_t *out
         EIDSP_ERR(EIDSP_MATRIX_SIZE_MISMATCH);
     }
 
+    if (signal->total_length == 0) {
+        EIDSP_ERR(EIDSP_PARAMETER_INVALID);
+    }
+
     const uint32_t frequency = static_cast<uint32_t>(sampling_frequency);
+
+    signal_t preemphasized_audio_signal;
+
+    // before version 3 we did not have preemphasis
+    if (config.implementation_version < 3) {
+        preemphasis = nullptr;
+
+        preemphasized_audio_signal.total_length = signal->total_length;
+        preemphasized_audio_signal.get_data = signal->get_data;
+    }
+    else {
+        // preemphasis class to preprocess the audio...
+        class speechpy::processing::preemphasis *pre = new class speechpy::processing::preemphasis(signal, 1, 0.98f, true);
+        preemphasis = pre;
+
+        preemphasized_audio_signal.total_length = signal->total_length;
+        preemphasized_audio_signal.get_data = &preemphasized_audio_signal_get_data;
+    }
 
     // calculate the size of the MFE matrix
     matrix_size_t out_matrix_size =
         speechpy::feature::calculate_mfe_buffer_size(
-            signal->total_length, frequency, config.frame_length, config.frame_stride, config.num_filters,
+            preemphasized_audio_signal.total_length, frequency, config.frame_length, config.frame_stride, config.num_filters,
             config.implementation_version);
     /* Only throw size mismatch error calculated buffer doesn't fit for continuous inferencing */
     if (out_matrix_size.rows * out_matrix_size.cols > output_matrix->rows * output_matrix->cols) {
-        ei_printf("out_matrix = %hux%hu\n", output_matrix->rows, output_matrix->cols);
-        ei_printf("calculated size = %hux%hu\n", out_matrix_size.rows, out_matrix_size.cols);
+        ei_printf("out_matrix = %dx%d\n", (int)output_matrix->rows, (int)output_matrix->cols);
+        ei_printf("calculated size = %dx%d\n", (int)out_matrix_size.rows, (int)out_matrix_size.cols);
+        if (preemphasis) {
+            delete preemphasis;
+        }
         EIDSP_ERR(EIDSP_MATRIX_SIZE_MISMATCH);
     }
 
@@ -699,22 +987,38 @@ __attribute__((unused)) int extract_mfe_features(signal_t *signal, matrix_t *out
     // and run the MFE extraction
     EI_DSP_MATRIX(energy_matrix, output_matrix->rows, 1);
     if (!energy_matrix.buffer) {
+        if (preemphasis) {
+            delete preemphasis;
+        }
         EIDSP_ERR(EIDSP_OUT_OF_MEM);
     }
 
-    int ret = speechpy::feature::mfe(output_matrix, &energy_matrix, signal,
+    int ret = speechpy::feature::mfe(output_matrix, &energy_matrix, &preemphasized_audio_signal,
         frequency, config.frame_length, config.frame_stride, config.num_filters, config.fft_length,
         config.low_frequency, config.high_frequency, config.implementation_version);
+    if (preemphasis) {
+        delete preemphasis;
+    }
     if (ret != EIDSP_OK) {
         ei_printf("ERR: MFE failed (%d)\n", ret);
         EIDSP_ERR(ret);
     }
 
-    // cepstral mean and variance normalization
-    ret = speechpy::processing::cmvnw(output_matrix, config.win_size, false, true);
-    if (ret != EIDSP_OK) {
-        ei_printf("ERR: cmvnw failed (%d)\n", ret);
-        EIDSP_ERR(ret);
+    if (config.implementation_version < 3) {
+        // cepstral mean and variance normalization
+        ret = speechpy::processing::cmvnw(output_matrix, config.win_size, false, true);
+        if (ret != EIDSP_OK) {
+            ei_printf("ERR: cmvnw failed (%d)\n", ret);
+            EIDSP_ERR(ret);
+        }
+    }
+    else {
+        // normalization
+        ret = speechpy::processing::mfe_normalization(output_matrix, config.noise_floor_db);
+        if (ret != EIDSP_OK) {
+            ei_printf("ERR: normalization failed (%d)\n", ret);
+            EIDSP_ERR(ret);
+        }
     }
 
     output_matrix->cols = out_matrix_size.rows * out_matrix_size.cols;
@@ -723,8 +1027,64 @@ __attribute__((unused)) int extract_mfe_features(signal_t *signal, matrix_t *out
     return EIDSP_OK;
 }
 
-__attribute__((unused)) int extract_mfe_per_slice_features(signal_t *signal, matrix_t *output_matrix, void *config_ptr, const float sampling_frequency) {
+static int extract_mfe_run_slice(signal_t *signal, matrix_t *output_matrix, ei_dsp_config_mfe_t *config, const float sampling_frequency, matrix_size_t *matrix_size_out) {
+    uint32_t frequency = (uint32_t)sampling_frequency;
+
+    int x;
+
+    // calculate the size of the spectrogram matrix
+    matrix_size_t out_matrix_size =
+        speechpy::feature::calculate_mfe_buffer_size(
+            signal->total_length, frequency, config->frame_length, config->frame_stride, config->num_filters,
+            config->implementation_version);
+
+    // we roll the output matrix back so we have room at the end...
+    x = numpy::roll(output_matrix->buffer, output_matrix->rows * output_matrix->cols,
+        -(out_matrix_size.rows * out_matrix_size.cols));
+    if (x != EIDSP_OK) {
+        EIDSP_ERR(x);
+    }
+
+    // slice in the output matrix to write to
+    // the offset in the classification matrix here is always at the end
+    size_t output_matrix_offset = (output_matrix->rows * output_matrix->cols) -
+        (out_matrix_size.rows * out_matrix_size.cols);
+
+    matrix_t output_matrix_slice(out_matrix_size.rows, out_matrix_size.cols, output_matrix->buffer + output_matrix_offset);
+
+    // energy matrix
+    EI_DSP_MATRIX(energy_matrix, out_matrix_size.rows, 1);
+    if (!energy_matrix.buffer) {
+        EIDSP_ERR(EIDSP_OUT_OF_MEM);
+    }
+
+    // and run the MFE extraction
+    x = speechpy::feature::mfe(&output_matrix_slice, &energy_matrix, signal,
+        frequency, config->frame_length, config->frame_stride, config->num_filters, config->fft_length,
+        config->low_frequency, config->high_frequency, config->implementation_version);
+    if (x != EIDSP_OK) {
+        ei_printf("ERR: MFE failed (%d)\n", x);
+        EIDSP_ERR(x);
+    }
+
+    matrix_size_out->rows += out_matrix_size.rows;
+    if (out_matrix_size.cols > 0) {
+        matrix_size_out->cols = out_matrix_size.cols;
+    }
+
+    return EIDSP_OK;
+}
+
+__attribute__((unused)) int extract_mfe_per_slice_features(signal_t *signal, matrix_t *output_matrix, void *config_ptr, const float sampling_frequency, matrix_size_t *matrix_size_out) {
+#if defined(__cplusplus) && EI_C_LINKAGE == 1
+    ei_printf("ERR: Continuous audio is not supported when EI_C_LINKAGE is defined\n");
+    EIDSP_ERR(EIDSP_NOT_SUPPORTED);
+#else
+
     ei_dsp_config_mfe_t config = *((ei_dsp_config_mfe_t*)config_ptr);
+
+    // signal is already the right size,
+    // output matrix is not the right size, but we can start writing at offset 0 and then it's OK too
 
     static bool first_run = false;
 
@@ -732,13 +1092,16 @@ __attribute__((unused)) int extract_mfe_per_slice_features(signal_t *signal, mat
         EIDSP_ERR(EIDSP_MATRIX_SIZE_MISMATCH);
     }
 
+    if (signal->total_length == 0) {
+        EIDSP_ERR(EIDSP_PARAMETER_INVALID);
+    }
+
     const uint32_t frequency = static_cast<uint32_t>(sampling_frequency);
 
-    /* Fake an extra frame_length for stack frames calculations. There, 1 frame_length is always
-    subtracted and there for never used. But skip the first slice to fit the feature_matrix
-    buffer */
-    if(config.implementation_version < 2) {
-
+    // Fake an extra frame_length for stack frames calculations. There, 1 frame_length is always
+    // subtracted and there for never used. But skip the first slice to fit the feature_matrix
+    // buffer
+    if (config.implementation_version == 1) {
         if (first_run == true) {
             signal->total_length += (size_t)(config.frame_length * (float)frequency);
         }
@@ -746,45 +1109,187 @@ __attribute__((unused)) int extract_mfe_per_slice_features(signal_t *signal, mat
         first_run = true;
     }
 
-    // calculate the size of the MFE matrix
-    matrix_size_t out_matrix_size =
-        speechpy::feature::calculate_mfe_buffer_size(
-            signal->total_length, frequency, config.frame_length, config.frame_stride, config.num_filters,
-            config.implementation_version);
-    /* Only throw size mismatch error calculated buffer doesn't fit for continuous inferencing */
-    if (out_matrix_size.rows * out_matrix_size.cols > output_matrix->rows * output_matrix->cols) {
-        ei_printf("out_matrix = %hux%hu\n", output_matrix->rows, output_matrix->cols);
-        ei_printf("calculated size = %hux%hu\n", out_matrix_size.rows, out_matrix_size.cols);
-        EIDSP_ERR(EIDSP_MATRIX_SIZE_MISMATCH);
+    // ok all setup, let's construct the signal (with preemphasis for impl version >3)
+    signal_t preemphasized_audio_signal;
+
+   // before version 3 we did not have preemphasis
+    if (config.implementation_version < 3) {
+        preemphasis = nullptr;
+        preemphasized_audio_signal.total_length = signal->total_length;
+        preemphasized_audio_signal.get_data = signal->get_data;
+    }
+    else {
+        // preemphasis class to preprocess the audio...
+        class speechpy::processing::preemphasis *pre = new class speechpy::processing::preemphasis(signal, 1, 0.98f, true);
+        preemphasis = pre;
+        preemphasized_audio_signal.total_length = signal->total_length;
+        preemphasized_audio_signal.get_data = &preemphasized_audio_signal_get_data;
     }
 
-    output_matrix->rows = out_matrix_size.rows;
-    output_matrix->cols = out_matrix_size.cols;
+    // Go from the time (e.g. 0.25 seconds to number of frames based on freq)
+    const size_t frame_length_values = frequency * config.frame_length;
+    const size_t frame_stride_values = frequency * config.frame_stride;
+    const int frame_overlap_values = static_cast<int>(frame_length_values) - static_cast<int>(frame_stride_values);
 
-    EI_DSP_MATRIX(energy_matrix, output_matrix->rows, 1);
-    if (!energy_matrix.buffer) {
-        EIDSP_ERR(EIDSP_OUT_OF_MEM);
+    if (frame_overlap_values < 0) {
+        ei_printf("ERR: frame_length (%f) cannot be lower than frame_stride (%f) for continuous classification\n",
+            config.frame_length, config.frame_stride);
+        if (preemphasis) {
+            delete preemphasis;
+        }
+        EIDSP_ERR(EIDSP_PARAMETER_INVALID);
     }
 
-    // and run the MFE extraction
-    int ret = speechpy::feature::mfe(output_matrix, &energy_matrix, signal,
-        frequency, config.frame_length, config.frame_stride, config.num_filters, config.fft_length,
-        config.low_frequency, config.high_frequency, config.implementation_version);
-    if (ret != EIDSP_OK) {
-        ei_printf("ERR: MFCC failed (%d)\n", ret);
-        EIDSP_ERR(ret);
+    if (frame_length_values > preemphasized_audio_signal.total_length) {
+        ei_printf("ERR: frame_length (%d) cannot be larger than signal's total length (%d) for continuous classification\n",
+            (int)frame_length_values, (int)preemphasized_audio_signal.total_length);
+        if (preemphasis) {
+            delete preemphasis;
+        }
+        EIDSP_ERR(EIDSP_PARAMETER_INVALID);
     }
 
-    if(config.implementation_version < 2) {
+    int x;
+
+    // have current frame, but wrong size? then free
+    if (ei_dsp_cont_current_frame && ei_dsp_cont_current_frame_size != frame_length_values) {
+        ei_free(ei_dsp_cont_current_frame);
+        ei_dsp_cont_current_frame = nullptr;
+    }
+
+    if (!ei_dsp_cont_current_frame) {
+        ei_dsp_cont_current_frame = (float*)ei_calloc(frame_length_values * sizeof(float), 1);
+        if (!ei_dsp_cont_current_frame) {
+            if (preemphasis) {
+                delete preemphasis;
+            }
+            EIDSP_ERR(EIDSP_OUT_OF_MEM);
+        }
+        ei_dsp_cont_current_frame_size = frame_length_values;
+        ei_dsp_cont_current_frame_ix = 0;
+    }
+
+    matrix_size_out->rows = 0;
+    matrix_size_out->cols = 0;
+
+    // this is the offset in the signal from which we'll work
+    size_t offset_in_signal = 0;
+
+    if (ei_dsp_cont_current_frame_ix > (int)ei_dsp_cont_current_frame_size) {
+        ei_printf("ERR: ei_dsp_cont_current_frame_ix is larger than frame size\n");
+        if (preemphasis) {
+            delete preemphasis;
+        }
+        EIDSP_ERR(EIDSP_PARAMETER_INVALID);
+    }
+
+    // if we still have some code from previous run
+    while (ei_dsp_cont_current_frame_ix > 0) {
+        // then from the current frame we need to read `frame_length_values - ei_dsp_cont_current_frame_ix`
+        // starting at offset 0
+        x = preemphasized_audio_signal.get_data(0, frame_length_values - ei_dsp_cont_current_frame_ix, ei_dsp_cont_current_frame + ei_dsp_cont_current_frame_ix);
+        if (x != EIDSP_OK) {
+            if (preemphasis) {
+                delete preemphasis;
+            }
+            EIDSP_ERR(x);
+        }
+
+        // now ei_dsp_cont_current_frame is complete
+        signal_t frame_signal;
+        x = numpy::signal_from_buffer(ei_dsp_cont_current_frame, frame_length_values, &frame_signal);
+        if (x != EIDSP_OK) {
+            if (preemphasis) {
+                delete preemphasis;
+            }
+            EIDSP_ERR(x);
+        }
+
+        x = extract_mfe_run_slice(&frame_signal, output_matrix, &config, sampling_frequency, matrix_size_out);
+        if (x != EIDSP_OK) {
+            if (preemphasis) {
+                delete preemphasis;
+            }
+            EIDSP_ERR(x);
+        }
+
+        // if there's overlap between frames we roll through
+        if (frame_stride_values > 0) {
+            numpy::roll(ei_dsp_cont_current_frame, frame_length_values, -frame_stride_values);
+        }
+
+        ei_dsp_cont_current_frame_ix -= frame_stride_values;
+    }
+
+    if (ei_dsp_cont_current_frame_ix < 0) {
+        offset_in_signal = -ei_dsp_cont_current_frame_ix;
+        ei_dsp_cont_current_frame_ix = 0;
+    }
+
+    if (offset_in_signal >= signal->total_length) {
+        if (preemphasis) {
+            delete preemphasis;
+        }
+        offset_in_signal -= signal->total_length;
+        return EIDSP_OK;
+    }
+
+    // now... we need to discard part of the signal...
+    SignalWithRange signal_with_range(&preemphasized_audio_signal, offset_in_signal, signal->total_length);
+
+    signal_t *range_signal = signal_with_range.get_signal();
+    size_t range_signal_orig_length = range_signal->total_length;
+
+    // then we'll just go through normal processing of the signal:
+    x = extract_mfe_run_slice(range_signal, output_matrix, &config, sampling_frequency, matrix_size_out);
+    if (x != EIDSP_OK) {
+        if (preemphasis) {
+            delete preemphasis;
+        }
+        EIDSP_ERR(x);
+    }
+
+    // update offset
+    int length_of_signal_used = speechpy::processing::calculate_signal_used(range_signal->total_length, sampling_frequency,
+        config.frame_length, config.frame_stride, false, config.implementation_version);
+    offset_in_signal += length_of_signal_used;
+
+    // not sure why this is being manipulated...
+    range_signal->total_length = range_signal_orig_length;
+
+    // see what's left?
+    int bytes_left_end_of_frame = signal->total_length - offset_in_signal;
+    bytes_left_end_of_frame += frame_overlap_values;
+
+    if (bytes_left_end_of_frame > 0) {
+        // then read that into the ei_dsp_cont_current_frame buffer
+        x = preemphasized_audio_signal.get_data(
+            (preemphasized_audio_signal.total_length - bytes_left_end_of_frame),
+            bytes_left_end_of_frame,
+            ei_dsp_cont_current_frame);
+        if (x != EIDSP_OK) {
+            if (preemphasis) {
+                delete preemphasis;
+            }
+            EIDSP_ERR(x);
+        }
+    }
+
+    ei_dsp_cont_current_frame_ix = bytes_left_end_of_frame;
+
+
+    if (config.implementation_version == 1) {
         if (first_run == true) {
             signal->total_length -= (size_t)(config.frame_length * (float)frequency);
         }
     }
 
-    output_matrix->cols = out_matrix_size.rows * out_matrix_size.cols;
-    output_matrix->rows = 1;
+    if (preemphasis) {
+        delete preemphasis;
+    }
 
     return EIDSP_OK;
+#endif
 }
 
 __attribute__((unused)) int extract_image_features(signal_t *signal, matrix_t *output_matrix, void *config_ptr, const float frequency) {
@@ -863,6 +1368,10 @@ __attribute__((unused)) int extract_image_features_quantized(signal_t *signal, m
 
     size_t output_ix = 0;
 
+    const int32_t iRedToGray = (int32_t)(0.299f * 65536.0f);
+    const int32_t iGreenToGray = (int32_t)(0.587f * 65536.0f);
+    const int32_t iBlueToGray = (int32_t)(0.114f * 65536.0f);
+
 #if defined(EI_DSP_IMAGE_BUFFER_STATIC_SIZE)
     const size_t page_size = EI_DSP_IMAGE_BUFFER_STATIC_SIZE;
 #else
@@ -887,20 +1396,55 @@ __attribute__((unused)) int extract_image_features_quantized(signal_t *signal, m
         for (size_t jx = 0; jx < elements_to_read; jx++) {
             uint32_t pixel = static_cast<uint32_t>(input_matrix.buffer[jx]);
 
-            float r = static_cast<float>(pixel >> 16 & 0xff) / 255.0f;
-            float g = static_cast<float>(pixel >> 8 & 0xff) / 255.0f;
-            float b = static_cast<float>(pixel & 0xff) / 255.0f;
-
             if (channel_count == 3) {
-                output_matrix->buffer[output_ix++] = static_cast<int8_t>(round(r / EI_CLASSIFIER_TFLITE_INPUT_SCALE) + EI_CLASSIFIER_TFLITE_INPUT_ZEROPOINT);
-                output_matrix->buffer[output_ix++] = static_cast<int8_t>(round(g / EI_CLASSIFIER_TFLITE_INPUT_SCALE) + EI_CLASSIFIER_TFLITE_INPUT_ZEROPOINT);
-                output_matrix->buffer[output_ix++] = static_cast<int8_t>(round(b / EI_CLASSIFIER_TFLITE_INPUT_SCALE) + EI_CLASSIFIER_TFLITE_INPUT_ZEROPOINT);
+                // fast code path
+                if (EI_CLASSIFIER_TFLITE_INPUT_SCALE == 0.003921568859368563f && EI_CLASSIFIER_TFLITE_INPUT_ZEROPOINT == -128) {
+                    int32_t r = static_cast<int32_t>(pixel >> 16 & 0xff);
+                    int32_t g = static_cast<int32_t>(pixel >> 8 & 0xff);
+                    int32_t b = static_cast<int32_t>(pixel & 0xff);
+
+                    output_matrix->buffer[output_ix++] = static_cast<int8_t>(r + EI_CLASSIFIER_TFLITE_INPUT_ZEROPOINT);
+                    output_matrix->buffer[output_ix++] = static_cast<int8_t>(g + EI_CLASSIFIER_TFLITE_INPUT_ZEROPOINT);
+                    output_matrix->buffer[output_ix++] = static_cast<int8_t>(b + EI_CLASSIFIER_TFLITE_INPUT_ZEROPOINT);
+                }
+                // slow code path
+                else {
+                    float r = static_cast<float>(pixel >> 16 & 0xff) / 255.0f;
+                    float g = static_cast<float>(pixel >> 8 & 0xff) / 255.0f;
+                    float b = static_cast<float>(pixel & 0xff) / 255.0f;
+
+                    output_matrix->buffer[output_ix++] = static_cast<int8_t>(round(r / EI_CLASSIFIER_TFLITE_INPUT_SCALE) + EI_CLASSIFIER_TFLITE_INPUT_ZEROPOINT);
+                    output_matrix->buffer[output_ix++] = static_cast<int8_t>(round(g / EI_CLASSIFIER_TFLITE_INPUT_SCALE) + EI_CLASSIFIER_TFLITE_INPUT_ZEROPOINT);
+                    output_matrix->buffer[output_ix++] = static_cast<int8_t>(round(b / EI_CLASSIFIER_TFLITE_INPUT_SCALE) + EI_CLASSIFIER_TFLITE_INPUT_ZEROPOINT);
+                }
             }
             else {
-                // ITU-R 601-2 luma transform
-                // see: https://pillow.readthedocs.io/en/stable/reference/Image.html#PIL.Image.Image.convert
-                float v = (0.299f * r) + (0.587f * g) + (0.114f * b);
-                output_matrix->buffer[output_ix++] = static_cast<int8_t>(round(v / EI_CLASSIFIER_TFLITE_INPUT_SCALE) + EI_CLASSIFIER_TFLITE_INPUT_ZEROPOINT);
+                // fast code path
+                if (EI_CLASSIFIER_TFLITE_INPUT_SCALE == 0.003921568859368563f && EI_CLASSIFIER_TFLITE_INPUT_ZEROPOINT == -128) {
+                    int32_t r = static_cast<int32_t>(pixel >> 16 & 0xff);
+                    int32_t g = static_cast<int32_t>(pixel >> 8 & 0xff);
+                    int32_t b = static_cast<int32_t>(pixel & 0xff);
+
+                    // ITU-R 601-2 luma transform
+                    // see: https://pillow.readthedocs.io/en/stable/reference/Image.html#PIL.Image.Image.convert
+                    int32_t gray = (iRedToGray * r) + (iGreenToGray * g) + (iBlueToGray * b);
+                    gray >>= 16; // scale down to int8_t
+                    gray += EI_CLASSIFIER_TFLITE_INPUT_ZEROPOINT;
+                    if (gray < - 128) gray = -128;
+                    else if (gray > 127) gray = 127;
+                    output_matrix->buffer[output_ix++] = static_cast<int8_t>(gray);
+                }
+                // slow code path
+                else {
+                    float r = static_cast<float>(pixel >> 16 & 0xff) / 255.0f;
+                    float g = static_cast<float>(pixel >> 8 & 0xff) / 255.0f;
+                    float b = static_cast<float>(pixel & 0xff) / 255.0f;
+
+                    // ITU-R 601-2 luma transform
+                    // see: https://pillow.readthedocs.io/en/stable/reference/Image.html#PIL.Image.Image.convert
+                    float v = (0.299f * r) + (0.587f * g) + (0.114f * b);
+                    output_matrix->buffer[output_ix++] = static_cast<int8_t>(round(v / EI_CLASSIFIER_TFLITE_INPUT_SCALE) + EI_CLASSIFIER_TFLITE_INPUT_ZEROPOINT);
+                }
             }
         }
 
@@ -910,6 +1454,21 @@ __attribute__((unused)) int extract_image_features_quantized(signal_t *signal, m
     return EIDSP_OK;
 }
 #endif // EI_CLASSIFIER_TFLITE_INPUT_QUANTIZED == 1
+
+/**
+ * Clear all state regarding continuous audio. Invoke this function after continuous audio loop ends.
+ */
+__attribute__((unused)) int ei_dsp_clear_continuous_audio_state() {
+    if (ei_dsp_cont_current_frame) {
+        ei_free(ei_dsp_cont_current_frame);
+    }
+
+    ei_dsp_cont_current_frame = nullptr;
+    ei_dsp_cont_current_frame_size = 0;
+    ei_dsp_cont_current_frame_ix = 0;
+
+    return EIDSP_OK;
+}
 
 #ifdef __cplusplus
 }

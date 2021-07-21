@@ -28,7 +28,7 @@
  * limitations under the License.
  */
 
-#include "edge-impulse-sdk/CMSIS/DSP/Include/arm_math.h"
+#include "edge-impulse-sdk/CMSIS/DSP/Include/dsp/transform_functions.h"
 #include "edge-impulse-sdk/CMSIS/DSP/Include/arm_common_tables.h"
 
 
@@ -73,9 +73,15 @@ arm_status arm_rfft_init_f32(
   uint32_t ifftFlagR,
   uint32_t bitReverseFlag)
 {
+   /*  Initialise the default arm status */
+  arm_status status = ARM_MATH_ARGUMENT_ERROR;
+
+#if !defined(ARM_DSP_CONFIG_TABLES) || defined(ARM_FFT_ALLOW_TABLES)
+
+#if !defined(ARM_DSP_CONFIG_TABLES) || defined(ARM_ALL_FFT_TABLES) || defined(ARM_TABLE_REALCOEF_F32)
 
   /*  Initialise the default arm status */
-  arm_status status = ARM_MATH_SUCCESS;
+  status = ARM_MATH_SUCCESS;
 
   /*  Initialize the Real FFT length */
   S->fftLenReal = (uint16_t) fftLenReal;
@@ -131,6 +137,8 @@ arm_status arm_rfft_init_f32(
     arm_cfft_radix4_init_f32(S->pCfft, S->fftLenBy2, 0U, 0U);
   }
 
+#endif
+#endif
   /* return the status of RFFT Init function */
   return (status);
 

@@ -29,7 +29,7 @@
  #ifndef _ARM_MVE_TABLES_F16_H
  #define _ARM_MVE_TABLES_F16_H
 
- #include "edge-impulse-sdk/CMSIS/DSP/Include/arm_math_f16.h"
+#include "edge-impulse-sdk/CMSIS/DSP/Include/arm_math_types_f16.h"
 
 #ifdef   __cplusplus
 extern "C"

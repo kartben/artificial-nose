@@ -31,6 +31,7 @@
 #include "ei_run_dsp.h"
 #include "ei_classifier_types.h"
 #include "ei_classifier_smooth.h"
+#include "ei_signal_with_axes.h"
 #if defined(EI_CLASSIFIER_HAS_SAMPLER) && EI_CLASSIFIER_HAS_SAMPLER == 1
 #include "ei_sampler.h"
 #endif
@@ -43,28 +44,12 @@
 #include "edge-impulse-sdk/tensorflow/lite/micro/micro_error_reporter.h"
 #include "edge-impulse-sdk/tensorflow/lite/micro/micro_interpreter.h"
 #include "edge-impulse-sdk/tensorflow/lite/schema/schema_generated.h"
-#include "edge-impulse-sdk/tensorflow/lite/version.h"
 #include "edge-impulse-sdk/classifier/ei_aligned_malloc.h"
 
 #include "tflite-model/tflite-trained.h"
 #if defined(EI_CLASSIFIER_HAS_TFLITE_OPS_RESOLVER) && EI_CLASSIFIER_HAS_TFLITE_OPS_RESOLVER == 1
 #include "tflite-model/tflite-resolver.h"
 #endif // EI_CLASSIFIER_HAS_TFLITE_OPS_RESOLVER
-
-#if defined(EI_CLASSIFIER_ENABLE_DETECTION_POSTPROCESS_OP)
-namespace tflite {
-namespace ops {
-namespace micro {
-extern TfLiteRegistration *Register_TFLite_Detection_PostProcess(void);
-}  // namespace micro
-}  // namespace ops
-
-extern float post_process_boxes[10 * 4 * sizeof(float)];
-extern float post_process_classes[10];
-extern float post_process_scores[10];
-
-}  // namespace tflite
-#endif
 
 static tflite::MicroErrorReporter micro_error_reporter;
 static tflite::ErrorReporter* error_reporter = &micro_error_reporter;
@@ -73,12 +58,6 @@ static tflite::ErrorReporter* error_reporter = &micro_error_reporter;
 #include "edge-impulse-sdk/tensorflow/lite/kernels/internal/tensor_ctypes.h"
 #include "tflite-model/trained_model_compiled.h"
 #include "edge-impulse-sdk/classifier/ei_aligned_malloc.h"
-
-namespace tflite {
-extern float post_process_boxes[10 * 4 * sizeof(float)];
-extern float post_process_classes[10];
-extern float post_process_scores[10];
-} // namespace tflite
 
 #elif EI_CLASSIFIER_INFERENCING_ENGINE == EI_CLASSIFIER_TFLITE_FULL
 
@@ -100,6 +79,25 @@ EiTrt* ei_trt_handle = NULL;
 #else
 #error "Unknown inferencing engine"
 #endif
+
+#if EI_CLASSIFIER_INFERENCING_ENGINE == EI_CLASSIFIER_TFLITE && defined(EI_CLASSIFIER_ENABLE_DETECTION_POSTPROCESS_OP)
+namespace tflite {
+namespace ops {
+namespace micro {
+extern TfLiteRegistration Register_TFLite_Detection_PostProcess(void);
+}  // namespace micro
+}  // namespace ops
+
+
+extern float post_process_boxes[10 * 4 * sizeof(float)];
+extern float post_process_classes[10];
+extern float post_process_scores[10];
+
+}  // namespace tflite
+
+static TfLiteRegistration post_process_op = tflite::ops::micro::Register_TFLite_Detection_PostProcess();
+
+#endif // EI_CLASSIFIER_INFERENCING_ENGINE == EI_CLASSIFIER_TFLITE && defined(EI_CLASSIFIER_ENABLE_DETECTION_POSTPROCESS_OP)
 
 #if ECM3532
 void*   __dso_handle = (void*) &__dso_handle;
@@ -123,8 +121,8 @@ ei_impulse_maf classifier_maf[EI_CLASSIFIER_LABEL_COUNT] = {{0}};
 #else
 ei_impulse_maf classifier_maf[0];
 #endif
-static size_t slice_offset = 0;
-static bool feature_buffer_full = false;
+
+static uint64_t classifier_continuous_features_written = 0;
 
 /* Private functions ------------------------------------------------------- */
 
@@ -173,8 +171,8 @@ static void clear_moving_average_filter(ei_impulse_maf *maf)
  */
 extern "C" void run_classifier_init(void)
 {
-    slice_offset = 0;
-    feature_buffer_full = false;
+    classifier_continuous_features_written = 0;
+    ei_dsp_clear_continuous_audio_state();
 
     for (size_t ix = 0; ix < EI_CLASSIFIER_LABEL_COUNT; ix++) {
         clear_moving_average_filter(&classifier_maf[ix]);
@@ -205,7 +203,6 @@ extern "C" EI_IMPULSE_ERROR run_classifier_continuous(signal_t *signal, ei_impul
     uint64_t dsp_start_ms = ei_read_timer_ms();
 
     size_t out_features_index = 0;
-    size_t feature_size;
     bool is_mfcc = false;
     bool is_mfe = false;
     bool is_spectrogram = false;
@@ -219,19 +216,21 @@ extern "C" EI_IMPULSE_ERROR run_classifier_continuous(signal_t *signal, ei_impul
         }
 
         ei::matrix_t fm(1, block.n_output_features,
-                        static_features_matrix.buffer + out_features_index + slice_offset);
+                        static_features_matrix.buffer + out_features_index);
+
+        int (*extract_fn_slice)(ei::signal_t *signal, ei::matrix_t *output_matrix, void *config, const float frequency, matrix_size_t *out_matrix_size);
 
         /* Switch to the slice version of the mfcc feature extract function */
         if (block.extract_fn == extract_mfcc_features) {
-            block.extract_fn = &extract_mfcc_per_slice_features;
+            extract_fn_slice = &extract_mfcc_per_slice_features;
             is_mfcc = true;
         }
         else if (block.extract_fn == extract_spectrogram_features) {
-            block.extract_fn = &extract_spectrogram_per_slice_features;
+            extract_fn_slice = &extract_spectrogram_per_slice_features;
             is_spectrogram = true;
         }
         else if (block.extract_fn == extract_mfe_features) {
-            block.extract_fn = &extract_mfe_per_slice_features;
+            extract_fn_slice = &extract_mfe_per_slice_features;
             is_mfe = true;
         }
         else {
@@ -239,7 +238,19 @@ extern "C" EI_IMPULSE_ERROR run_classifier_continuous(signal_t *signal, ei_impul
             return EI_IMPULSE_DSP_ERROR;
         }
 
-        int ret = block.extract_fn(signal, &fm, block.config, EI_CLASSIFIER_FREQUENCY);
+        matrix_size_t features_written;
+
+#if EIDSP_SIGNAL_C_FN_POINTER
+        if (block.axes_size != EI_CLASSIFIER_RAW_SAMPLES_PER_FRAME) {
+            ei_printf("ERR: EIDSP_SIGNAL_C_FN_POINTER can only be used when all axes are selected for DSP blocks\n");
+            return EI_IMPULSE_DSP_ERROR;
+        }
+        int ret = extract_fn_slice(signal, &fm, block.config, EI_CLASSIFIER_FREQUENCY, &features_written);
+#else
+        SignalWithAxes swa(signal, block.axes, block.axes_size);
+        int ret = extract_fn_slice(swa.get_signal(), &fm, block.config, EI_CLASSIFIER_FREQUENCY, &features_written);
+#endif
+
         if (ret != EIDSP_OK) {
             ei_printf("ERR: Failed to run DSP process (%d)\n", ret);
             return EI_IMPULSE_DSP_ERROR;
@@ -249,19 +260,9 @@ extern "C" EI_IMPULSE_ERROR run_classifier_continuous(signal_t *signal, ei_impul
             return EI_IMPULSE_CANCELED;
         }
 
+        classifier_continuous_features_written += (features_written.rows * features_written.cols);
+
         out_features_index += block.n_output_features;
-
-        feature_size = (fm.rows * fm.cols);
-    }
-
-    /* For as long as the feature buffer isn't completely full, keep moving the slice offset */
-    if (feature_buffer_full == false) {
-        slice_offset += feature_size;
-
-        if (slice_offset > (EI_CLASSIFIER_NN_INPUT_FRAME_SIZE - feature_size)) {
-            feature_buffer_full = true;
-            slice_offset -= feature_size;
-        }
     }
 
     result->timing.dsp = ei_read_timer_ms() - dsp_start_ms;
@@ -275,13 +276,7 @@ extern "C" EI_IMPULSE_ERROR run_classifier_continuous(signal_t *signal, ei_impul
         ei_printf("\n");
     }
 
-#if EI_CLASSIFIER_INFERENCING_ENGINE != EI_CLASSIFIER_NONE
-    if (debug) {
-        ei_printf("Running neural network...\n");
-    }
-#endif
-
-    if (feature_buffer_full == true) {
+    if (classifier_continuous_features_written >= EI_CLASSIFIER_NN_INPUT_FRAME_SIZE) {
         dsp_start_ms = ei_read_timer_ms();
         ei::matrix_t classify_matrix(1, EI_CLASSIFIER_NN_INPUT_FRAME_SIZE);
 
@@ -301,6 +296,11 @@ extern "C" EI_IMPULSE_ERROR run_classifier_continuous(signal_t *signal, ei_impul
         }
         result->timing.dsp += ei_read_timer_ms() - dsp_start_ms;
 
+#if EI_CLASSIFIER_INFERENCING_ENGINE != EI_CLASSIFIER_NONE
+        if (debug) {
+            ei_printf("Running neural network...\n");
+        }
+#endif
         ei_impulse_error = run_inference(&classify_matrix, result, debug);
 
         if (enable_maf) {
@@ -310,11 +310,6 @@ extern "C" EI_IMPULSE_ERROR run_classifier_continuous(signal_t *signal, ei_impul
                     run_moving_average_filter(&classifier_maf[ix], result->classification[ix].value);
     #endif
             }
-        }
-
-        /* Shift the feature buffer for new data */
-        for (size_t i = 0; i < (EI_CLASSIFIER_NN_INPUT_FRAME_SIZE - feature_size); i++) {
-            static_features_matrix.buffer[i] = static_features_matrix.buffer[i + feature_size];
         }
     }
     return ei_impulse_error;
@@ -434,14 +429,14 @@ static EI_IMPULSE_ERROR inference_tflite_setup(uint64_t *ctx_start_ms, TfLiteTen
 #endif
     uint8_t** micro_tensor_arena) {
 #if (EI_CLASSIFIER_COMPILED == 1)
-    TfLiteStatus init_status = trained_model_init(ei_aligned_malloc);
+    TfLiteStatus init_status = trained_model_init(ei_aligned_calloc);
     if (init_status != kTfLiteOk) {
         ei_printf("Failed to allocate TFLite arena (error code %d)\n", init_status);
         return EI_IMPULSE_TFLITE_ARENA_ALLOC_FAILED;
     }
 #else
     // Create an area of memory to use for input, output, and intermediate arrays.
-    uint8_t *tensor_arena = (uint8_t*)ei_aligned_malloc(16, EI_CLASSIFIER_TFLITE_ARENA_SIZE);
+    uint8_t *tensor_arena = (uint8_t*)ei_aligned_calloc(16, EI_CLASSIFIER_TFLITE_ARENA_SIZE);
     if (tensor_arena == NULL) {
         ei_printf("Failed to allocate TFLite arena (%d bytes)\n", EI_CLASSIFIER_TFLITE_ARENA_SIZE);
         return EI_IMPULSE_TFLITE_ARENA_ALLOC_FAILED;
@@ -485,7 +480,7 @@ static EI_IMPULSE_ERROR inference_tflite_setup(uint64_t *ctx_start_ms, TfLiteTen
     tflite::AllOpsResolver resolver;
 #endif
 #if defined(EI_CLASSIFIER_ENABLE_DETECTION_POSTPROCESS_OP)
-    resolver.AddCustom("TFLite_Detection_PostProcess", tflite::ops::micro::Register_TFLite_Detection_PostProcess());
+    resolver.AddCustom("TFLite_Detection_PostProcess", &post_process_op);
 #endif
 #endif // EI_CLASSIFIER_COMPILED != 1
 
@@ -1090,7 +1085,17 @@ extern "C" EI_IMPULSE_ERROR run_classifier(
 
         ei::matrix_t fm(1, block.n_output_features, features_matrix.buffer + out_features_index);
 
+#if EIDSP_SIGNAL_C_FN_POINTER
+        if (block.axes_size != EI_CLASSIFIER_RAW_SAMPLES_PER_FRAME) {
+            ei_printf("ERR: EIDSP_SIGNAL_C_FN_POINTER can only be used when all axes are selected for DSP blocks\n");
+            return EI_IMPULSE_DSP_ERROR;
+        }
         int ret = block.extract_fn(signal, &fm, block.config, EI_CLASSIFIER_FREQUENCY);
+#else
+        SignalWithAxes swa(signal, block.axes, block.axes_size);
+        int ret = block.extract_fn(swa.get_signal(), &fm, block.config, EI_CLASSIFIER_FREQUENCY);
+#endif
+
         if (ret != EIDSP_OK) {
             ei_printf("ERR: Failed to run DSP process (%d)\n", ret);
             return EI_IMPULSE_DSP_ERROR;
@@ -1149,7 +1154,16 @@ extern "C" EI_IMPULSE_ERROR run_classifier_i16(
 
         ei::matrix_i32_t fm(1, block.n_output_features, features_matrix.buffer + out_features_index);
 
-        int ret = block.extract_fn(signal, &fm, ei_dsp_blocks[ix].config, EI_CLASSIFIER_FREQUENCY);
+#if EIDSP_SIGNAL_C_FN_POINTER
+        if (block.axes_size != EI_CLASSIFIER_RAW_SAMPLES_PER_FRAME) {
+            ei_printf("ERR: EIDSP_SIGNAL_C_FN_POINTER can only be used when all axes are selected for DSP blocks\n");
+            return EI_IMPULSE_DSP_ERROR;
+        }
+        int ret = block.extract_fn(signal, &fm, block.config, EI_CLASSIFIER_FREQUENCY);
+#else
+        SignalWithAxesI16 swa(signal, block.axes, block.axes_size);
+        int ret = block.extract_fn(swa.get_signal(), &fm, block.config, EI_CLASSIFIER_FREQUENCY);
+#endif
 
         if (ret != EIDSP_OK) {
             ei_printf("ERR: Failed to run DSP process (%d)\n", ret);
@@ -1194,8 +1208,10 @@ static void calc_cepstral_mean_and_var_normalization_mfcc(ei_matrix *matrix, voi
 {
     ei_dsp_config_mfcc_t *config = (ei_dsp_config_mfcc_t *)config_ptr;
 
+    uint32_t original_matrix_size = matrix->rows * matrix->cols;
+
     /* Modify rows and colums ration for matrix normalization */
-    matrix->rows = EI_CLASSIFIER_NN_INPUT_FRAME_SIZE / config->num_cepstral;
+    matrix->rows = original_matrix_size / config->num_cepstral;
     matrix->cols = config->num_cepstral;
 
     // cepstral mean and variance normalization
@@ -1207,7 +1223,7 @@ static void calc_cepstral_mean_and_var_normalization_mfcc(ei_matrix *matrix, voi
 
     /* Reset rows and columns ratio */
     matrix->rows = 1;
-    matrix->cols = EI_CLASSIFIER_NN_INPUT_FRAME_SIZE;
+    matrix->cols = original_matrix_size;
 }
 
 /**
@@ -1220,20 +1236,32 @@ static void calc_cepstral_mean_and_var_normalization_mfe(ei_matrix *matrix, void
 {
     ei_dsp_config_mfe_t *config = (ei_dsp_config_mfe_t *)config_ptr;
 
+    uint32_t original_matrix_size = matrix->rows * matrix->cols;
+
     /* Modify rows and colums ration for matrix normalization */
-    matrix->rows = EI_CLASSIFIER_NN_INPUT_FRAME_SIZE / config->num_filters;
+    matrix->rows = (original_matrix_size) / config->num_filters;
     matrix->cols = config->num_filters;
 
-    // cepstral mean and variance normalization
-    int ret = speechpy::processing::cmvnw(matrix, config->win_size, false, true);
-    if (ret != EIDSP_OK) {
-        ei_printf("ERR: cmvnw failed (%d)\n", ret);
-        return;
+    if (config->implementation_version < 3) {
+        // cepstral mean and variance normalization
+        int ret = speechpy::processing::cmvnw(matrix, config->win_size, false, true);
+        if (ret != EIDSP_OK) {
+            ei_printf("ERR: cmvnw failed (%d)\n", ret);
+            return;
+        }
+    }
+    else {
+        // normalization
+        int ret = speechpy::processing::mfe_normalization(matrix, config->noise_floor_db);
+        if (ret != EIDSP_OK) {
+            ei_printf("ERR: normalization failed (%d)\n", ret);
+            return;
+        }
     }
 
     /* Reset rows and columns ratio */
     matrix->rows = 1;
-    matrix->cols = EI_CLASSIFIER_NN_INPUT_FRAME_SIZE;
+    matrix->cols = (original_matrix_size);
 }
 
 /**
@@ -1246,19 +1274,31 @@ static void calc_cepstral_mean_and_var_normalization_spectrogram(ei_matrix *matr
 {
     ei_dsp_config_spectrogram_t *config = (ei_dsp_config_spectrogram_t *)config_ptr;
 
+    uint32_t original_matrix_size = matrix->rows * matrix->cols;
+
     /* Modify rows and colums ration for matrix normalization */
     matrix->cols = config->fft_length / 2 + 1;
-    matrix->rows = EI_CLASSIFIER_NN_INPUT_FRAME_SIZE / matrix->cols;
+    matrix->rows = (original_matrix_size) / matrix->cols;
 
-    int ret = numpy::normalize(matrix);
-    if (ret != EIDSP_OK) {
-        ei_printf("ERR: normalization failed (%d)\n", ret);
-        return;
+    if (config->implementation_version < 3) {
+        int ret = numpy::normalize(matrix);
+        if (ret != EIDSP_OK) {
+            ei_printf("ERR: normalization failed (%d)\n", ret);
+            return;
+        }
+    }
+    else {
+        // normalization
+        int ret = speechpy::processing::spectrogram_normalization(matrix, config->noise_floor_db);
+        if (ret != EIDSP_OK) {
+            ei_printf("ERR: normalization failed (%d)\n", ret);
+            return;
+        }
     }
 
     /* Reset rows and columns ratio */
     matrix->rows = 1;
-    matrix->cols = EI_CLASSIFIER_NN_INPUT_FRAME_SIZE;
+    matrix->cols = (original_matrix_size);
 }
 
 /**

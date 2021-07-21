@@ -393,6 +393,25 @@ public:
                 EIDSP_ERR(ret);
             }
 
+            // normalize data (only when version is above 3)
+            if (version >= 3) {
+                // it might be that everything is already normalized here...
+                bool all_between_min_1_and_1 = true;
+                for (size_t ix = 0; ix < signal_frame.rows * signal_frame.cols; ix++) {
+                    if (signal_frame.buffer[ix] < -1.0f || signal_frame.buffer[ix] > 1.0f) {
+                        all_between_min_1_and_1 = false;
+                        break;
+                    }
+                }
+
+                if (!all_between_min_1_and_1) {
+                    ret = numpy::scale(&signal_frame, 1.0f / 32768.0f);
+                    if (ret != 0) {
+                        EIDSP_ERR(ret);
+                    }
+                }
+            }
+
             ret = processing::power_spectrum(
                 signal_frame.buffer,
                 stack_frame_info.frame_length,

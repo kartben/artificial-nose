@@ -28,7 +28,7 @@
  * limitations under the License.
  */
 
-#include "edge-impulse-sdk/CMSIS/DSP/Include/arm_math.h"
+#include "edge-impulse-sdk/CMSIS/DSP/Include/dsp/matrix_functions.h"
 
 /**
   @ingroup groupMatrix
@@ -53,7 +53,7 @@
                    The input data <code>*pSrc</code> and <code>scaleFract</code> are in 1.31 format.
                    These are multiplied to yield a 2.62 intermediate result which is shifted with saturation to 1.31 format.
  */
-#if defined(ARM_MATH_MVEI)
+#if defined(ARM_MATH_MVEI) && !defined(ARM_MATH_AUTOVECTORIZE)
 arm_status arm_mat_scale_q31(
   const arm_matrix_instance_q31 * pSrc,
         q31_t                     scaleFract,
