@@ -37,9 +37,8 @@ public:
     }
     void report(const char *message)
     {
-        auto new_time = ei_read_timer_ms();
-        ei_printf("%s took %llu\r\n", message, new_time - timestamp);
-        timestamp = new_time;
+        ei_printf("%s took %llu\r\n", message, ei_read_timer_ms() - timestamp);
+        timestamp = ei_read_timer_ms(); //read again to not count printf time
     }
 
 private:

@@ -170,6 +170,10 @@ matrix_i16_t *create_edges_matrix(ei_dsp_config_spectral_analysis_t config, cons
         // convert spectral_power_edges (string) into float array
         char *spectral_ptr = spectral_str;
         while (spectral_ptr != NULL) {
+            while((*spectral_ptr) == ' ') {
+                spectral_ptr++;
+            }
+
             float edge = (atof(spectral_ptr) / (float)(sampling_freq/2.f));
             numpy::float_to_int16(&edge, &edges_matrix_in.buffer[edge_matrix_ix++], 1);
 
