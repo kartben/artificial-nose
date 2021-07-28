@@ -231,7 +231,11 @@ TFT_eSprite spr = TFT_eSprite(&tft); // main sprite
 
 #include "images/icon_wifi.h"
 
+#define USE_ICONS 1
+
+#if USE_ICONS
 const unsigned short* ICONS_MAP[] = { icon_ambient, icon_coffee, icon_whiskey };
+#endif
 
 typedef uint32_t (GAS_GMXXX<TwoWire>::*sensorGetFn)();
 
@@ -670,7 +674,9 @@ void loop()
           // clear icon background
           spr.pushSprite(0, 0);
         }
+        #if USE_ICONS
         spr.pushImage(30, 35, 130, 130, (uint16_t*)ICONS_MAP[best_prediction]);
+        #endif
         spr.setFreeFont(&Roboto_Bold_28);
         spr.setTextDatum(CC_DATUM);
         spr.setTextColor(TEXT_COLOR);
