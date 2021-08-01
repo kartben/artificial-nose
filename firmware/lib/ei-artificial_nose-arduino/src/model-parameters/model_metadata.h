@@ -41,10 +41,10 @@
 #define EI_CLASSIFIER_DATATYPE_FLOAT32           1
 #define EI_CLASSIFIER_DATATYPE_INT8              9
 
-#define EI_CLASSIFIER_PROJECT_ID                 2389
-#define EI_CLASSIFIER_PROJECT_OWNER              "kartben"
+#define EI_CLASSIFIER_PROJECT_ID                 41878
+#define EI_CLASSIFIER_PROJECT_OWNER              "Matt"
 #define EI_CLASSIFIER_PROJECT_NAME               "artificial_nose"
-#define EI_CLASSIFIER_PROJECT_DEPLOY_VERSION     50
+#define EI_CLASSIFIER_PROJECT_DEPLOY_VERSION     43
 #define EI_CLASSIFIER_NN_INPUT_FRAME_SIZE        20
 #define EI_CLASSIFIER_RAW_SAMPLE_COUNT           15
 #define EI_CLASSIFIER_RAW_SAMPLES_PER_FRAME      4
@@ -52,7 +52,7 @@
 #define EI_CLASSIFIER_INPUT_WIDTH                0
 #define EI_CLASSIFIER_INPUT_HEIGHT               0
 #define EI_CLASSIFIER_INTERVAL_MS                100
-#define EI_CLASSIFIER_LABEL_COUNT                3
+#define EI_CLASSIFIER_LABEL_COUNT                9
 #define EI_CLASSIFIER_HAS_ANOMALY                1
 #define EI_CLASSIFIER_FREQUENCY                  10
 #define EI_CLASSIFIER_USE_QUANTIZED_DSP_BLOCK    0
@@ -61,7 +61,7 @@
 #define EI_CLASSIFIER_OBJECT_DETECTION           0
 
 
-#define EI_CLASSIFIER_TFLITE_ARENA_SIZE          2579
+#define EI_CLASSIFIER_TFLITE_ARENA_SIZE          2560
 #define EI_CLASSIFIER_TFLITE_INPUT_DATATYPE      EI_CLASSIFIER_DATATYPE_FLOAT32
 #define EI_CLASSIFIER_TFLITE_INPUT_QUANTIZED     0
 #define EI_CLASSIFIER_TFLITE_INPUT_SCALE         0
@@ -71,7 +71,7 @@
 #define EI_CLASSIFIER_TFLITE_OUTPUT_SCALE        0
 #define EI_CLASSIFIER_TFLITE_OUTPUT_ZEROPOINT    0
 #define EI_CLASSIFIER_INFERENCING_ENGINE         EI_CLASSIFIER_TFLITE
-#define EI_CLASSIFIER_COMPILED                   0
+#define EI_CLASSIFIER_COMPILED                   1
 #define EI_CLASSIFIER_HAS_TFLITE_OPS_RESOLVER    1
 
 #define EI_CLASSIFIER_SENSOR                     EI_CLASSIFIER_SENSOR_UNKNOWN
@@ -90,7 +90,7 @@
 #endif
 #endif // EI_CLASSIFIER_INFERENCING_ENGINE == EI_CLASSIFIER_TFLITE && EI_CLASSIFIER_USE_FULL_TFLITE == 1
 
-const char* ei_classifier_inferencing_categories[] = { "ambient", "coffee", "whiskey" };
+const char* ei_classifier_inferencing_categories[] = { "ambient", "dog", "febreze", "grace-noodle", "perfume", "quesadilla", "smelly", "smoke", "sour-milk" };
 
 typedef struct {
     uint16_t implementation_version;
@@ -181,12 +181,12 @@ typedef struct {
     bool invert_features;
 } ei_dsp_config_audio_syntiant_t;
 
-uint8_t ei_dsp_config_92_axes[] = { 0, 1, 2, 3 };
-const uint32_t ei_dsp_config_92_axes_size = 4;
-ei_dsp_config_flatten_t ei_dsp_config_92 = {
+uint8_t ei_dsp_config_36_axes[] = { 2, 1, 0, 3 };
+const uint32_t ei_dsp_config_36_axes_size = 4;
+ei_dsp_config_flatten_t ei_dsp_config_36 = {
     1,
     4,
-    1.00000f,
+    0.00100f,
     true,
     true,
     true,

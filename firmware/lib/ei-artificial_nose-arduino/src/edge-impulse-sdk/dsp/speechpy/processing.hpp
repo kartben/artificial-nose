@@ -475,6 +475,25 @@ namespace processing {
                 EIDSP_ERR(ret);
             }
 
+            // subtract the mean for the features
+            for (size_t fm_col = 0; fm_col < features_matrix->cols; fm_col++) {
+                features_matrix->buffer[(ix * features_matrix->cols) + fm_col] =
+                    features_matrix->buffer[(ix * features_matrix->cols) + fm_col] - mean_matrix.buffer[fm_col];
+            }
+        }
+
+        ret = numpy::pad_1d_symmetric(features_matrix, &vec_pad, pad_size, pad_size);
+        if (ret != EIDSP_OK) {
+            EIDSP_ERR(ret);
+        }
+
+        for (size_t ix = 0; ix < features_matrix->rows; ix++) {
+            // create a slice on the vec_pad
+            EI_DSP_MATRIX_B(window, win_size, vec_pad.cols, vec_pad.buffer + (ix * vec_pad.cols));
+            if (!window.buffer) {
+                EIDSP_ERR(EIDSP_OUT_OF_MEM);
+            }
+
             if (variance_normalization == true) {
                 ret = numpy::std_axis0(&window, &window_variance);
                 if (ret != EIDSP_OK) {
@@ -483,15 +502,8 @@ namespace processing {
 
                 features_buffer_ptr = &features_matrix->buffer[ix * vec_pad.cols];
                 for (size_t col = 0; col < vec_pad.cols; col++) {
-                    *(features_buffer_ptr) = (*(features_buffer_ptr)-mean_matrix.buffer[col]) /
-                                             (window_variance.buffer[col] + FLT_EPSILON);
-                    features_buffer_ptr++;
-                }
-            }
-            else {
-                features_buffer_ptr = &features_matrix->buffer[ix * vec_pad.cols];
-                for (size_t col = 0; col < vec_pad.cols; col++) {
-                    *(features_buffer_ptr) = *(features_buffer_ptr)-mean_matrix.buffer[col];
+                    *(features_buffer_ptr) = (*(features_buffer_ptr)) /
+                                             (window_variance.buffer[col] + 1e-10);
                     features_buffer_ptr++;
                 }
             }

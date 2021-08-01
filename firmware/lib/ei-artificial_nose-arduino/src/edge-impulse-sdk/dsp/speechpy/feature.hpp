@@ -298,7 +298,7 @@ public:
 
             float energy = numpy::sum(power_spectrum_frame.buffer, power_spectrum_frame_size);
             if (energy == 0) {
-                energy = FLT_EPSILON;
+                energy = 1e-10;
             }
 
             out_energies->buffer[ix] = energy;
