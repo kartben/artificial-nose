@@ -706,7 +706,7 @@ void loop()
       // 2 cases: new scent has been detected, or confidence level of a scent previously reported as changed by 5+ percentage points
       if (isWifiConfigured) {
         if (best_prediction != latest_inference_idx || 
-          best_prediction == latest_inference_idx && (result.classification[best_prediction].value - latest_inference_confidence_level > .05) ) 
+            best_prediction == latest_inference_idx && (result.classification[best_prediction].value - latest_inference_confidence_level > .05) ) 
           {
             StaticJsonDocument<JSON_MAX_SIZE> doc;
             doc["latestInferenceResult"] = title_text;
