@@ -223,18 +223,19 @@ TFT_eSprite spr = TFT_eSprite(&tft); // main sprite
 
 #include "fonts/roboto_bold_28.h"
 
-#include "images/icon_ambient.h"
-#include "images/icon_anomaly.h"
-#include "images/icon_coffee.h"
-#include "images/icon_no_anomaly.h"
-#include "images/icon_whiskey.h"
-
 #include "images/icon_wifi.h"
 
 #define USE_ICONS 0
 
 #if USE_ICONS
 const unsigned short* ICONS_MAP[] = { icon_ambient, icon_coffee, icon_whiskey };
+
+#include "images/icon_ambient.h"
+#include "images/icon_anomaly.h"
+#include "images/icon_coffee.h"
+#include "images/icon_no_anomaly.h"
+#include "images/icon_whiskey.h"
+
 #endif
 
 typedef uint32_t (GAS_GMXXX<TwoWire>::*sensorGetFn)();
@@ -653,6 +654,7 @@ void loop()
 #if EI_CLASSIFIER_HAS_ANOMALY == 1
       sprintf(lineBuffer, "    anomaly score: %.3f\n", result.anomaly);
       ei_printf(lineBuffer);
+#if USE_ICONS
       if (mode == INFERENCE && screen_mode == INFERENCE_RESULTS) {
         spr.pushImage(160,
                       35,
@@ -660,6 +662,7 @@ void loop()
                       130,
                       (result.anomaly > 0.15) ? icon_anomaly : icon_no_anomaly);
       }
+#endif
 #endif
 
       sprintf(title_text,
