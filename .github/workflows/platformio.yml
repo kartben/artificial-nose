@@ -30,3 +30,9 @@ jobs:
     - name: Run PlatformIO
       working-directory: firmware
       run: pio run
+    - name: Archive binary firmware
+      uses: actions/upload-artifact@v2.2.4
+      with:
+        name: built-firmware.zip
+        path: |
+          firmware/.pio/build/seeed_wio_terminal/firmware.*
