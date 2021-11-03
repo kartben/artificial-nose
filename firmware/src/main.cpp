@@ -231,7 +231,7 @@ TFT_eSprite spr = TFT_eSprite(&tft); // main sprite
 
 #include "images/icon_wifi.h"
 
-#define USE_ICONS 1
+#define USE_ICONS 0
 
 #if USE_ICONS
 const unsigned short* ICONS_MAP[] = { icon_ambient, icon_coffee, icon_whiskey };
