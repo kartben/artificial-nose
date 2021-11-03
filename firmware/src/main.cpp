@@ -268,10 +268,9 @@ enum MODE mode = TRAINING;
 enum SCREEN_MODE
 {
   SENSORS,
-  GRAPH,
   INFERENCE_RESULTS
 };
-enum SCREEN_MODE screen_mode = GRAPH;
+enum SCREEN_MODE screen_mode = SENSORS;
 
 int latest_inference_idx = -1;
 float latest_inference_confidence_level = -1.;
@@ -354,9 +353,6 @@ static void ButtonEventHandler(AceButton *button, uint8_t eventType, uint8_t but
         case ButtonId::LEFT:
           switch (screen_mode) {
             case INFERENCE_RESULTS:
-              screen_mode = GRAPH;
-              break;
-            case GRAPH:
               screen_mode = SENSORS;
               break;
           }
@@ -364,9 +360,6 @@ static void ButtonEventHandler(AceButton *button, uint8_t eventType, uint8_t but
         case ButtonId::RIGHT:
           switch (screen_mode) {
             case SENSORS:
-              screen_mode = GRAPH;
-              break;
-            case GRAPH:
               screen_mode = INFERENCE_RESULTS;
               break;
           }
@@ -554,32 +547,6 @@ void loop()
         spr.setTextColor(TFT_GREEN);
         spr.drawString(sensors[i].unit, x_ref + 12, y_ref + 8, 1);
       }
-      break;
-    }
-    case GRAPH: {
-      auto content = line_chart(10, 60); //(x,y) where the line graph begins
-      content.height(tft.height() - 70 * 1.2)
-        .width(tft.width() - content.x() * 2)
-        .based_on(0.0)
-        .show_circle(false)
-        .value(chart_series)
-        .x_role_color(TEXT_COLOR)
-        .y_role_color(TEXT_COLOR)
-        .x_tick_color(TEXT_COLOR)
-        .y_tick_color(TEXT_COLOR)
-        .x_auxi_role(dash_line().color(TFT_DARKGREY))
-        .color(sensors[0].color, sensors[1].color, sensors[2].color, sensors[3].color)
-        .draw();
-
-      for (int i = 0; i < NB_SENSORS; i++) {
-        spr.setFreeFont(&FreeSans9pt7b);
-        spr.setTextColor(sensors[i].color);
-        spr.setTextDatum(BC_DATUM);
-        spr.drawString(sensors[i].name, 70 + (i * 70), 236, 1);
-      }
-
-      spr.setTextDatum(TL_DATUM); // reset to default
-
       break;
     }
 
