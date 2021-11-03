@@ -33,6 +33,6 @@ jobs:
     - name: Archive binary firmware
       uses: actions/upload-artifact@v2.2.4
       with:
-        name: firmware.*
+        name: built-firmware.zip
         path: |
-          firmware/.pio/build/seeed_wio_terminal/built-firmware.zip
+          firmware/.pio/build/seeed_wio_terminal/firmware.*
