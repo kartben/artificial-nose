@@ -31,6 +31,9 @@ static AziotHub AziotHub_;
 static unsigned long TelemetryInterval_ = TELEMETRY_INTERVAL;   // [sec.]
 static unsigned long nextTelemetrySendTime = 0;
 
+////////////////////////////////////////////////////////////////////////////////
+// OTA
+#include <OTA.h>
 
 /**
 * @brief      Printf function uses vsnprintf and output using Arduino Serial
