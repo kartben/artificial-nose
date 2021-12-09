@@ -2,6 +2,8 @@
 #include "Config.h"
 #include "ConfigurationMode.h"
 
+#include <malta_bme680_inferencing.h>
+
 ////////////////////////////////////////////////////////////////////////////////
 // Storage
 
@@ -34,6 +36,276 @@ static unsigned long nextTelemetrySendTime = 0;
 ////////////////////////////////////////////////////////////////////////////////
 // OTA
 #include <OTA.h>
+
+////////////////////////////////////////////////////////////////////////////////
+// BME688
+#include "bme688_helper.h"
+
+static float featuresSensor1[10];
+/**
+ * @brief      Copy raw feature data in out_ptr
+ *             Function called by inference library
+ *
+ * @param[in]  offset   The offset
+ * @param[in]  length   The length
+ * @param      out_ptr  The out pointer
+ *
+ * @return     0
+ */
+int raw_feature1_get_data(size_t offset, size_t length, float *out_ptr)
+{
+  memcpy(out_ptr, featuresSensor1 + offset, length * sizeof(float));
+
+  return 0;
+}
+
+void bsecCallbackSensor1(const bme68x_data &input, const BsecOutput &outputs)
+{
+  if (!outputs.len)
+    return;
+
+  int gas_index = -1;
+  float gas_resistance = -1;
+
+  for (uint8_t i = 0; i < outputs.len; i++)
+  {
+    const bsec_output_t &output = outputs.outputs[i];
+
+    switch (output.sensor_id)
+    {
+    case BSEC_OUTPUT_IAQ:
+      // Serial.println("\tiaq = " + String(output.signal));
+      // Serial.println("\tiaq accuracy = " + String((int)output.accuracy));
+      break;
+    case BSEC_OUTPUT_RAW_TEMPERATURE:
+      // Serial.println("\ttemperature = " + String(output.signal));
+      break;
+    case BSEC_OUTPUT_RAW_PRESSURE:
+      // Serial.println("\tpressure = " + String(output.signal));
+      break;
+    case BSEC_OUTPUT_RAW_HUMIDITY:
+      // Serial.println("\thumidity = " + String(output.signal));
+      break;
+    case BSEC_OUTPUT_RAW_GAS:
+      // Serial.println("\tgas resistance = " + String(output.signal));
+      gas_resistance = output.signal;
+      break;
+    case BSEC_OUTPUT_RAW_GAS_INDEX:
+      // Serial.println("\tgas index = " + String(output.signal));
+      gas_index = output.signal;
+      break;
+    case BSEC_OUTPUT_STABILIZATION_STATUS:
+      // Serial.println("\tstabilization status = " + String(output.signal));
+      break;
+    case BSEC_OUTPUT_RUN_IN_STATUS:
+      // Serial.println("\trun in status = " + String(output.signal));
+      break;
+    case BSEC_OUTPUT_GAS_ESTIMATE_1:
+    case BSEC_OUTPUT_GAS_ESTIMATE_2:
+    case BSEC_OUTPUT_GAS_ESTIMATE_3:
+    case BSEC_OUTPUT_GAS_ESTIMATE_4:
+      // Serial.println("\tgas estimate " + String((int)(output.sensor_id + 1 - BSEC_OUTPUT_GAS_ESTIMATE_1)) + String(" = ") + String(output.signal) + " - accuracy = " + String((int)output.accuracy));
+      break;
+    default:
+      break;
+    }
+  }
+
+  featuresSensor1[gas_index] = gas_resistance; //( numpy::log10(gas_resistance) - 4) / 4;
+
+  if (gas_index == 9)
+  {
+
+    if (sizeof(featuresSensor1) / sizeof(float) != EI_CLASSIFIER_DSP_INPUT_FRAME_SIZE)
+    {
+      ei_printf("The size of your 'features' array is not correct. Expected %lu items, but had %lu\n",
+                EI_CLASSIFIER_DSP_INPUT_FRAME_SIZE, sizeof(featuresSensor1) / sizeof(float));
+      delay(1000);
+      return;
+    }
+
+    ei_impulse_result_t result = {0};
+
+    // the features are stored into flash, and we don't want to load everything into RAM
+    signal_t features_signal;
+    features_signal.total_length = sizeof(featuresSensor1) / sizeof(featuresSensor1[0]);
+    features_signal.get_data = &raw_feature1_get_data;
+
+    // invoke the impulse
+    EI_IMPULSE_ERROR res = run_classifier(&features_signal, &result, false /* debug */);
+    ei_printf("run_classifier returned: %d\n", res);
+
+    if (res != 0)
+      return;
+
+    // print the predictions
+    ei_printf("Predictions ");
+    ei_printf("(DSP: %d ms., Classification: %d ms., Anomaly: %d ms.)",
+              result.timing.dsp, result.timing.classification, result.timing.anomaly);
+    ei_printf(": \n");
+    ei_printf("[");
+    for (size_t ix = 0; ix < EI_CLASSIFIER_LABEL_COUNT; ix++)
+    {
+      ei_printf("%.5f", result.classification[ix].value);
+#if EI_CLASSIFIER_HAS_ANOMALY == 1
+      ei_printf(", ");
+#else
+      if (ix != EI_CLASSIFIER_LABEL_COUNT - 1)
+      {
+        ei_printf(", ");
+      }
+#endif
+    }
+#if EI_CLASSIFIER_HAS_ANOMALY == 1
+    ei_printf("%.3f", result.anomaly);
+#endif
+    ei_printf("]\n");
+
+    // human-readable predictions
+    for (size_t ix = 0; ix < EI_CLASSIFIER_LABEL_COUNT; ix++)
+    {
+      ei_printf("    %s: %.5f\n", result.classification[ix].label, result.classification[ix].value);
+    }
+#if EI_CLASSIFIER_HAS_ANOMALY == 1
+    ei_printf("    anomaly score: %.3f\n", result.anomaly);
+#endif
+  }
+}
+
+Bsec sensor1(bsecCallbackSensor1);
+
+static float featuresSensor2[10];
+/**
+ * @brief      Copy raw feature data in out_ptr
+ *             Function called by inference library
+ *
+ * @param[in]  offset   The offset
+ * @param[in]  length   The length
+ * @param      out_ptr  The out pointer
+ *
+ * @return     0
+ */
+int raw_feature2_get_data(size_t offset, size_t length, float *out_ptr)
+{
+  memcpy(out_ptr, featuresSensor2 + offset, length * sizeof(float));
+
+  return 0;
+}
+
+void bsecCallbackSensor2(const bme68x_data &input, const BsecOutput &outputs)
+{
+  if (!outputs.len)
+    return;
+
+  int gas_index = -1;
+  float gas_resistance = -1;
+
+  for (uint8_t i = 0; i < outputs.len; i++)
+  {
+    const bsec_output_t &output = outputs.outputs[i];
+
+    switch (output.sensor_id)
+    {
+    case BSEC_OUTPUT_IAQ:
+      // Serial.println("\tiaq = " + String(output.signal));
+      // Serial.println("\tiaq accuracy = " + String((int)output.accuracy));
+      break;
+    case BSEC_OUTPUT_RAW_TEMPERATURE:
+      // Serial.println("\ttemperature = " + String(output.signal));
+      break;
+    case BSEC_OUTPUT_RAW_PRESSURE:
+      // Serial.println("\tpressure = " + String(output.signal));
+      break;
+    case BSEC_OUTPUT_RAW_HUMIDITY:
+      // Serial.println("\thumidity = " + String(output.signal));
+      break;
+    case BSEC_OUTPUT_RAW_GAS:
+      // Serial.println("\tgas resistance = " + String(output.signal));
+      gas_resistance = output.signal;
+      break;
+    case BSEC_OUTPUT_RAW_GAS_INDEX:
+      // Serial.println("\tgas index = " + String(output.signal));
+      gas_index = output.signal;
+      break;
+    case BSEC_OUTPUT_STABILIZATION_STATUS:
+      // Serial.println("\tstabilization status = " + String(output.signal));
+      break;
+    case BSEC_OUTPUT_RUN_IN_STATUS:
+      // Serial.println("\trun in status = " + String(output.signal));
+      break;
+    case BSEC_OUTPUT_GAS_ESTIMATE_1:
+    case BSEC_OUTPUT_GAS_ESTIMATE_2:
+    case BSEC_OUTPUT_GAS_ESTIMATE_3:
+    case BSEC_OUTPUT_GAS_ESTIMATE_4:
+      // Serial.println("\tgas estimate " + String((int)(output.sensor_id + 1 - BSEC_OUTPUT_GAS_ESTIMATE_1)) + String(" = ") + String(output.signal) + " - accuracy = " + String((int)output.accuracy));
+      break;
+    default:
+      break;
+    }
+  }
+
+  featuresSensor2[gas_index] = gas_resistance; //( numpy::log10(gas_resistance) - 4) / 4;
+
+  if (gas_index == 9)
+  {
+
+    if (sizeof(featuresSensor2) / sizeof(float) != EI_CLASSIFIER_DSP_INPUT_FRAME_SIZE)
+    {
+      ei_printf("The size of your 'features' array is not correct. Expected %lu items, but had %lu\n",
+                EI_CLASSIFIER_DSP_INPUT_FRAME_SIZE, sizeof(featuresSensor2) / sizeof(float));
+      delay(1000);
+      return;
+    }
+
+    ei_impulse_result_t result = {0};
+
+    // the features are stored into flash, and we don't want to load everything into RAM
+    signal_t features_signal;
+    features_signal.total_length = sizeof(featuresSensor2) / sizeof(featuresSensor2[0]);
+    features_signal.get_data = &raw_feature2_get_data;
+
+    // invoke the impulse
+    EI_IMPULSE_ERROR res = run_classifier(&features_signal, &result, true /* debug */);
+    ei_printf("run_classifier returned: %d\n", res);
+
+    if (res != 0)
+      return;
+
+    // print the predictions
+    ei_printf("Predictions ");
+    ei_printf("(DSP: %d ms., Classification: %d ms., Anomaly: %d ms.)",
+              result.timing.dsp, result.timing.classification, result.timing.anomaly);
+    ei_printf(": \n");
+    ei_printf("[");
+    for (size_t ix = 0; ix < EI_CLASSIFIER_LABEL_COUNT; ix++)
+    {
+      ei_printf("%.5f", result.classification[ix].value);
+#if EI_CLASSIFIER_HAS_ANOMALY == 1
+      ei_printf(", ");
+#else
+      if (ix != EI_CLASSIFIER_LABEL_COUNT - 1)
+      {
+        ei_printf(", ");
+      }
+#endif
+    }
+#if EI_CLASSIFIER_HAS_ANOMALY == 1
+    ei_printf("%.3f", result.anomaly);
+#endif
+    ei_printf("]\n");
+
+    // human-readable predictions
+    for (size_t ix = 0; ix < EI_CLASSIFIER_LABEL_COUNT; ix++)
+    {
+      ei_printf("    %s: %.5f\n", result.classification[ix].label, result.classification[ix].value);
+    }
+#if EI_CLASSIFIER_HAS_ANOMALY == 1
+    ei_printf("    anomaly score: %.3f\n", result.anomaly);
+#endif
+  }
+}
+
+Bsec sensor2(bsecCallbackSensor2);
 
 /**
 * @brief      Printf function uses vsnprintf and output using Arduino Serial
@@ -209,8 +481,6 @@ static void AziotSendTelemetry(const StaticJsonDocument<desiredCapacity>& jsonDo
 using namespace ace_button;
 
 #include <CircularBuffer.h>
-#include <artificial_nose_inferencing.h>
-
 #include <Multichannel_Gas_GMXXX.h>
 #include <Wire.h>
 GAS_GMXXX<TwoWire>* gas = new GAS_GMXXX<TwoWire>();
@@ -408,6 +678,9 @@ void setup()
 
   Serial.begin(115200);
 
+  Wire.begin();
+  Wire1.begin();
+
   pinMode(D0, OUTPUT);
   digitalWrite(D0, fan_state);
 
@@ -435,6 +708,13 @@ void setup()
   digitalWrite(D0, INITIAL_FAN_STATE);
 
   gas->begin(Wire, 0x08); // use the hardware I2C
+
+  Serial.println("Setting up sensor 0x76 @ I2C1 (Wire)");
+  setupBsec(sensor1, 0x76, Wire);
+  delay(5500);
+  Serial.println("Setting up sensor 0x77 @ I2C1 (Wire)");
+  setupBsec(sensor2, 0x77, Wire);
+  delay(100);
 
   // put your setup code here, to run once:
   tft.begin();
@@ -490,6 +770,16 @@ int fan = 0;
 
 void loop()
 {
+  if (!sensor1.run())
+  {
+    checkBsecStatus(sensor1);
+  }
+
+  if (!sensor2.run())
+  {
+    checkBsecStatus(sensor2);
+  }
+
   spr.fillSprite(BG_COLOR);
 
   if(isWifiConfigured && WifiManager_.IsConnected()) {
@@ -523,7 +813,7 @@ void loop()
     next_sampling_tick = new_sampling_tick;
   }
   for (int i = NB_SENSORS - 1; i >= 0; i--) {
-    uint32_t sensorVal = sensors[i].readFn();
+    uint32_t sensorVal = 123; // sensors[i].readFn();
     if (sensorVal > 999) {
       sensorVal = 999;
     }
@@ -584,7 +874,7 @@ void loop()
   }
 
   if (mode == TRAINING) {
-    ei_printf("%d,%d,%d,%d\n", sensors[0].last_val, sensors[1].last_val, sensors[2].last_val, sensors[3].last_val);
+    // ei_printf("%d,%d,%d,%d\n", sensors[0].last_val, sensors[1].last_val, sensors[2].last_val, sensors[3].last_val);
   } else { // INFERENCE
 
     if (!buffer.isFull()) {

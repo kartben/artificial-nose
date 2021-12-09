@@ -1,6 +1,19 @@
 {
     "cmake.configureOnOpen": false,
-    "C_Cpp.clang_format_style": "Mozilla",
+//    "C_Cpp.clang_format_style": "Mozilla",
     "editor.formatOnSave": true,
-    "editor.formatOnSaveMode": "modifications"
+    "editor.formatOnSaveMode": "modifications",
+    "files.associations": {
+        "array": "cpp",
+        "deque": "cpp",
+        "forward_list": "cpp",
+        "list": "cpp",
+        "string": "cpp",
+        "unordered_map": "cpp",
+        "unordered_set": "cpp",
+        "vector": "cpp",
+        "string_view": "cpp",
+        "initializer_list": "cpp",
+        "bsec_serialized_configurations_selectivity.h": "c"
+    }
 }
