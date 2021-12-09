@@ -717,18 +717,4 @@ void loop()
   }
 
   spr.pushSprite(0, 0, TFT_MAGENTA);
-
-  // Uncomment block below to dump hex-encoded TFT sprite to serial **/
-
-  /**
-
-    uint16_t width = tft.width(), height = tft.height();
-    // Image data: width * height * 2 bytes
-    for (int y = 0; y < height ; y++) {
-      for (int x=0; x<width; x++) {
-        Serial.printf("%04X", tft.readPixel(x,y));
-      }
-    }
-
-    **/
 }
