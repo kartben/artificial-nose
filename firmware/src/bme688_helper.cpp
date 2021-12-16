@@ -4,21 +4,22 @@ void setupBsec(Bsec &bsec, uint8_t i2cAddr, TwoWire &i2c)
 {
     /* Desired subscription list of BSEC outputs */
     bsec_virtual_sensor_t sensorList[] = {
-        // BSEC_OUTPUT_RAW_TEMPERATURE,
+        BSEC_OUTPUT_RAW_TEMPERATURE,
         // BSEC_OUTPUT_RAW_PRESSURE,
-        // BSEC_OUTPUT_RAW_HUMIDITY,
+        BSEC_OUTPUT_RAW_HUMIDITY,
         BSEC_OUTPUT_RAW_GAS,
         BSEC_OUTPUT_RAW_GAS_INDEX,
         BSEC_OUTPUT_COMPENSATED_GAS,
         BSEC_OUTPUT_CO2_EQUIVALENT,
         BSEC_OUTPUT_RUN_IN_STATUS,
         BSEC_OUTPUT_IAQ,
-        // BSEC_OUTPUT_SENSOR_HEAT_COMPENSATED_TEMPERATURE,
-        // BSEC_OUTPUT_SENSOR_HEAT_COMPENSATED_HUMIDITY,
-        BSEC_OUTPUT_GAS_ESTIMATE_1,
-        BSEC_OUTPUT_GAS_ESTIMATE_2,
-        BSEC_OUTPUT_GAS_ESTIMATE_3,
-        BSEC_OUTPUT_GAS_ESTIMATE_4};
+        BSEC_OUTPUT_SENSOR_HEAT_COMPENSATED_TEMPERATURE,
+        BSEC_OUTPUT_SENSOR_HEAT_COMPENSATED_HUMIDITY,
+        // BSEC_OUTPUT_GAS_ESTIMATE_1,
+        // BSEC_OUTPUT_GAS_ESTIMATE_2,
+        // BSEC_OUTPUT_GAS_ESTIMATE_3,
+        // BSEC_OUTPUT_GAS_ESTIMATE_4
+    };
 
     /* Initialize the library and interfaces */
     if (!bsec.begin(i2cAddr, i2c))
