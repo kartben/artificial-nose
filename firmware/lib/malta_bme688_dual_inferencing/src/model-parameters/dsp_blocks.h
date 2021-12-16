@@ -19,20 +19,28 @@
 * SOFTWARE.
 */
 
-#ifndef _EI_CLASSIFIER_MODEL_VARIABLES_H_
-#define _EI_CLASSIFIER_MODEL_VARIABLES_H_
+#ifndef _EI_CLASSIFIER_DSP_BLOCKS_H_
+#define _EI_CLASSIFIER_DSP_BLOCKS_H_
 
-#include <stdint.h>
-#include "model_metadata.h"
+#include "model-parameters/model_metadata.h"
+#include "model-parameters/model_variables.h"
+#include "edge-impulse-sdk/classifier/ei_run_dsp.h"
+#include "edge-impulse-sdk/classifier/ei_model_types.h"
 
-const char* ei_classifier_inferencing_categories[] = { "ambient", "cinnamon", "coffee", "whiskey" };
-
-uint8_t ei_dsp_config_727_axes[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
-const uint32_t ei_dsp_config_727_axes_size = 10;
-ei_dsp_config_raw_t ei_dsp_config_727 = {
-    1,
-    10,
-    0.00000001f
+const size_t ei_dsp_blocks_size = 1;
+ei_model_dsp_t ei_dsp_blocks[ei_dsp_blocks_size] = {
+    { // DSP block 47
+        20,
+        &extract_raw_features,
+        (void*)&ei_dsp_config_47,
+        ei_dsp_config_47_axes,
+        ei_dsp_config_47_axes_size
+    }
 };
 
-#endif // _EI_CLASSIFIER_MODEL_METADATA_H_
+const size_t ei_dsp_blocks_i16_size = 0;
+ei_model_dsp_i16_t ei_dsp_blocks_i16[ei_dsp_blocks_i16_size] = {
+
+};
+
+#endif // _EI_CLASSIFIER_DSP_BLOCKS_H_

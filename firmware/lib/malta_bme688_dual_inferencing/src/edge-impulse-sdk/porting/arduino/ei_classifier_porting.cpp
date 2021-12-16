@@ -46,6 +46,11 @@ uint64_t ei_read_timer_us() {
     return micros();
 }
 
+void ei_serial_set_baudrate(int baudrate)
+{
+
+}
+
 /**
  *  Printf function uses vsnprintf and output using Arduino Serial
  */
