@@ -229,7 +229,7 @@ public:
             if (ret != EIDSP_OK) {
                 EIDSP_ERR(EIDSP_MATRIX_SIZE_MISMATCH);
             }
-        } 
+        }
         else if (filter_type == filter_highpass) {
             ret = spectral::processing::i16_filter(
                 input_matrix, sampling_freq, filter_order, 0, filter_cutoff);
@@ -305,7 +305,7 @@ public:
             EIDSP_i32 *features_row = out_features->buffer + (row * out_features->cols);
 
             size_t fx = 0;
-            
+
             features_row[fx++] = rms_matrix.buffer[row];
 
             for (size_t peak_row = 0; peak_row < peaks_matrix.rows; peak_row++) {

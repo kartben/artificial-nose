@@ -88,6 +88,7 @@ void ei_putchar(char c);
  * Print wrapper around printf()
  * This is used internally to print debug information.
  */
+__attribute__ ((format (printf, 1, 2)))
 void ei_printf(const char *format, ...);
 
 /**

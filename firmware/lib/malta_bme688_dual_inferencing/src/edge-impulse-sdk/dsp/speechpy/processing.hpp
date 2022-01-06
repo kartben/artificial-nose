@@ -279,7 +279,7 @@ namespace processing {
      * @returns EIDSP_OK if OK
      */
     static int stack_frames(stack_frames_info_t *info,
-                            uint32_t sampling_frequency,
+                            float sampling_frequency,
                             float frame_length,
                             float frame_stride,
                             bool zero_padding,

@@ -45,6 +45,9 @@ typedef struct {
     int dsp;
     int classification;
     int anomaly;
+    int64_t dsp_us;
+    int64_t classification_us;
+    int64_t anomaly_us;
 } ei_impulse_result_timing_t;
 
 typedef struct {

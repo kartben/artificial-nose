@@ -33,7 +33,7 @@ But those are not always available or use a restricted set
 of intrinsics.
 
 */
-
+ 
 #ifndef _NONE_H_
 #define _NONE_H_
 
@@ -44,7 +44,7 @@ extern "C"
 {
 #endif
 
-
+ 
 
 /*
 
@@ -249,7 +249,7 @@ __STATIC_FORCEINLINE uint32_t __ROR(uint32_t op1, uint32_t op2)
 #endif
 
 
-
+ 
 
 // Patched by Edge Impulse, remove `!defined (ARM_MATH_DSP)` check
 /*

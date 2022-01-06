@@ -1940,7 +1940,7 @@ public:
      * @param signal Output signal
      * @returns EIDSP_OK if ok
      */
-    static int signal_from_buffer(float *data, size_t data_size, signal_t *signal)
+    static int signal_from_buffer(const float *data, size_t data_size, signal_t *signal)
     {
         signal->total_length = data_size;
 #ifdef __MBED__
@@ -2233,7 +2233,7 @@ private:
         return EIDSP_OK;
     }
 
-    static int signal_get_data(float *in_buffer, size_t offset, size_t length, float *out_ptr)
+    static int signal_get_data(const float *in_buffer, size_t offset, size_t length, float *out_ptr)
     {
         memcpy(out_ptr, in_buffer + offset, length * sizeof(float));
         return 0;
@@ -2600,7 +2600,8 @@ private:
      */
     static int cmsis_rfft_init_f32(arm_rfft_fast_instance_f32 *rfft_instance, const size_t n_fft)
     {
-#if EI_CLASSIFIER_HAS_FFT_INFO == 1
+// ARM cores (ex M55) with Helium extensions (MVEF) need special treatment (Issue 2843)
+#if EI_CLASSIFIER_HAS_FFT_INFO == 1 && !defined(ARM_MATH_MVEF)
         arm_status status;
         switch (n_fft) {
 #if EI_CLASSIFIER_LOAD_FFT_32 == 1

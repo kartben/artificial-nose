@@ -336,7 +336,7 @@ public:
      * @EIDSP_OK if OK
      */
     static int spectrogram(matrix_t *out_features,
-        signal_t *signal, uint32_t sampling_frequency,
+        signal_t *signal, float sampling_frequency,
         float frame_length, float frame_stride, uint16_t fft_length,
         uint16_t version
         )

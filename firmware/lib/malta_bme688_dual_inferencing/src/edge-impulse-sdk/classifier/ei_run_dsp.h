@@ -702,7 +702,7 @@ __attribute__((unused)) int extract_spectrogram_features(signal_t *signal, matri
     }
 
     int ret = speechpy::feature::spectrogram(output_matrix, signal,
-        frequency, config.frame_length, config.frame_stride, config.fft_length, config.implementation_version);
+        sampling_frequency, config.frame_length, config.frame_stride, config.fft_length, config.implementation_version);
     if (ret != EIDSP_OK) {
         ei_printf("ERR: Spectrogram failed (%d)\n", ret);
         EIDSP_ERR(ret);
@@ -1302,8 +1302,8 @@ __attribute__((unused)) int extract_image_features(signal_t *signal, matrix_t *o
     int16_t channel_count = strcmp(config.channels, "Grayscale") == 0 ? 1 : 3;
 
     if (output_matrix->rows * output_matrix->cols != static_cast<uint32_t>(EI_CLASSIFIER_INPUT_FRAMES * EI_CLASSIFIER_INPUT_WIDTH * EI_CLASSIFIER_INPUT_HEIGHT * channel_count)) {
-        ei_printf("out_matrix = %hu items\n", output_matrix->rows, output_matrix->cols);
-        ei_printf("calculated size = %hu items\n", static_cast<uint32_t>(EI_CLASSIFIER_INPUT_FRAMES * EI_CLASSIFIER_INPUT_WIDTH * EI_CLASSIFIER_INPUT_HEIGHT * channel_count));
+        ei_printf("out_matrix = %d items\n", static_cast<int>(output_matrix->rows * output_matrix->cols));
+        ei_printf("calculated size = %d items\n", static_cast<int>(EI_CLASSIFIER_INPUT_FRAMES * EI_CLASSIFIER_INPUT_WIDTH * EI_CLASSIFIER_INPUT_HEIGHT * channel_count));
         EIDSP_ERR(EIDSP_MATRIX_SIZE_MISMATCH);
     }
 
@@ -1365,8 +1365,8 @@ __attribute__((unused)) int extract_image_features_quantized(signal_t *signal, m
     int16_t channel_count = strcmp(config.channels, "Grayscale") == 0 ? 1 : 3;
 
     if (output_matrix->rows * output_matrix->cols != static_cast<uint32_t>(EI_CLASSIFIER_INPUT_WIDTH * EI_CLASSIFIER_INPUT_HEIGHT * channel_count)) {
-        ei_printf("out_matrix = %hu items\n", output_matrix->rows, output_matrix->cols);
-        ei_printf("calculated size = %hu items\n", static_cast<uint32_t>(EI_CLASSIFIER_INPUT_WIDTH * EI_CLASSIFIER_INPUT_HEIGHT * channel_count));
+        ei_printf("out_matrix = %d items\n", static_cast<int>(output_matrix->rows * output_matrix->cols));
+        ei_printf("calculated size = %d items\n", static_cast<int>(EI_CLASSIFIER_INPUT_WIDTH * EI_CLASSIFIER_INPUT_HEIGHT * channel_count));
         EIDSP_ERR(EIDSP_MATRIX_SIZE_MISMATCH);
     }
 

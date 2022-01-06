@@ -59,7 +59,7 @@ int yuv422_to_rgb888(
     #define EI_GET_G_FROM_YUV(y, u, v) ((298 * y - 100 * u - 208 * v + 128) >> 8)
     #define EI_GET_B_FROM_YUV(y, u, v) ((298 * y + 516 * u + 128) >> 8)
 
-    int in_size_pixels = in_size_B / 4;
+    unsigned int in_size_pixels = in_size_B / 4;
     yuv_in += in_size_B - 1;
 
     int rgb_end = TEST_BIT_MASK(opts, PAD_4B) ? 2 * in_size_B : (6 * in_size_B) / 4;

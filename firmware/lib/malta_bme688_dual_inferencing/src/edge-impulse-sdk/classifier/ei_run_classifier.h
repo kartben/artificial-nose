@@ -206,7 +206,7 @@ extern "C" EI_IMPULSE_ERROR run_classifier_continuous(signal_t *signal, ei_impul
 
     EI_IMPULSE_ERROR ei_impulse_error = EI_IMPULSE_OK;
 
-    uint64_t dsp_start_ms = ei_read_timer_ms();
+    uint64_t dsp_start_us = ei_read_timer_us();
 
     size_t out_features_index = 0;
     bool is_mfcc = false;
@@ -271,7 +271,8 @@ extern "C" EI_IMPULSE_ERROR run_classifier_continuous(signal_t *signal, ei_impul
         out_features_index += block.n_output_features;
     }
 
-    result->timing.dsp = ei_read_timer_ms() - dsp_start_ms;
+    result->timing.dsp_us = ei_read_timer_us() - dsp_start_us;
+    result->timing.dsp = (int)(result->timing.dsp_us / 1000);
 
     if (debug) {
         ei_printf("\r\nFeatures (%d ms.): ", result->timing.dsp);
@@ -283,7 +284,7 @@ extern "C" EI_IMPULSE_ERROR run_classifier_continuous(signal_t *signal, ei_impul
     }
 
     if (classifier_continuous_features_written >= EI_CLASSIFIER_NN_INPUT_FRAME_SIZE) {
-        dsp_start_ms = ei_read_timer_ms();
+        dsp_start_us = ei_read_timer_us();
         ei::matrix_t classify_matrix(1, EI_CLASSIFIER_NN_INPUT_FRAME_SIZE);
 
         /* Create a copy of the matrix for normalization */
@@ -300,7 +301,8 @@ extern "C" EI_IMPULSE_ERROR run_classifier_continuous(signal_t *signal, ei_impul
         else if (is_mfe) {
             calc_cepstral_mean_and_var_normalization_mfe(&classify_matrix, ei_dsp_blocks[0].config);
         }
-        result->timing.dsp += ei_read_timer_ms() - dsp_start_ms;
+        result->timing.dsp_us += ei_read_timer_us() - dsp_start_us;
+        result->timing.dsp = (int)(result->timing.dsp_us / 1000);
 
 #if EI_CLASSIFIER_INFERENCING_ENGINE != EI_CLASSIFIER_NONE
         if (debug) {
@@ -585,7 +587,7 @@ __attribute__((unused)) static void fill_result_struct_f32(ei_impulse_result_t *
 /**
  * Setup the TFLite runtime
  *
- * @param      ctx_start_ms       Pointer to the start time
+ * @param      ctx_start_us       Pointer to the start time
  * @param      input              Pointer to input tensor
  * @param      output             Pointer to output tensor
  * @param      micro_interpreter  Pointer to interpreter (for non-compiled models)
@@ -593,7 +595,7 @@ __attribute__((unused)) static void fill_result_struct_f32(ei_impulse_result_t *
  *
  * @return  EI_IMPULSE_OK if successful
  */
-static EI_IMPULSE_ERROR inference_tflite_setup(uint64_t *ctx_start_ms, TfLiteTensor** input, TfLiteTensor** output,
+static EI_IMPULSE_ERROR inference_tflite_setup(uint64_t *ctx_start_us, TfLiteTensor** input, TfLiteTensor** output,
 #if EI_CLASSIFIER_OBJDET_HAS_SCORE_TENSOR
     TfLiteTensor** output_labels,
     TfLiteTensor** output_scores,
@@ -618,7 +620,7 @@ static EI_IMPULSE_ERROR inference_tflite_setup(uint64_t *ctx_start_ms, TfLiteTen
     *micro_tensor_arena = tensor_arena;
 #endif
 
-    *ctx_start_ms = ei_read_timer_ms();
+    *ctx_start_us = ei_read_timer_us();
 
     static bool tflite_first_run = true;
 
@@ -715,7 +717,7 @@ static EI_IMPULSE_ERROR inference_tflite_setup(uint64_t *ctx_start_ms, TfLiteTen
 /**
  * Run TFLite model
  *
- * @param   ctx_start_ms    Start time of the setup function (see above)
+ * @param   ctx_start_us    Start time of the setup function (see above)
  * @param   output          Output tensor
  * @param   interpreter     TFLite interpreter (non-compiled models)
  * @param   tensor_arena    Allocated arena (will be freed)
@@ -724,7 +726,7 @@ static EI_IMPULSE_ERROR inference_tflite_setup(uint64_t *ctx_start_ms, TfLiteTen
  *
  * @return  EI_IMPULSE_OK if successful
  */
-static EI_IMPULSE_ERROR inference_tflite_run(uint64_t ctx_start_ms,
+static EI_IMPULSE_ERROR inference_tflite_run(uint64_t ctx_start_us,
     TfLiteTensor* output,
 #if EI_CLASSIFIER_OBJDET_HAS_SCORE_TENSOR
     TfLiteTensor* labels_tensor,
@@ -749,9 +751,10 @@ static EI_IMPULSE_ERROR inference_tflite_run(uint64_t ctx_start_ms,
     delete interpreter;
 #endif
 
-    uint64_t ctx_end_ms = ei_read_timer_ms();
+    uint64_t ctx_end_us = ei_read_timer_us();
 
-    result->timing.classification = ctx_end_ms - ctx_start_ms;
+    result->timing.classification_us = ctx_end_us - ctx_start_us;
+    result->timing.classification = (int)(result->timing.classification_us / 1000);
 
     // Read the predicted y value from the model's output tensor
     if (debug) {
@@ -811,7 +814,6 @@ extern "C" EI_IMPULSE_ERROR run_inference(
 {
 #if (EI_CLASSIFIER_INFERENCING_ENGINE == EI_CLASSIFIER_TFLITE)
     {
-        uint64_t ctx_start_ms;
         TfLiteTensor* input;
         TfLiteTensor* output;
 #if EI_CLASSIFIER_OBJDET_HAS_SCORE_TENSOR
@@ -819,9 +821,10 @@ extern "C" EI_IMPULSE_ERROR run_inference(
         TfLiteTensor* output_labels;
 #endif
         uint8_t* tensor_arena;
+        uint64_t ctx_start_us = ei_read_timer_us();
 
 #if (EI_CLASSIFIER_COMPILED == 1)
-        EI_IMPULSE_ERROR init_res = inference_tflite_setup(&ctx_start_ms, &input, &output,
+        EI_IMPULSE_ERROR init_res = inference_tflite_setup(&ctx_start_us, &input, &output,
     #if EI_CLASSIFIER_OBJDET_HAS_SCORE_TENSOR
             &output_labels,
             &output_scores,
@@ -829,7 +832,7 @@ extern "C" EI_IMPULSE_ERROR run_inference(
             &tensor_arena);
 #else
         tflite::MicroInterpreter* interpreter;
-        EI_IMPULSE_ERROR init_res = inference_tflite_setup(&ctx_start_ms, &input, &output,
+        EI_IMPULSE_ERROR init_res = inference_tflite_setup(&ctx_start_us, &input, &output,
     #if EI_CLASSIFIER_OBJDET_HAS_SCORE_TENSOR
             &output_labels,
             &output_scores,
@@ -866,20 +869,22 @@ extern "C" EI_IMPULSE_ERROR run_inference(
 #endif
 
 #if (EI_CLASSIFIER_COMPILED == 1)
-        EI_IMPULSE_ERROR run_res = inference_tflite_run(ctx_start_ms, output,
+        EI_IMPULSE_ERROR run_res = inference_tflite_run(ctx_start_us, output,
     #if EI_CLASSIFIER_OBJDET_HAS_SCORE_TENSOR
             output_labels,
             output_scores,
     #endif
             tensor_arena, result, debug);
 #else
-        EI_IMPULSE_ERROR run_res = inference_tflite_run(ctx_start_ms, output,
+        EI_IMPULSE_ERROR run_res = inference_tflite_run(ctx_start_us, output,
     #if EI_CLASSIFIER_OBJDET_HAS_SCORE_TENSOR
             output_labels,
             output_scores,
     #endif
             interpreter, tensor_arena, result, debug);
 #endif
+
+        result->timing.classification_us = ei_read_timer_us() - ctx_start_us;
 
         if (run_res != EI_IMPULSE_OK) {
             return run_res;
@@ -956,13 +961,15 @@ extern "C" EI_IMPULSE_ERROR run_inference(
     #endif
         }
 
-        uint64_t ctx_start_ms = ei_read_timer_ms();
+        uint64_t ctx_start_us = ei_read_timer_us();
 
         interpreter->Invoke();
 
-        uint64_t ctx_end_ms = ei_read_timer_ms();
+        uint64_t ctx_end_us = ei_read_timer_us();
 
-        result->timing.classification = ctx_end_ms - ctx_start_ms;
+        result->timing.classification_us = ctx_end_us - ctx_start_us;
+        result->timing.classification = (int)(result->timing.classification_us / 1000);
+
     #if EI_CLASSIFIER_TFLITE_OUTPUT_QUANTIZED == 1
         int8_t* out_data = interpreter->typed_output_tensor<int8_t>(0);
     #else
@@ -1010,7 +1017,8 @@ extern "C" EI_IMPULSE_ERROR run_inference(
 
 #elif (EI_CLASSIFIER_INFERENCING_ENGINE == EI_CLASSIFIER_TENSAIFLOW)
     {
-        uint64_t ctx_start_ms = ei_read_timer_ms();
+        uint64_t ctx_start_us = ei_read_timer_us();
+
         int8_t *input;
         int8_t output[EI_CLASSIFIER_LABEL_COUNT];
 
@@ -1044,7 +1052,8 @@ extern "C" EI_IMPULSE_ERROR run_inference(
             result->classification[ix].value = value;
         }
 
-        result->timing.classification = ei_read_timer_ms() - ctx_start_ms;
+        result->timing.classification_us = ei_read_timer_us() - ctx_start_us;
+        result->timing.classification = (int)(result->timing.classification_us / 1000);
 
         ei_free(input);
     }
@@ -1085,11 +1094,14 @@ extern "C" EI_IMPULSE_ERROR run_inference(
             ei_trt_handle = libeitrt::create_EiTrt(model_file_name, debug);
         }
 
-        uint64_t ctx_start_ms = ei_read_timer_ms();
+        uint64_t ctx_start_us = ei_read_timer_us();
 
         libeitrt::infer(ei_trt_handle, fmatrix->buffer, tensorrt_output, EI_CLASSIFIER_LABEL_COUNT);
-        uint64_t ctx_end_ms = ei_read_timer_ms();
-        result->timing.classification = ctx_end_ms - ctx_start_ms;
+
+        uint64_t ctx_end_us = ei_read_timer_us();
+
+        result->timing.classification_us = ctx_end_us - ctx_start_us;
+        result->timing.classification = (int)(result->timing.classification_us / 1000);
 
         for( int i = 0; i < EI_CLASSIFIER_LABEL_COUNT; ++i) {
             result->classification[i].label = ei_classifier_inferencing_categories[i];
@@ -1102,7 +1114,7 @@ extern "C" EI_IMPULSE_ERROR run_inference(
 
     // Anomaly detection
     {
-        uint64_t anomaly_start_ms = ei_read_timer_ms();
+        uint64_t anomaly_start_us = ei_read_timer_us();
 
         float input[EI_CLASSIFIER_ANOM_AXIS_SIZE];
         for (size_t ix = 0; ix < EI_CLASSIFIER_ANOM_AXIS_SIZE; ix++) {
@@ -1112,17 +1124,17 @@ extern "C" EI_IMPULSE_ERROR run_inference(
         float anomaly = get_min_distance_to_cluster(
             input, EI_CLASSIFIER_ANOM_AXIS_SIZE, ei_classifier_anom_clusters, EI_CLASSIFIER_ANOM_CLUSTER_COUNT);
 
-        uint64_t anomaly_end_ms = ei_read_timer_ms();
+        uint64_t anomaly_end_us = ei_read_timer_us();
+
+        result->timing.anomaly_us = anomaly_end_us - anomaly_start_us;
+        result->timing.anomaly = (int)(result->timing.anomaly_us / 1000);
+        result->anomaly = anomaly;
 
         if (debug) {
-            ei_printf("Anomaly score (time: %d ms.): ", static_cast<int>(anomaly_end_ms - anomaly_start_ms));
+            ei_printf("Anomaly score (time: %d ms.): ", result->timing.anomaly);
             ei_printf_float(anomaly);
             ei_printf("\n");
         }
-
-        result->timing.anomaly = anomaly_end_ms - anomaly_start_ms;
-
-        result->anomaly = anomaly;
     }
 
 #endif
@@ -1145,17 +1157,17 @@ extern "C" EI_IMPULSE_ERROR run_inference_i16(
 
 #if (EI_CLASSIFIER_INFERENCING_ENGINE == EI_CLASSIFIER_TFLITE)
     {
-        uint64_t ctx_start_ms;
+        uint64_t ctx_start_us;
         TfLiteTensor* input;
         TfLiteTensor* output;
         uint8_t* tensor_arena;
 
 #if (EI_CLASSIFIER_COMPILED == 1)
-        EI_IMPULSE_ERROR init_res = inference_tflite_setup(&ctx_start_ms, &input, &output,
+        EI_IMPULSE_ERROR init_res = inference_tflite_setup(&ctx_start_us, &input, &output,
             &tensor_arena);
 #else
         tflite::MicroInterpreter* interpreter;
-        EI_IMPULSE_ERROR init_res = inference_tflite_setup(&ctx_start_ms, &input, &output,
+        EI_IMPULSE_ERROR init_res = inference_tflite_setup(&ctx_start_us, &input, &output,
             &interpreter,
             &tensor_arena);
 #endif
@@ -1182,10 +1194,10 @@ extern "C" EI_IMPULSE_ERROR run_inference_i16(
         }
 
 #if (EI_CLASSIFIER_COMPILED == 1)
-        EI_IMPULSE_ERROR run_res = inference_tflite_run(ctx_start_ms, output,
+        EI_IMPULSE_ERROR run_res = inference_tflite_run(ctx_start_us, output,
             tensor_arena, result, debug);
 #else
-        EI_IMPULSE_ERROR run_res = inference_tflite_run(ctx_start_ms, output,
+        EI_IMPULSE_ERROR run_res = inference_tflite_run(ctx_start_us, output,
             interpreter, tensor_arena, result, debug);
 #endif
 
@@ -1205,7 +1217,7 @@ extern "C" EI_IMPULSE_ERROR run_inference_i16(
 
     // Anomaly detection
     {
-        uint64_t anomaly_start_ms = ei_read_timer_ms();
+        uint64_t anomaly_start_us = ei_read_timer_us();
 
         float input[EI_CLASSIFIER_ANOM_AXIS_SIZE];
         for (size_t ix = 0; ix < EI_CLASSIFIER_ANOM_AXIS_SIZE; ix++) {
@@ -1217,17 +1229,17 @@ extern "C" EI_IMPULSE_ERROR run_inference_i16(
         float anomaly = get_min_distance_to_cluster(
             input, EI_CLASSIFIER_ANOM_AXIS_SIZE, ei_classifier_anom_clusters, EI_CLASSIFIER_ANOM_CLUSTER_COUNT);
 
-        uint64_t anomaly_end_ms = ei_read_timer_ms();
+        uint64_t anomaly_end_us = ei_read_timer_us();
+
+        result->timing.anomaly_us = anomaly_end_us - anomaly_start_us;
+        result->timing.anomaly = (int)(result->timing.anomaly_us / 1000);
+        result->anomaly = anomaly;
 
         if (debug) {
-            ei_printf("Anomaly score (time: %d ms.): ", static_cast<int>(anomaly_end_ms - anomaly_start_ms));
+            ei_printf("Anomaly score (time: %d ms.): ", result->timing.anomaly);
             ei_printf_float(anomaly);
             ei_printf("\n");
         }
-
-        result->timing.anomaly = anomaly_end_ms - anomaly_start_ms;
-
-        result->anomaly = anomaly;
     }
 
 #endif
@@ -1275,7 +1287,7 @@ extern "C" EI_IMPULSE_ERROR run_classifier(
 
     ei::matrix_t features_matrix(1, EI_CLASSIFIER_NN_INPUT_FRAME_SIZE);
 
-    uint64_t dsp_start_ms = ei_read_timer_ms();
+    uint64_t dsp_start_us = ei_read_timer_us();
 
     size_t out_features_index = 0;
 
@@ -1312,7 +1324,8 @@ extern "C" EI_IMPULSE_ERROR run_classifier(
         out_features_index += block.n_output_features;
     }
 
-    result->timing.dsp = ei_read_timer_ms() - dsp_start_ms;
+    result->timing.dsp_us = ei_read_timer_us() - dsp_start_us;
+    result->timing.dsp = (int)(result->timing.dsp_us / 1000);
 
     if (debug) {
         ei_printf("Features (%d ms.): ", result->timing.dsp);
@@ -1344,7 +1357,7 @@ extern "C" EI_IMPULSE_ERROR run_classifier_i16(
 
     ei::matrix_i32_t features_matrix(1, EI_CLASSIFIER_NN_INPUT_FRAME_SIZE);
 
-    uint64_t dsp_start_ms = ei_read_timer_ms();
+    uint64_t dsp_start_us = ei_read_timer_us();
 
     size_t out_features_index = 0;
 
@@ -1381,7 +1394,8 @@ extern "C" EI_IMPULSE_ERROR run_classifier_i16(
         out_features_index += block.n_output_features;
     }
 
-    result->timing.dsp = ei_read_timer_ms() - dsp_start_ms;
+    result->timing.dsp_us = ei_read_timer_us() - dsp_start_us;
+    result->timing.dsp = (int)(result->timing.dsp_us / 1000);
 
     if (debug) {
         ei_printf("Features (%d ms.): ", result->timing.dsp);
@@ -1551,7 +1565,7 @@ extern "C" EI_IMPULSE_ERROR run_classifier_image_quantized(
 #if (EI_CLASSIFIER_INFERENCING_ENGINE != EI_CLASSIFIER_TFLITE)
     return EI_IMPULSE_UNSUPPORTED_INFERENCING_ENGINE;
 #else
-    uint64_t ctx_start_ms;
+    uint64_t ctx_start_us;
     TfLiteTensor* input;
     TfLiteTensor* output;
 #if EI_CLASSIFIER_OBJDET_HAS_SCORE_TENSOR
@@ -1561,7 +1575,7 @@ extern "C" EI_IMPULSE_ERROR run_classifier_image_quantized(
     uint8_t* tensor_arena;
 
 #if (EI_CLASSIFIER_COMPILED == 1)
-    EI_IMPULSE_ERROR init_res = inference_tflite_setup(&ctx_start_ms, &input, &output,
+    EI_IMPULSE_ERROR init_res = inference_tflite_setup(&ctx_start_us, &input, &output,
     #if EI_CLASSIFIER_OBJDET_HAS_SCORE_TENSOR
         &output_labels,
         &output_scores,
@@ -1569,7 +1583,7 @@ extern "C" EI_IMPULSE_ERROR run_classifier_image_quantized(
         &tensor_arena);
 #else
     tflite::MicroInterpreter* interpreter;
-    EI_IMPULSE_ERROR init_res = inference_tflite_setup(&ctx_start_ms, &input, &output,
+    EI_IMPULSE_ERROR init_res = inference_tflite_setup(&ctx_start_us, &input, &output,
     #if EI_CLASSIFIER_OBJDET_HAS_SCORE_TENSOR
         &output_labels,
         &output_scores,
@@ -1585,7 +1599,7 @@ extern "C" EI_IMPULSE_ERROR run_classifier_image_quantized(
         return EI_IMPULSE_ONLY_SUPPORTED_FOR_IMAGES;
     }
 
-    uint64_t dsp_start_ms = ei_read_timer_ms();
+    uint64_t dsp_start_us = ei_read_timer_us();
 
     // features matrix maps around the input tensor to not allocate any memory
     ei::matrix_i8_t features_matrix(1, EI_CLASSIFIER_NN_INPUT_FRAME_SIZE, input->data.int8);
@@ -1601,7 +1615,8 @@ extern "C" EI_IMPULSE_ERROR run_classifier_image_quantized(
         return EI_IMPULSE_CANCELED;
     }
 
-    result->timing.dsp = ei_read_timer_ms() - dsp_start_ms;
+    result->timing.dsp_us = ei_read_timer_us() - dsp_start_us;
+    result->timing.dsp = (int)(result->timing.dsp_us / 1000);
 
     if (debug) {
         ei_printf("Features (%d ms.): ", result->timing.dsp);
@@ -1612,17 +1627,17 @@ extern "C" EI_IMPULSE_ERROR run_classifier_image_quantized(
         ei_printf("\n");
     }
 
-    ctx_start_ms = ei_read_timer_ms();
+    ctx_start_us = ei_read_timer_us();
 
 #if (EI_CLASSIFIER_COMPILED == 1)
-    EI_IMPULSE_ERROR run_res = inference_tflite_run(ctx_start_ms, output,
+    EI_IMPULSE_ERROR run_res = inference_tflite_run(ctx_start_us, output,
     #if EI_CLASSIFIER_OBJDET_HAS_SCORE_TENSOR
         output_labels,
         output_scores,
     #endif
         tensor_arena, result, debug);
 #else
-    EI_IMPULSE_ERROR run_res = inference_tflite_run(ctx_start_ms, output,
+    EI_IMPULSE_ERROR run_res = inference_tflite_run(ctx_start_us, output,
     #if EI_CLASSIFIER_OBJDET_HAS_SCORE_TENSOR
         output_labels,
         output_scores,
@@ -1633,6 +1648,8 @@ extern "C" EI_IMPULSE_ERROR run_classifier_image_quantized(
     if (run_res != EI_IMPULSE_OK) {
         return run_res;
     }
+
+    result->timing.classification_us = ei_read_timer_us() - ctx_start_us;
 
     return EI_IMPULSE_OK;
 #endif // EI_CLASSIFIER_INFERENCING_ENGINE != EI_CLASSIFIER_TFLITE

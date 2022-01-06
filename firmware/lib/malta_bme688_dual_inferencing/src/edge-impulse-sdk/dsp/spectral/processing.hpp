@@ -167,12 +167,12 @@ namespace processing {
      * @param filter_order Filter size -1
      * @param lowpass_cutoff Lowpass cutoff freqency.  If 0, will be a high pass filter
      * @param highpass_cutoff Highpass cutoff.  If 0, will just be a lowpass.  If both, bandpass
-     * @param decimation_ratio To downsample, ratio of samples to get rid of.  
+     * @param decimation_ratio To downsample, ratio of samples to get rid of.
      * For example, 4 to go from sample rate of 40k to 10k.  LOWPASS CUTOFF MUST MATCH THIS
      * If you don't filter the high frequencies, they WILL alias into the passband
      * So in the above example, you would want to cutoff at 5K (so you have some buffer)
      * TODO (will the cutoff be the start of rolloff, or the -20 dB level?)
-     * @return int always EIDSP_OK (for now) 
+     * @return int always EIDSP_OK (for now)
      */
     static int i16_filter(
         matrix_i16_t *matrix,
@@ -372,6 +372,10 @@ namespace processing {
             EIDSP_ERR(EIDSP_MATRIX_SIZE_MISMATCH);
         }
 
+        if (output_matrix->rows == 0) {
+            return EIDSP_OK;
+        }
+
         int ret;
 
         int N = static_cast<int>(fft_length);
@@ -475,7 +479,7 @@ namespace processing {
         for (uint8_t ix = 0; ix < peak_count; ix++) {
             freq_peak_i16_t d;
             // @todo: something somewhere does not go OK... and these numbers are dependent on
-            // the FFT length I think... But they are an OK approximation for now.            
+            // the FFT length I think... But they are an OK approximation for now.
             d.freq = freq_space.buffer[static_cast<uint32_t>(peaks_matrix.buffer[ix])];
             d.amplitude = fft_matrix->buffer[peaks_matrix.buffer[ix]];
 
@@ -522,6 +526,10 @@ namespace processing {
 
         if (output_matrix->cols != 2) {
             EIDSP_ERR(EIDSP_MATRIX_SIZE_MISMATCH);
+        }
+
+        if (output_matrix->rows == 0) {
+            return EIDSP_OK;
         }
 
         int ret;
@@ -699,7 +707,7 @@ namespace processing {
             }
             else {
                 int neg = 0;
-                
+
                 if(buckets.buffer[ex] & 0x8000) {
                     buckets.buffer[ex] &= ~0x8000;
                     neg = 1;
@@ -895,7 +903,7 @@ namespace processing {
             int16_t i_squared = numpy::saturate(((int32_t)fft_output[ix].i * fft_output[ix].i) >> 15, 16) & 0x7FFF;
 
             fft_output[ix].r = numpy::saturate(((int32_t)fft_output[ix].r * fft_output[ix].r) >> 15, 16) + i_squared;
-            
+
             fft_output[ix].i = 0.0f;
 
             fft_output[ix].r = numpy::saturate(((int32_t)fft_output[ix].r * scale) >> 15, 16);
