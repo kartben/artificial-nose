@@ -25,7 +25,7 @@
 #include <stdint.h>
 #include "model_metadata.h"
 
-const char* ei_classifier_inferencing_categories[] = { "ambient", "cinnamon", "coffee", "whiskey" };
+const char* ei_classifier_inferencing_categories[] = { "ambient", "coffee", "whiskey" };
 
 uint8_t ei_dsp_config_47_axes[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19 };
 const uint32_t ei_dsp_config_47_axes_size = 20;
