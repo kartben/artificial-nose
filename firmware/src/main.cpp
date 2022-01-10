@@ -5,23 +5,10 @@
  */
 
 #include <Arduino.h>
-#include "Config.h"
-#include "ConfigurationMode.h"
+// #include "Config.h"
+// #include "ConfigurationMode.h"
 
 #include <malta_bme688_dual_inferencing.h>
-
-////////////////////////////////////////////////////////////////////////////////
-// Storage
-
-#include <ExtFlashLoader.h>
-#include "Storage.h"
-
-static ExtFlashLoader::QSPIFlash Flash_;
-static Storage Storage_(Flash_);
-
-////////////////////////////////////////////////////////////////////////////////
-// OTA
-#include <OTA.h>
 
 ////////////////////////////////////////////////////////////////////////////////
 // BME688
@@ -356,8 +343,6 @@ static void ButtonDoWork()
 
 void setup()
 {
-  Storage_.Load();
-
   Serial.begin(115200);
 
   Wire.begin();
@@ -375,14 +360,6 @@ void setup()
   pinMode(WIO_5S_LEFT, INPUT_PULLUP);
   pinMode(WIO_5S_RIGHT, INPUT_PULLUP);
   pinMode(WIO_5S_PRESS, INPUT_PULLUP);
-
-  if (digitalRead(WIO_KEY_A) == LOW &&
-      digitalRead(WIO_KEY_B) == LOW &&
-      digitalRead(WIO_KEY_C) == LOW   )
-  {
-      ei_printf("In configuration mode\r\n");
-      ConfigurationMode(Storage_);
-  }
 
   ButtonInit();
 
