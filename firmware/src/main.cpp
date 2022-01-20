@@ -704,30 +704,29 @@ void loop()
 
       // check if we need to report a change in detected scent to the IoT platform. 
       // 2 cases: new scent has been detected, or confidence level of a scent previously reported as changed by 5+ percentage points
-      if (isWifiConfigured) {
-        if (best_prediction != latest_inference_idx || 
-            best_prediction == latest_inference_idx && (result.classification[best_prediction].value - latest_inference_confidence_level > .05) ) 
-          {
-            StaticJsonDocument<JSON_MAX_SIZE> doc;
-            doc["latestInferenceResult"] = title_text;
+      if(isWifiConfigured && best_prediction != latest_inference_idx || 
+         best_prediction == latest_inference_idx && (result.classification[best_prediction].value - latest_inference_confidence_level > .05) ) 
+      {
+        StaticJsonDocument<JSON_MAX_SIZE> doc;
+        doc["latestInferenceResult"] = title_text;
 
-            char json[JSON_MAX_SIZE];
-            serializeJson(doc, json);
+        char json[JSON_MAX_SIZE];
+        serializeJson(doc, json);
 
-            static int requestId = 444; char b[12];
-            AziotHub_.SendTwinPatch(itoa(requestId++, b, 10), json);
+        static int requestId = 444; char b[12];
+        AziotHub_.SendTwinPatch(itoa(requestId++, b, 10), json);
 
-            //ei_printf("Reporting: %s\r\n", title_text);
+        //ei_printf("Reporting: %s\r\n", title_text);
 
-            latest_inference_idx = best_prediction;
-            latest_inference_confidence_level = result.classification[best_prediction].value;
-          }
-
-          latest_inference_idx = best_prediction;
-          latest_inference_confidence_level =
-            result.classification[best_prediction].value;
-        }
+        latest_inference_idx = best_prediction;
+        latest_inference_confidence_level = result.classification[best_prediction].value;
       }
+
+
+      latest_inference_idx = best_prediction;
+      latest_inference_confidence_level =
+        result.classification[best_prediction].value;
+    }
   }
 
   spr.pushSprite(0, 0, TFT_MAGENTA);
