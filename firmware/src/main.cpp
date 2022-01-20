@@ -104,6 +104,10 @@ static float featuresRightSensor[EI_CLASSIFIER_DSP_INPUT_FRAME_SIZE];
 
 int nb_sensors_have_completed_cycle = 0;
 
+#define SENSOR_CYCLE_DURATION_MS 10780
+long time_until_next_update = SENSOR_CYCLE_DURATION_MS; // 10.78s
+long global_time_elapsed;
+
 // XXX HACK
 int raw_features_get_data(size_t offset, size_t length, float *out_ptr)
 {
@@ -245,6 +249,7 @@ void bsecGenericCallback(const bme68x_data &input, const BsecOutput &outputs, fl
       runInference();
 
       nb_sensors_have_completed_cycle = 0;
+      time_until_next_update = SENSOR_CYCLE_DURATION_MS;
     }
   }
 }
@@ -373,6 +378,8 @@ void setup()
   setupBsec(sensor2, 0x77, Wire);
   delay(100);
 
+  global_time_elapsed = millis();
+
   // put your setup code here, to run once:
   tft.begin();
   tft.setRotation(3);
@@ -391,6 +398,11 @@ int fan = 0;
 
 void loop()
 {
+
+  long delta = millis() - global_time_elapsed;
+  time_until_next_update -= delta;
+  global_time_elapsed = millis();
+
   if (!sensor1.run())
   {
     checkBsecStatus(sensor1);
@@ -405,7 +417,7 @@ void loop()
 
   ButtonDoWork();
 
-  spr.setFreeFont(&FreeSansBoldOblique9pt7b); // Select the font
+  spr.setFreeFont(&FreeSansBold9pt7b); // Select the font
   spr.setTextColor(TEXT_COLOR);
 
   for (int i = NB_SENSORS - 1; i >= 0; i--) {
@@ -437,6 +449,12 @@ void loop()
 
       spr.setTextColor(TFT_RED);
       spr.drawString(inference_result, 60 - 24, 180);
+
+      char buf[32];
+      sprintf(buf, "Next update in: %.2fs", time_until_next_update / 1000.0);
+
+      spr.drawString(buf, 60 - 24, 200);
+
       break;
     }
 
