@@ -39,7 +39,7 @@ static unsigned long nextTelemetrySendTime = 0;
 */
 void ei_printf(const char *format, ...)
 {
-  static char print_buf[200] = {0};
+  static char print_buf[512] = { 0 };
 
   va_list args;
   va_start(args, format);
@@ -256,7 +256,7 @@ SENSOR_INFO sensors[4] = {
 };
 #define NB_SENSORS 4
 
-char title_text[20] = "";
+char title_text[50] = "";
 
 enum MODE
 {
@@ -654,7 +654,7 @@ void loop()
                 result.timing.anomaly);
 
       int lineNumber = 60;
-      char lineBuffer[30] = "";
+      char lineBuffer[60] = "";
 
       for (size_t ix = 0; ix < EI_CLASSIFIER_LABEL_COUNT; ix++) {
         if (result.classification[ix].value >=
