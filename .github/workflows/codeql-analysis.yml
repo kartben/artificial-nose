@@ -68,8 +68,9 @@ jobs:
     #   echo "Run, Build Application using script"
     #   ./location_of_script_within_repo/buildscript.sh
 
-- name: Set up Python
+    - name: Set up Python
       uses: actions/setup-python@v1
+
     - name: Install dependencies
       run: |
           python -m pip install --upgrade pip
