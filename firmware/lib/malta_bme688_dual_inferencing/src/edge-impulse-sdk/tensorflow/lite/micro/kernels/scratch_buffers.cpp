@@ -1,4 +1,4 @@
-// Patched by Edge Impulse to include reference, CMSIS-NN and ARC kernels
+// Patched by Edge Impulse to include reference and hardware-accelerated kernels
 #include "../../../../classifier/ei_classifier_config.h"
 #if EI_CLASSIFIER_TFLITE_ENABLE_ARC == 1
 /* Copyright 2019 The TensorFlow Authors. All Rights Reserved.
@@ -52,6 +52,7 @@ namespace micro {
 #endif
 #endif
 
+// Patched by Edge Impulse, ARC GCC fixes
 namespace {
 #if defined (__GNUC__)
 static int8_t scratch_mem_x[SCRATCH_MEM_X_SIZE] __attribute__((section(".Xdata")));

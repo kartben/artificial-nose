@@ -25,8 +25,8 @@
 #define ARRAY_LENGTH(array) (sizeof((array))/sizeof((array)[0]))
 
 // Stringify
-#define xstr(a) str(a)
-#define str(a) #a
+#define ei_xstr(a) ei_str(a)
+#define ei_str(a) #a
 
 // Bit manipulation
 
@@ -53,5 +53,7 @@
 
 // Test whether all the flag bits in word are set.
 #define 	TEST_BIT_MASK(y, flag)   ( ((y)&(flag)) == (flag) )
+
+#define EI_TRY(x) { auto res = (x); if(res != EIDSP_OK) { return res; } }
 
 #endif  //!__EI_UTILS__H__

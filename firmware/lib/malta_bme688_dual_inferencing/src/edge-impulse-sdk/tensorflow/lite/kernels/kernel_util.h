@@ -148,6 +148,10 @@ inline int NumDimensions(const TfLiteTensor* t) { return t->dims->size; }
 inline int SizeOfDimension(const TfLiteTensor* t, int dim) {
   return t->dims->data[dim];
 }
+inline int NumDimensions(const TfLiteEvalTensor* t) { return t->dims->size; }
+inline int SizeOfDimension(const TfLiteEvalTensor* t, int dim) {
+  return t->dims->data[dim];
+}
 
 inline int NumInputs(const TfLiteNode* node) { return node->inputs->size; }
 inline int NumOutputs(const TfLiteNode* node) { return node->outputs->size; }

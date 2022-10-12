@@ -26,6 +26,14 @@
 #include <stdint.h>
 #include "model-parameters/model_metadata.h"
 
+#ifndef EI_CLASSIFIER_MAX_OBJECT_DETECTION_COUNT
+#define EI_CLASSIFIER_MAX_OBJECT_DETECTION_COUNT 10
+#endif
+
+#ifndef EI_CLASSIFIER_MAX_LABELS_COUNT
+#define EI_CLASSIFIER_MAX_LABELS_COUNT 25
+#endif
+
 typedef struct {
     const char *label;
     float value;
@@ -51,23 +59,11 @@ typedef struct {
 } ei_impulse_result_timing_t;
 
 typedef struct {
-#if EI_CLASSIFIER_OBJECT_DETECTION == 1
-    ei_impulse_result_bounding_box_t bounding_boxes[EI_CLASSIFIER_OBJECT_DETECTION_COUNT];
-#else
-    ei_impulse_result_classification_t classification[EI_CLASSIFIER_LABEL_COUNT];
-#endif
+    ei_impulse_result_bounding_box_t *bounding_boxes;
+    uint32_t bounding_boxes_count;
+    ei_impulse_result_classification_t classification[EI_CLASSIFIER_MAX_LABELS_COUNT];
     float anomaly;
     ei_impulse_result_timing_t timing;
 } ei_impulse_result_t;
-
-typedef struct {
-    uint32_t buf_idx;
-    float running_sum;
-#if (EI_CLASSIFIER_SLICES_PER_MODEL_WINDOW > 1)
-    float maf_buffer[(EI_CLASSIFIER_SLICES_PER_MODEL_WINDOW >> 1)];
-#else
-    float maf_buffer[1];
-#endif
-}ei_impulse_maf;
 
 #endif // _EDGE_IMPULSE_RUN_CLASSIFIER_TYPES_H_

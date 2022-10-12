@@ -1068,6 +1068,14 @@ TfLiteStatus ParseConcatenation(const Operator* op,
   return kTfLiteOk;
 }
 
+// We have this parse function instead of directly returning kTfLiteOk from the
+// switch-case in ParseOpData because this function is used as part of the
+// selective registration for the OpResolver implementation in micro.
+TfLiteStatus ParseComplexAbs(const Operator*, ErrorReporter*, BuiltinDataAllocator*,
+                             void**) {
+  return kTfLiteOk;
+}
+
 TfLiteStatus ParseConv2D(const Operator* op, ErrorReporter* error_reporter,
                          BuiltinDataAllocator* allocator, void** builtin_data) {
   CheckParsePointerParams(op, error_reporter, allocator, builtin_data);
@@ -1372,6 +1380,14 @@ TfLiteStatus ParseHardSwish(const Operator*, ErrorReporter*,
   return kTfLiteOk;
 }
 
+// We have this parse function instead of directly returning kTfLiteOk from the
+// switch-case in ParseOpData because this function is used as part of the
+// selective registration for the OpResolver implementation in micro.
+TfLiteStatus ParseImag(const Operator*, ErrorReporter*,
+                       BuiltinDataAllocator*, void**) {
+  return kTfLiteOk;
+}
+
 TfLiteStatus ParseL2Normalization(const Operator* op,
                                   ErrorReporter* error_reporter,
                                   BuiltinDataAllocator* allocator,
@@ -1630,6 +1646,14 @@ TfLiteStatus ParseQuantize(const Operator*, ErrorReporter*,
   return kTfLiteOk;
 }
 
+// We have this parse function instead of directly returning kTfLiteOk from the
+// switch-case in ParseOpData because this function is used as part of the
+// selective registration for the OpResolver implementation in micro.
+TfLiteStatus ParseReal(const Operator*, ErrorReporter*,
+                       BuiltinDataAllocator*, void**) {
+  return kTfLiteOk;
+}
+
 TfLiteStatus ParseReducer(const Operator* op, ErrorReporter* error_reporter,
                           BuiltinDataAllocator* allocator,
                           void** builtin_data) {
@@ -1766,6 +1790,14 @@ TfLiteStatus ParseResizeNearestNeighbor(const Operator* op,
 // We have this parse function instead of directly returning kTfLiteOk from the
 // switch-case in ParseOpData because this function is used as part of the
 // selective registration for the OpResolver implementation in micro.
+TfLiteStatus ParseRfft2D(const Operator*, ErrorReporter*,
+                         BuiltinDataAllocator*, void**) {
+  return kTfLiteOk;
+}
+
+// We have this parse function instead of directly returning kTfLiteOk from the
+// switch-case in ParseOpData because this function is used as part of the
+// selective registration for the OpResolver implementation in micro.
 TfLiteStatus ParseRound(const Operator*, ErrorReporter*, BuiltinDataAllocator*,
                         void**) {
   return kTfLiteOk;
@@ -1805,8 +1837,21 @@ TfLiteStatus ParseShape(const Operator* op, ErrorReporter* error_reporter,
 // We have this parse function instead of directly returning kTfLiteOk from the
 // switch-case in ParseOpData because this function is used as part of the
 // selective registration for the OpResolver implementation in micro.
+TfLiteStatus ParseSelect(const Operator*, ErrorReporter*, BuiltinDataAllocator*,
+                         void**) {
+  return kTfLiteOk;
+}
+
+// We have this parse function instead of directly returning kTfLiteOk from the
+// switch-case in ParseOpData because this function is used as part of the
+// selective registration for the OpResolver implementation in micro.
 TfLiteStatus ParseSin(const Operator*, ErrorReporter*, BuiltinDataAllocator*,
                       void**) {
+  return kTfLiteOk;
+}
+
+TfLiteStatus ParseSlice(const Operator*, ErrorReporter*, BuiltinDataAllocator*,
+                        void**) {
   return kTfLiteOk;
 }
 

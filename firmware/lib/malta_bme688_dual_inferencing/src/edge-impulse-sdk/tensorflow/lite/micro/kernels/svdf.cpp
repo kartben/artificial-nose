@@ -1,4 +1,4 @@
-// Patched by Edge Impulse to include reference, CMSIS-NN and ARC kernels
+// Patched by Edge Impulse to include reference and hardware-accelerated kernels
 #include "../../../../classifier/ei_classifier_config.h"
 #if 0 == 1
 /* noop */

@@ -14,6 +14,8 @@
         "vector": "cpp",
         "string_view": "cpp",
         "initializer_list": "cpp",
-        "bsec_serialized_configurations_selectivity.h": "c"
+        "bsec_serialized_configurations_selectivity.h": "c",
+        "cmath": "cpp",
+        "complex": "cpp"
     }
 }

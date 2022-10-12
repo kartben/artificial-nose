@@ -31,15 +31,8 @@ namespace speechpy {
 // one stack frame returned by stack_frames
 typedef struct ei_stack_frames_info {
     signal_t *signal;
-    std::vector<uint32_t> *frame_ixs;
+    std::vector<uint32_t> frame_ixs;
     int frame_length;
-
-    // start_ixs is owned by us
-    ~ei_stack_frames_info() {
-        if (frame_ixs) {
-            delete frame_ixs;
-        }
-    }
 } stack_frames_info_t;
 
 namespace processing {
@@ -326,18 +319,16 @@ namespace processing {
             info->signal->total_length = static_cast<size_t>(len_sig);
         }
 
-        // alloc the vector on the heap, will be owned by the info struct
-        std::vector<uint32_t> *frame_indices = new std::vector<uint32_t>();
-
+        info->frame_ixs.clear();
+        
         int frame_count = 0;
 
         for (size_t ix = 0; ix < static_cast<uint32_t>(len_sig); ix += static_cast<size_t>(frame_stride)) {
             if (++frame_count > numframes) break;
 
-            frame_indices->push_back(ix);
+            info->frame_ixs.push_back(ix);
         }
 
-        info->frame_ixs = frame_indices;
         info->frame_length = frame_sample_length;
 
         return EIDSP_OK;
@@ -391,34 +382,6 @@ namespace processing {
         }
 
         return numframes;
-    }
-
-    /**
-     * Power spectrum of a frame
-     * @param frame Row of a frame
-     * @param frame_size Size of the frame
-     * @param out_buffer Out buffer, size should be fft_points
-     * @param out_buffer_size Buffer size
-     * @param fft_points (int): The length of FFT. If fft_length is greater than frame_len, the frames will be zero-padded.
-     * @returns EIDSP_OK if OK
-     */
-    static int power_spectrum(float *frame, size_t frame_size, float *out_buffer, size_t out_buffer_size, uint16_t fft_points)
-    {
-        if (out_buffer_size != static_cast<size_t>(fft_points / 2 + 1)) {
-            EIDSP_ERR(EIDSP_MATRIX_SIZE_MISMATCH);
-        }
-
-        int r = numpy::rfft(frame, frame_size, out_buffer, out_buffer_size, fft_points);
-        if (r != EIDSP_OK) {
-            return r;
-        }
-
-        for (size_t ix = 0; ix < out_buffer_size; ix++) {
-            out_buffer[ix] = (1.0 / static_cast<float>(fft_points)) *
-                (out_buffer[ix] * out_buffer[ix]);
-        }
-
-        return EIDSP_OK;
     }
 
     /**

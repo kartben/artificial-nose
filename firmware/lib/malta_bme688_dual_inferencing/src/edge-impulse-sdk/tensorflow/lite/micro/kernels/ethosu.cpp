@@ -20,7 +20,7 @@ limitations under the License.
 
 #if EI_CLASSIFIER_TFLITE_ETHOSU_POLYFILL || EI_ETHOS
 
-#if EI_CLASSIFIER_TFLITE_ETHOSU_POLYFILL 
+#if EI_CLASSIFIER_TFLITE_ETHOSU_POLYFILL
 // Modified by Edge Impulse
 // Add stub definitions so that EON Compiler can run
 

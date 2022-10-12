@@ -159,11 +159,12 @@ inline bool ReduceGeneric(const T* input_data, const int* input_dims,
 // It does so in two stages, first calculates the sum of elements along the axis
 // then divides it by the number of element in axis.
 template <typename T, typename U>
-inline bool Mean(const T* input_data, const int* input_dims,
-                 const int input_num_dims, T* output_data,
-                 const int* output_dims, const int output_num_dims,
-                 const int* axis, const int num_axis_dimensions, bool keep_dims,
-                 int* temp_index, int* resolved_axis, U* temp_sum) {
+inline bool MeanOrSum(const T* input_data, const int* input_dims,
+                      const int input_num_dims, T* output_data,
+                      const int* output_dims, const int output_num_dims,
+                      const int* axis, const int num_axis_dimensions, bool keep_dims,
+                      int* temp_index, int* resolved_axis, U* temp_sum,
+                      bool compute_sum) {
   ruy::profiler::ScopeLabel label("Mean");
   // Reset output data.
   size_t num_outputs = 1;
@@ -206,18 +207,24 @@ inline bool Mean(const T* input_data, const int* input_dims,
 
   if (num_elements_in_axis > 0) {
     for (size_t idx = 0; idx < num_outputs; ++idx) {
-      output_data[idx] =
-          static_cast<T>(temp_sum[idx] / static_cast<U>(num_elements_in_axis));
+      if (compute_sum) {
+        output_data[idx] = static_cast<T>(temp_sum[idx] / static_cast<U>(1));
+      }
+      else {
+        output_data[idx] =
+            static_cast<T>(temp_sum[idx] / static_cast<U>(num_elements_in_axis));
+      }
     }
   }
   return true;
 }
 
 template <typename T>
-inline void Mean(const tflite::MeanParams& op_params,
-                 const RuntimeShape& unextended_input_shape,
-                 const T* input_data,
-                 const RuntimeShape& unextended_output_shape, T* output_data) {
+inline void MeanOrSum(const tflite::MeanParams& op_params,
+                      const RuntimeShape& unextended_input_shape,
+                      const T* input_data,
+                      const RuntimeShape& unextended_output_shape, T* output_data,
+                      bool compute_sum) {
   ruy::profiler::ScopeLabel label("Mean4D");
 
   // Current implementation only supports dimension equals 4 and simultaneous
@@ -251,18 +258,25 @@ inline void Mean(const tflite::MeanParams& op_params,
           value += input_data[Offset(input_shape, out_b, in_h, in_w, out_d)];
         }
       }
-      output_data[Offset(output_shape, out_b, 0, 0, out_d)] =
-          value / (input_width * input_height);
+
+      if (compute_sum) {
+        output_data[Offset(output_shape, out_b, 0, 0, out_d)] = value;
+      }
+      else {
+        output_data[Offset(output_shape, out_b, 0, 0, out_d)] =
+            value / (input_width * input_height);
+      }
     }
   }
 }
 
-inline void Mean(const tflite::MeanParams& op_params,
-                 const RuntimeShape& unextended_input_shape,
-                 const uint8_t* input_data, int32_t input_zero_point,
-                 float input_scale, const RuntimeShape& unextended_output_shape,
-                 uint8_t* output_data, int32_t output_zero_point,
-                 float output_scale) {
+inline void MeanOrSum(const tflite::MeanParams& op_params,
+                      const RuntimeShape& unextended_input_shape,
+                      const uint8_t* input_data, int32_t input_zero_point,
+                      float input_scale, const RuntimeShape& unextended_output_shape,
+                      uint8_t* output_data, int32_t output_zero_point,
+                      float output_scale,
+                      bool compute_sum) {
   ruy::profiler::ScopeLabel label("Mean4D/Uint8");
 
   // Current implementation only supports dimension equals 4 and simultaneous
@@ -293,7 +307,8 @@ inline void Mean(const tflite::MeanParams& op_params,
   int32_t bias =
       output_zero_point -
       static_cast<int32_t>(input_zero_point * input_scale / output_scale);
-  double real_scale =
+  double real_scale = compute_sum ?
+      static_cast<double>(input_scale / (1 * output_scale)) :
       static_cast<double>(input_scale / (num_elements_in_axis * output_scale));
 
   int32_t multiplier;

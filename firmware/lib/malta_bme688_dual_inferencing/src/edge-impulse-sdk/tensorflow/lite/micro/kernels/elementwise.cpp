@@ -90,6 +90,10 @@ TfLiteStatus CosEval(TfLiteContext* context, TfLiteNode* node) {
   return EvalNumeric(context, node, std::cos);
 }
 
+TfLiteStatus ExpEval(TfLiteContext* context, TfLiteNode* node) {
+  return EvalNumeric(context, node, std::exp);
+}
+
 TfLiteStatus LogEval(TfLiteContext* context, TfLiteNode* node) {
   return EvalNumeric(context, node, std::log);
 }
@@ -143,6 +147,18 @@ TfLiteRegistration Register_COS() {
           /*prepare=*/
           elementwise::GenericPrepare<elementwise::IsNumericSupportedType>,
           /*invoke=*/elementwise::CosEval,
+          /*profiling_string=*/nullptr,
+          /*builtin_code=*/0,
+          /*custom_name=*/nullptr,
+          /*version=*/0};
+}
+
+TfLiteRegistration Register_EXP() {
+  return {/*init=*/nullptr,
+          /*free=*/nullptr,
+          /*prepare=*/
+          elementwise::GenericPrepare<elementwise::IsNumericSupportedType>,
+          /*invoke=*/elementwise::ExpEval,
           /*profiling_string=*/nullptr,
           /*builtin_code=*/0,
           /*custom_name=*/nullptr,

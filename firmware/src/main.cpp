@@ -10,6 +10,73 @@
 
 #include <malta_bme688_dual_inferencing.h>
 
+enum NOSTRIL_SIDE
+{
+  LEFT = 0,
+  RIGHT = 1
+};
+
+int extract_custom_block_features(signal_t *signal, matrix_t *output_matrix, void *config_ptr, const float frequency)
+{
+  ei_dsp_config_custom_block_t config = *((ei_dsp_config_custom_block_t *)config_ptr);
+
+  ei_printf("extract_custom_block_features - axes: %d\n", config.axes);
+  ei_printf("extract_custom_block_features - signal->total_length: %d\n", signal->total_length);
+  ei_printf("extract_custom_block_features - output_matrix->rows: %d\n", output_matrix->rows);
+  ei_printf("extract_custom_block_features - output_matrix->cols: %d\n", output_matrix->cols);
+
+  // input matrix from the raw signal
+  matrix_t input_matrix(signal->total_length / config.axes, config.axes);
+  if (!input_matrix.buffer)
+  {
+    EIDSP_ERR(EIDSP_OUT_OF_MEM);
+  }
+  signal->get_data(0, signal->total_length, input_matrix.buffer);
+
+  // scale the signal
+  int ret = numpy::scale(&input_matrix, config.scale_axes);
+  if (ret != EIDSP_OK)
+  {
+    EIDSP_ERR(ret);
+  }
+
+  ret = numpy::log10(&input_matrix);
+  if (ret != EIDSP_OK)
+  {
+    EIDSP_ERR(ret);
+  }
+
+  ret = numpy::subtract(&input_matrix, 5);
+  if (ret != EIDSP_OK)
+  {
+    EIDSP_ERR(ret);
+  }
+
+  ret = numpy::scale(&input_matrix, 1.f / 3.f);
+  if (ret != EIDSP_OK)
+  {
+    EIDSP_ERR(ret);
+  }
+
+  // Because of rounding errors during re-sampling the output size of the block might be
+  // smaller than the input of the block. Make sure we don't write outside of the bounds
+  // of the array:
+  // https://forum.edgeimpulse.com/t/using-custom-sensors-on-raspberry-pi-4/3506/7
+  size_t els_to_copy = signal->total_length;
+  if (els_to_copy > output_matrix->rows * output_matrix->cols)
+  {
+    els_to_copy = output_matrix->rows * output_matrix->cols;
+  }
+
+  ei_printf("els_to_copy: %d\n", els_to_copy);
+
+  memcpy(output_matrix->buffer, input_matrix.buffer, els_to_copy * sizeof(float));
+
+  ei_printf("extract_custom_block_features - done\n");
+
+  return EIDSP_OK;
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // BME688
 #include "bme688_helper.h"
@@ -99,8 +166,10 @@ std::vector<doubles> chart_series = std::vector<doubles>(NB_SENSORS, doubles());
 #define INITIAL_FAN_STATE LOW
 static int fan_state = INITIAL_FAN_STATE;
 
-static float featuresLeftSensor[EI_CLASSIFIER_DSP_INPUT_FRAME_SIZE];
-static float featuresRightSensor[EI_CLASSIFIER_DSP_INPUT_FRAME_SIZE];
+static float featuresLeftSensor[EI_CLASSIFIER_RAW_SAMPLE_COUNT * 10];
+static float featuresRightSensor[EI_CLASSIFIER_RAW_SAMPLE_COUNT * 10];
+
+static int features_current_sample_idx[2] = {0, 0};
 
 int nb_sensors_have_completed_cycle = 0;
 
@@ -113,8 +182,51 @@ int raw_features_get_data(size_t offset, size_t length, float *out_ptr)
 {
   Serial.printf("offset: %d, length: %d\n", offset, length);
 
-  memcpy(out_ptr, featuresLeftSensor, 10 * sizeof(float));
-  memcpy(out_ptr + 10, featuresRightSensor, 10 * sizeof(float));
+  for (int i = 0; i < 10 * EI_CLASSIFIER_RAW_SAMPLE_COUNT; i++)
+  {
+    ei_printf("featuresLeftSensor[%02d]: %f\n", i, featuresLeftSensor[i]);
+  }
+
+  ei_printf("-----------------\n");
+
+  for (int i = 0; i < 10 * EI_CLASSIFIER_RAW_SAMPLE_COUNT; i++)
+  {
+    ei_printf("featuresRightSensor[%02d]: %f\n", i, featuresRightSensor[i]);
+  }
+
+  ei_printf("-----------------\n");
+
+  for (int i = 0; i < EI_CLASSIFIER_RAW_SAMPLE_COUNT; i++)
+  {
+    int idxLeft = (features_current_sample_idx[LEFT] + i) % EI_CLASSIFIER_RAW_SAMPLE_COUNT;
+    ei_printf("idxLeft: %d\n", idxLeft);
+    int idxRight = (features_current_sample_idx[RIGHT] + i) % EI_CLASSIFIER_RAW_SAMPLE_COUNT;
+    ei_printf("idxRight: %d\n", idxRight);
+
+    out_ptr[i * EI_CLASSIFIER_RAW_SAMPLES_PER_FRAME + 0] = featuresLeftSensor[idxLeft * 10 + ei_dsp_config_621_axes[0]];
+    ei_printf("featuresLeftSensor[%d]\n", idxLeft * 10 + ei_dsp_config_621_axes[0]);
+    out_ptr[i * EI_CLASSIFIER_RAW_SAMPLES_PER_FRAME + 1] = featuresLeftSensor[idxLeft * 10 + ei_dsp_config_621_axes[1]];
+    ei_printf("featuresLeftSensor[%d]\n", idxLeft * 10 + ei_dsp_config_621_axes[1]);
+    out_ptr[i * EI_CLASSIFIER_RAW_SAMPLES_PER_FRAME + 2] = featuresLeftSensor[idxLeft * 10 + ei_dsp_config_621_axes[2]];
+    ei_printf("featuresLeftSensor[%d]\n", idxLeft * 10 + ei_dsp_config_621_axes[2]);
+    out_ptr[i * EI_CLASSIFIER_RAW_SAMPLES_PER_FRAME + 3] = featuresLeftSensor[idxLeft * 10 + ei_dsp_config_621_axes[3]];
+    ei_printf("featuresLeftSensor[%d]\n", idxLeft * 10 + ei_dsp_config_621_axes[3]);
+    out_ptr[i * EI_CLASSIFIER_RAW_SAMPLES_PER_FRAME + 4] = featuresRightSensor[idxRight * 10 + ei_dsp_config_621_axes[4] - 10];
+    ei_printf("featuresRightSensor[%d]\n", idxRight * 10 + ei_dsp_config_621_axes[4] - 10);
+    out_ptr[i * EI_CLASSIFIER_RAW_SAMPLES_PER_FRAME + 5] = featuresRightSensor[idxRight * 10 + ei_dsp_config_621_axes[5] - 10];
+    ei_printf("featuresRightSensor[%d]\n", idxRight * 10 + ei_dsp_config_621_axes[5] - 10);
+    out_ptr[i * EI_CLASSIFIER_RAW_SAMPLES_PER_FRAME + 6] = featuresRightSensor[idxRight * 10 + ei_dsp_config_621_axes[6] - 10];
+    ei_printf("featuresRightSensor[%d]\n", idxRight * 10 + ei_dsp_config_621_axes[6] - 10);
+    out_ptr[i * EI_CLASSIFIER_RAW_SAMPLES_PER_FRAME + 7] = featuresRightSensor[idxRight * 10 + ei_dsp_config_621_axes[7] - 10];
+    ei_printf("featuresRightSensor[%d]\n", idxRight * 10 + ei_dsp_config_621_axes[7] - 10);
+  }
+
+  for (int i = 0; i < EI_CLASSIFIER_DSP_INPUT_FRAME_SIZE; i++)
+  {
+    ei_printf("out_ptr[%02d]: %f\n", i, out_ptr[i]);
+  }
+
+  ei_printf("-----------------\n");
 
   return 0;
 }
@@ -139,6 +251,10 @@ char inference_result[32] = "";
 
 void runInference()
 {
+  ei_printf("--------------------\n");
+  ei_printf("Running inference...\n");
+  ei_printf("--------------------\n");
+
   ei_impulse_result_t result = {0};
 
   // the features are stored into flash, and we don't want to load everything into RAM
@@ -147,7 +263,9 @@ void runInference()
   features_signal.get_data = raw_features_get_data;
 
   // invoke the impulse
+  ei_printf("Invoking impulse...\n");
   EI_IMPULSE_ERROR res = run_classifier(&features_signal, &result, true);
+  ei_printf("Impulse done.\n");
 
   if (res != 0)
     return;
@@ -182,7 +300,7 @@ void runInference()
   ei_printf("\n********************************************************\n");
 }
 
-void bsecGenericCallback(const bme68x_data &input, const BsecOutput &outputs, float features[10], float &temperature, float &humidity)
+void bsecGenericCallback(NOSTRIL_SIDE nostril, const bme68x_data &input, const BsecOutput &outputs, float features[10], float &temperature, float &humidity)
 {
   if (!outputs.len)
     return;
@@ -223,47 +341,59 @@ void bsecGenericCallback(const bme68x_data &input, const BsecOutput &outputs, fl
     }
   }
 
-  features[gas_index] = gas_resistance; //( numpy::log10(gas_resistance) - 4) / 4;
+  ei_printf("Nostril %d - features[%d]=%f\n", nostril, gas_index + features_current_sample_idx[nostril] * 10, gas_resistance);
+  features[gas_index + features_current_sample_idx[nostril] * 10] = gas_resistance; //( numpy::log10(gas_resistance) - 4) / 4;
 
   if (/* true || */ gas_index == 9)
   {
+
+    Serial.printf("\nCompleted 9 readings for nostril %d, features_current_sample_idx=%d\n", nostril, features_current_sample_idx[nostril]);
+
     nb_sensors_have_completed_cycle++;
 
     if (nb_sensors_have_completed_cycle == 2)
     {
+
       Serial.print("\n[CSV] 0,");
       Serial.print(ts);
       ts += 1000;
       for (int i = 0; i < 10; i++)
       {
         Serial.print(",");
-        Serial.print(featuresLeftSensor[i]);
+        Serial.print(featuresLeftSensor[i + 10 * features_current_sample_idx[nostril]]);
       }
       for (int i = 0; i < 10; i++)
       {
         Serial.print(",");
-        Serial.print(featuresRightSensor[i]);
+        Serial.print(featuresRightSensor[i + 10 * features_current_sample_idx[nostril]]);
       }
       Serial.println();
 
+      features_current_sample_idx[nostril] = (features_current_sample_idx[nostril] + 1) % EI_CLASSIFIER_RAW_SAMPLE_COUNT;
+      // Serial.printf("features_current_sample_idx[nostril-%d]: %d\n", nostril, features_current_sample_idx[nostril]);
       runInference();
 
       nb_sensors_have_completed_cycle = 0;
       time_until_next_update = SENSOR_CYCLE_DURATION_MS;
+    }
+    else
+    {
+      features_current_sample_idx[nostril] = (features_current_sample_idx[nostril] + 1) % EI_CLASSIFIER_RAW_SAMPLE_COUNT;
+      // Serial.printf("features_current_sample_idx[nostril-%d]: %d\n", nostril, features_current_sample_idx[nostril]);
     }
   }
 }
 
 void bsecCallbackSensor1(const bme68x_data &input, const BsecOutput &outputs)
 {
-  bsecGenericCallback(input, outputs, featuresLeftSensor, sensors[0].val, sensors[1].val);
+  bsecGenericCallback(LEFT, input, outputs, featuresLeftSensor, sensors[0].val, sensors[1].val);
 }
 
 Bsec sensor1(bsecCallbackSensor1);
 
 void bsecCallbackSensor2(const bme68x_data &input, const BsecOutput &outputs)
 {
-  bsecGenericCallback(input, outputs, featuresRightSensor, sensors[2].val, sensors[3].val);
+  bsecGenericCallback(RIGHT, input, outputs, featuresRightSensor, sensors[2].val, sensors[3].val);
 }
 
 Bsec sensor2(bsecCallbackSensor2);
@@ -303,18 +433,18 @@ static void ButtonEventHandler(AceButton *button, uint8_t eventType, uint8_t but
             case INFERENCE_RESULTS:
               screen_mode = SENSORS;
               break;
-          }
+            }
           break;
         case ButtonId::RIGHT:
           switch (screen_mode) {
             case SENSORS:
               screen_mode = INFERENCE_RESULTS;
               break;
-          }
+            }
           break;
-      }
+        }
       break;
-  }
+    }
 }
 
 static void ButtonInit()
@@ -349,6 +479,9 @@ static void ButtonDoWork()
 void setup()
 {
   Serial.begin(115200);
+
+  memset(featuresLeftSensor, 0, sizeof(featuresLeftSensor));
+  memset(featuresRightSensor, 0, sizeof(featuresRightSensor));
 
   Wire.begin();
   Wire1.begin();

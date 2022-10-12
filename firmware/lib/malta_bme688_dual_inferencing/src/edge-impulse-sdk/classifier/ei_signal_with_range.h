@@ -65,41 +65,6 @@ private:
     signal_t wrapped_signal;
 };
 
-class SignalWithRangeI16 {
-public:
-    SignalWithRangeI16(signal_i16_t *original_signal, uint32_t range_start, uint32_t range_end):
-        _original_signal(original_signal), _range_start(range_start), _range_end(range_end)
-    {
-
-    }
-
-    signal_i16_t * get_signal() {
-        if (this->_range_start == 0 && this->_range_end == this->_original_signal->total_length) {
-            return this->_original_signal;
-        }
-
-        wrapped_signal.total_length = _range_end - _range_start;
-#ifdef __MBED__
-        wrapped_signal.get_data = mbed::callback(this, &SignalWithRangeI16::get_data);
-#else
-        wrapped_signal.get_data = [this](size_t offset, size_t length, int16_t *out_ptr) {
-            return this->get_data(offset, length, out_ptr);
-        };
-#endif
-        return &wrapped_signal;
-    }
-
-    int get_data(size_t offset, size_t length, int16_t *out_ptr) {
-        return _original_signal->get_data(offset + _range_start, length, out_ptr);
-    }
-
-private:
-    signal_i16_t *_original_signal;
-    uint32_t _range_start;
-    uint32_t _range_end;
-    signal_i16_t wrapped_signal;
-};
-
 #endif // #if !EIDSP_SIGNAL_C_FN_POINTER
 
 #endif // _EI_CLASSIFIER_SIGNAL_WITH_RANGE_H_
