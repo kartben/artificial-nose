@@ -2,15 +2,22 @@
   "@id": "dtmi:kartben:artificial_nose;1",
   "@type": "Interface",
   "@context": "dtmi:dtdl:context;2",
-  "displayName": "Artificial Nose",
+  "displayName": {
+    "en": "Artificial Nose",
+    "ja": "人工鼻"
+  },
   "description": {
-    "en": "Artificial Nose powered by Wio Terminal + Grove Multichannel Gas Sensor v2."
+    "en": "Artificial Nose powered by Wio Terminal + Grove Multichannel Gas Sensor v2.",
+    "ja": "Wio Terminal + Grove-マルチチャンネルガスセンサv2 を使った、人工鼻。"
   },
   "contents": [
     {
       "@type": "Component",
       "name": "gas_sensor",
-      "displayName": "Gas Sensor",
+      "displayName": {
+        "en": "Gas Sensor",
+        "ja": "ガスセンサ"
+      },
       "schema": "dtmi:seeedstudio:grove:multichannel_gas_sensor_v2;1"
     },
     {
@@ -18,7 +25,8 @@
       "name": "latestInferenceResult",
       "schema": "string",
       "displayName": {
-        "en": "Latest inference result"
+        "en": "Latest inference result",
+        "ja": "最新の推論結果"
       }
     },
     {
@@ -35,6 +43,5 @@
       "schema": "integer",
       "writable": true
     }
-
   ]
 }
