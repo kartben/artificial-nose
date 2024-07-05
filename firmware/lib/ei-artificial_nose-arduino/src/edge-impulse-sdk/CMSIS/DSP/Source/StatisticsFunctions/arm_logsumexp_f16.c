@@ -5,11 +5,13 @@
  * Title:        arm_logsumexp_f16.c
  * Description:  LogSumExp
  *
+ * $Date:        23 April 2021
+ * $Revision:    V1.9.0
  *
  * Target Processor: Cortex-M and Cortex-A cores
  * -------------------------------------------------------------------- */
 /*
- * Copyright (C) 2010-2020 ARM Limited or its affiliates. All rights reserved.
+ * Copyright (C) 2010-2021 ARM Limited or its affiliates. All rights reserved.
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -111,12 +113,12 @@ float16_t arm_logsumexp_f16(const float16_t *in, uint32_t blockSize)
     while(blkCnt > 0)
     {
        tmp = *pIn++;
-       accum += expf(tmp - maxVal);
+       accum += (_Float16)expf((float32_t)((_Float16)tmp - (_Float16)maxVal));
        blkCnt--;
     
     }
 
-    accum = maxVal + logf(accum);
+    accum = (_Float16)maxVal + (_Float16)logf((float32_t)accum);
 
     return (accum);
 }
@@ -154,11 +156,11 @@ float16_t arm_logsumexp_f16(const float16_t *in, uint32_t blockSize)
     while(blkCnt > 0)
     {
        tmp = *pIn++;
-       accum += expf(tmp - maxVal);
+       accum += (_Float16)expf((float32_t)((_Float16)tmp - (_Float16)maxVal));
        blkCnt--;
     
     }
-    accum = maxVal + logf(accum);
+    accum = (_Float16)maxVal + (_Float16)logf((float32_t)accum);
 
     return(accum);
 }

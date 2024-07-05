@@ -5,13 +5,13 @@
  * Title:        arm_cmplx_mag_squared_q15.c
  * Description:  Q15 complex magnitude squared
  *
- * $Date:        18. March 2019
- * $Revision:    V1.6.0
+ * $Date:        23 April 2021
+ * $Revision:    V1.9.0
  *
- * Target Processor: Cortex-M cores
+ * Target Processor: Cortex-M and Cortex-A cores
  * -------------------------------------------------------------------- */
 /*
- * Copyright (C) 2010-2019 ARM Limited or its affiliates. All rights reserved.
+ * Copyright (C) 2010-2021 ARM Limited or its affiliates. All rights reserved.
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -133,20 +133,20 @@ void arm_cmplx_mag_squared_q15(
     /* C[0] = (A[0] * A[0] + A[1] * A[1]) */
 
 #if defined (ARM_MATH_DSP)
-    in = read_q15x2_ia ((q15_t **) &pSrc);
+    in = read_q15x2_ia (&pSrc);
     acc0 = __SMUAD(in, in);
     /* store result in 3.13 format in destination buffer. */
     *pDst++ = (q15_t) (acc0 >> 17);
 
-    in = read_q15x2_ia ((q15_t **) &pSrc);
+    in = read_q15x2_ia (&pSrc);
     acc0 = __SMUAD(in, in);
     *pDst++ = (q15_t) (acc0 >> 17);
 
-    in = read_q15x2_ia ((q15_t **) &pSrc);
+    in = read_q15x2_ia (&pSrc);
     acc0 = __SMUAD(in, in);
     *pDst++ = (q15_t) (acc0 >> 17);
 
-    in = read_q15x2_ia ((q15_t **) &pSrc);
+    in = read_q15x2_ia (&pSrc);
     acc0 = __SMUAD(in, in);
     *pDst++ = (q15_t) (acc0 >> 17);
 #else
@@ -195,7 +195,7 @@ void arm_cmplx_mag_squared_q15(
     /* C[0] = (A[0] * A[0] + A[1] * A[1]) */
 
 #if defined (ARM_MATH_DSP)
-    in = read_q15x2_ia ((q15_t **) &pSrc);
+    in = read_q15x2_ia (&pSrc);
     acc0 = __SMUAD(in, in);
 
     /* store result in 3.13 format in destination buffer. */

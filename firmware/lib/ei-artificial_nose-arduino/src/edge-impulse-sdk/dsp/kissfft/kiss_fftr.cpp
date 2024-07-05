@@ -1,13 +1,13 @@
 /*
- *  Copyright (c) 2003-2004, Mark Borgerding. All rights reserved.
+ *  Copyright (c) 2003-2010, Mark Borgerding. All rights reserved.
  *  This file is part of KISS FFT - https://github.com/mborgerding/kissfft
  *
  *  SPDX-License-Identifier: BSD-3-Clause
  *  See COPYING file for more information.
  */
 
-#include "kiss_fftr.h"
-#include "_kiss_fft_guts.h"
+#include "edge-impulse-sdk/dsp/kissfft/kiss_fftr.h"
+#include "edge-impulse-sdk/dsp/kissfft/_kiss_fft_guts.h"
 
 struct kiss_fftr_state{
     kiss_fft_cfg substate;

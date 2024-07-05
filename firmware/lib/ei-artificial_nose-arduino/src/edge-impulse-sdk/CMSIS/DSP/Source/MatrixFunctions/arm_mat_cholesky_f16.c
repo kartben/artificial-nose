@@ -5,11 +5,13 @@
  * Title:        arm_mat_cholesky_f16.c
  * Description:  Floating-point Cholesky decomposition
  *
+ * $Date:        23 April 2021
+ * $Revision:    V1.9.0
  *
- * Target Processor: Cortex-M cores
+ * Target Processor: Cortex-M and Cortex-A cores
  * -------------------------------------------------------------------- */
 /*
- * Copyright (C) 2010-2020 ARM Limited or its affiliates. All rights reserved.
+ * Copyright (C) 2010-2021 ARM Limited or its affiliates. All rights reserved.
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -27,6 +29,7 @@
  */
 
 #include "edge-impulse-sdk/CMSIS/DSP/Include/dsp/matrix_functions_f16.h"
+#include "edge-impulse-sdk/CMSIS/DSP/Include/dsp/matrix_utils.h"
 
 #if defined(ARM_FLOAT16_SUPPORTED)
 
@@ -50,7 +53,7 @@
                    - \ref ARM_MATH_DECOMPOSITION_FAILURE      : Input matrix cannot be decomposed
    * @par
    * If the matrix is ill conditioned or only semi-definite, then it is better using the LDL^t decomposition.
-   * The decomposition of A is returning a lower triangular matrix U such that A = U U^t
+   * The decomposition of A is returning a lower triangular matrix U such that A = L L^t
    */
 
 #if defined(ARM_MATH_MVE_FLOAT16) && !defined(ARM_MATH_AUTOVECTORIZE)
@@ -158,16 +161,13 @@ arm_status arm_mat_cholesky_f16(
           pG[j * n + i] = vecAddAcrossF16Mve(acc);
        }
 
-       if (pG[i * n + i] <= 0.0f16)
+       if ((_Float16)pG[i * n + i] <= 0.0f16)
        {
          return(ARM_MATH_DECOMPOSITION_FAILURE);
        }
 
-       invSqrtVj = (_Float16)1.0f/sqrtf(pG[i * n + i]);
-       for(j=i; j < n ; j++)
-       {
-         pG[j * n + i] = (_Float16)pG[j * n + i] * invSqrtVj ;
-       }
+       invSqrtVj = 1.0f16/(_Float16)sqrtf((float32_t)pG[i * n + i]);
+       SCALE_COL_F16(pDst,i,invSqrtVj,i);
     }
 
     status = ARM_MATH_SUCCESS;
@@ -220,20 +220,21 @@ arm_status arm_mat_cholesky_f16(
 
           for(k=0; k < i ; k++)
           {
-             pG[j * n + i] = pG[j * n + i] - pG[i * n + k] * pG[j * n + k];
+             pG[j * n + i] = (_Float16)pG[j * n + i] - (_Float16)pG[i * n + k] * (_Float16)pG[j * n + k];
           }
        }
 
-       if (pG[i * n + i] <= 0.0f)
+       if ((_Float16)pG[i * n + i] <= 0.0f16)
        {
          return(ARM_MATH_DECOMPOSITION_FAILURE);
        }
 
-       invSqrtVj = 1.0f/sqrtf(pG[i * n + i]);
-       for(j=i ; j < n ; j++)
-       {
-         pG[j * n + i] = pG[j * n + i] * invSqrtVj ;
-       }
+       /* The division is done in float32 for accuracy reason and
+       because doing it in f16 would not have any impact on the performances.
+       */
+       invSqrtVj = 1.0f/sqrtf((float32_t)pG[i * n + i]);
+       SCALE_COL_F16(pDst,i,invSqrtVj,i);
+
     }
 
     status = ARM_MATH_SUCCESS;

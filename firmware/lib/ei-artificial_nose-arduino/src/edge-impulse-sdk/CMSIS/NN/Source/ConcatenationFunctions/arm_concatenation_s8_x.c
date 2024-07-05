@@ -1,5 +1,7 @@
+#include "edge-impulse-sdk/classifier/ei_classifier_config.h"
+#if EI_CLASSIFIER_TFLITE_LOAD_CMSIS_NN_SOURCES
 /*
- * Copyright (C) 2010-2019 Arm Limited or its affiliates. All rights reserved.
+ * Copyright (C) 2010-2021 Arm Limited or its affiliates.
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -29,6 +31,7 @@
  * -------------------------------------------------------------------- */
 
 #include "edge-impulse-sdk/CMSIS/NN/Include/arm_nnfunctions.h"
+#include "edge-impulse-sdk/CMSIS/NN/Include/arm_nnsupportfunctions.h"
 
 /**
  *  @ingroup groupNN
@@ -63,7 +66,7 @@ void arm_concatenation_s8_x(const int8_t *input,
     // Copy per row
     for (i = 0; i < num_iterations; ++i)
     {
-        memcpy(output, input, input_x);
+        arm_memcpy_q7(output, input, input_x);
         input += input_x;
         output += output_x;
     }
@@ -72,3 +75,5 @@ void arm_concatenation_s8_x(const int8_t *input,
 /**
  * @} end of Concatenation group
  */
+
+#endif // EI_CLASSIFIER_TFLITE_LOAD_CMSIS_NN_SOURCES

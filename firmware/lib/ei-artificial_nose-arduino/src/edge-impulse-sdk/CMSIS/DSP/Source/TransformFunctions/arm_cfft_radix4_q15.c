@@ -6,13 +6,13 @@
  * Description:  This file has function definition of Radix-4 FFT & IFFT function and
  *               In-place bit reversal using bit reversal table
  *
- * $Date:        18. March 2019
- * $Revision:    V1.6.0
+ * $Date:        23 April 2021
+ * $Revision:    V1.9.0
  *
- * Target Processor: Cortex-M cores
+ * Target Processor: Cortex-M and Cortex-A cores
  * -------------------------------------------------------------------- */
 /*
- * Copyright (C) 2010-2019 ARM Limited or its affiliates. All rights reserved.
+ * Copyright (C) 2010-2021 ARM Limited or its affiliates. All rights reserved.
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -72,8 +72,21 @@ void arm_bitreversal_q15(
                  Hence the output format is different for different FFT sizes.
                  The input and output formats for different FFT sizes and number of bits to upscale are mentioned in the tables below for CFFT and CIFFT:
   @par
-                 \image html CFFTQ15.gif "Input and Output Formats for Q15 CFFT"
-                 \image html CIFFTQ15.gif "Input and Output Formats for Q15 CIFFT"
+                
+| CFFT Size | Input format  | Output format | Number of bits to upscale |
+| --------: | ------------: | ------------: | ------------------------: |
+| 16        | 1.15          | 5.11          | 4                         |
+| 64        | 1.15          | 7.9           | 6                         |
+| 256       | 1.15          | 9.7           | 8                         |
+| 1024      | 1.15          | 11.5          | 10                        |
+
+| CIFFT Size | Input format  | Output format | Number of bits to upscale |
+| ---------: | ------------: | ------------: | ------------------------: |
+| 16         | 1.15          | 5.11          | 0                         |
+| 64         | 1.15          | 7.9           | 0                         |
+| 256        | 1.15          | 9.7           | 0                         |
+| 1024       | 1.15          | 11.5          | 0                         |
+
  */
 
 void arm_cfft_radix4_q15(
@@ -497,16 +510,16 @@ void arm_radix4_butterfly_q15(
   do
   {
     /* Read xa (real), ya(imag) input */
-    xaya = read_q15x2_ia ((q15_t **) &ptr1);
+    xaya = read_q15x2_ia (&ptr1);
 
     /* Read xb (real), yb(imag) input */
-    xbyb = read_q15x2_ia ((q15_t **) &ptr1);
+    xbyb = read_q15x2_ia (&ptr1);
 
     /* Read xc (real), yc(imag) input */
-    xcyc = read_q15x2_ia ((q15_t **) &ptr1);
+    xcyc = read_q15x2_ia (&ptr1);
 
     /* Read xd (real), yd(imag) input */
-    xdyd = read_q15x2_ia ((q15_t **) &ptr1);
+    xdyd = read_q15x2_ia (&ptr1);
 
     /* R = packed((ya + yc), (xa + xc)) */
     R = __QADD16(xaya, xcyc);
@@ -1360,16 +1373,16 @@ void arm_radix4_butterfly_inverse_q15(
   do
   {
     /* Read xa (real), ya(imag) input */
-    xaya = read_q15x2_ia ((q15_t **) &ptr1);
+    xaya = read_q15x2_ia (&ptr1);
 
     /* Read xb (real), yb(imag) input */
-    xbyb = read_q15x2_ia ((q15_t **) &ptr1);
+    xbyb = read_q15x2_ia (&ptr1);
 
     /* Read xc (real), yc(imag) input */
-    xcyc = read_q15x2_ia ((q15_t **) &ptr1);
+    xcyc = read_q15x2_ia (&ptr1);
 
     /* Read xd (real), yd(imag) input */
-    xdyd = read_q15x2_ia ((q15_t **) &ptr1);
+    xdyd = read_q15x2_ia (&ptr1);
 
     /* R = packed((ya + yc), (xa + xc)) */
     R = __QADD16(xaya, xcyc);

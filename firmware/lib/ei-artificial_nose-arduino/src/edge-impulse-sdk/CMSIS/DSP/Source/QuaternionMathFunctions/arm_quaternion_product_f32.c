@@ -5,8 +5,10 @@
  * Title:        arm_quaternion_product_f32.c
  * Description:  Floating-point quaternion product
  *
+ * $Date:        23 April 2021
+ * $Revision:    V1.9.0
  *
- * Target Processor: Cortex-M cores
+ * Target Processor: Cortex-M and Cortex-A cores
  * -------------------------------------------------------------------- */
 /*
  * Copyright (C) 2010-2021 ARM Limited or its affiliates. All rights reserved.
@@ -132,7 +134,8 @@ void arm_quaternion_product_f32(const float32_t *qa,
     float32_t *qr,
     uint32_t nbQuaternions)
 {
-   for(uint32_t i=0; i < nbQuaternions; i++)
+   uint32_t i;
+   for(i=0; i < nbQuaternions; i++)
    {
      arm_quaternion_product_single_f32(qa, qb, qr);
 

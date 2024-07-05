@@ -5,13 +5,13 @@
  * Title:        arm_fir_init_f32.c
  * Description:  Floating-point FIR filter initialization function
  *
- * $Date:        18. March 2019
- * $Revision:    V1.6.0
+ * $Date:        23 April 2021
+ * $Revision:    V1.9.0
  *
- * Target Processor: Cortex-M cores
+ * Target Processor: Cortex-M and Cortex-A cores
  * -------------------------------------------------------------------- */
 /*
- * Copyright (C) 2010-2019 ARM Limited or its affiliates. All rights reserved.
+ * Copyright (C) 2010-2021 ARM Limited or its affiliates. All rights reserved.
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -57,10 +57,10 @@
                    <code>pState</code> points to the array of state variables and some working memory for the Helium version.
                    <code>pState</code> is of length <code>numTaps+blockSize-1</code> samples (except for Helium - see below), where <code>blockSize</code> is the number of input samples processed by each call to <code>arm_fir_f32()</code>.
   @par          Initialization of Helium version
-                 For Helium version the array of coefficients must be a multiple of 16 even if less
-                 then 16 coefficients are used. The additional coefficients must be set to 0.
-                 It does not mean that all the coefficients will be used in the filter (numTaps
-                 is still set to its right value in the init function.) It just means that
+                 For Helium version the array of coefficients must be a multiple of 4 (4a) even if less
+                 then 4a coefficients are defined in the FIR. The additional coefficients 
+                 (4a - numTaps) must be set to 0.
+                 numTaps is still set to its right value in the init function. It means that
                  the implementation may require to read more coefficients due to the vectorization and
                  to avoid having to manage too many different cases in the code.
 

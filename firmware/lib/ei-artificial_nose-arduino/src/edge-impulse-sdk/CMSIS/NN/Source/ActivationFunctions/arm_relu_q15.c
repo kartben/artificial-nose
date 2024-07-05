@@ -1,5 +1,7 @@
+#include "edge-impulse-sdk/classifier/ei_classifier_config.h"
+#if EI_CLASSIFIER_TFLITE_LOAD_CMSIS_NN_SOURCES
 /*
- * Copyright (C) 2010-2020 Arm Limited or its affiliates. All rights reserved.
+ * SPDX-FileCopyrightText: Copyright 2010-2022 Arm Limited and/or its affiliates <open-source-office@arm.com>
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -21,8 +23,8 @@
  * Title:        arm_relu_q15.c
  * Description:  Q15 version of ReLU
  *
- * $Date:        09. October 2020
- * $Revision:    V.1.0.2
+ * $Date:        4 Aug 2022
+ * $Revision:    V.1.0.3
  *
  * Target Processor:  Cortex-M cores
  *
@@ -40,21 +42,17 @@
  * @{
  */
 
-/**
- * @brief Q15 RELU function
- * @param[in,out]   data        pointer to input
- * @param[in]       size        number of elements
+/*
+ * Q15 ReLu function
  *
- * @details
- *
- * Optimized relu with QSUB instructions.
+ * Refer header file for details.
  *
  */
 
 void arm_relu_q15(q15_t *data, uint16_t size)
 {
 
-#if defined(ARM_MATH_DSP)
+#if defined(ARM_MATH_DSP) && !defined(ARM_MATH_MVEI)
     /* Run the following code for M cores with DSP extension */
 
     uint16_t i = size >> 1;
@@ -66,7 +64,7 @@ void arm_relu_q15(q15_t *data, uint16_t size)
 
     while (i)
     {
-        in = read_q15x2_ia(&input);
+        in = arm_nn_read_q15x2_ia((const q15_t **)&input);
 
         /* extract the first bit */
         buf = __ROR(in & 0x80008000, 15);
@@ -102,3 +100,5 @@ void arm_relu_q15(q15_t *data, uint16_t size)
 /**
  * @} end of Acti group
  */
+
+#endif // EI_CLASSIFIER_TFLITE_LOAD_CMSIS_NN_SOURCES

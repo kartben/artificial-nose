@@ -5,13 +5,13 @@
  * Title:        arm_vlog_f32.c
  * Description:  Fast vectorized log
  *
- * $Date:        15. Octoboer 2019
- * $Revision:    V1.6.0
+ * $Date:        23 April 2021
+ * $Revision:    V1.9.0
  *
- * Target Processor: Cortex-M cores
+ * Target Processor: Cortex-M and Cortex-A cores
  * -------------------------------------------------------------------- */
 /*
- * Copyright (C) 2010-2019 ARM Limited or its affiliates. All rights reserved.
+ * Copyright (C) 2010-2021 ARM Limited or its affiliates. All rights reserved.
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -35,6 +35,28 @@
 #include "edge-impulse-sdk/CMSIS/DSP/Include/arm_vec_math.h"
 #endif
 
+/**
+  @ingroup groupFastMath
+ */
+
+/**
+   @defgroup vexp Vector Exponential
+
+   Compute the exp values of a vector of samples.
+*/
+
+/**
+  @addtogroup vexp
+  @{
+ */
+
+/**
+  @brief         Floating-point vector of exp values.
+  @param[in]     pSrc       points to the input vector
+  @param[out]    pDst       points to the output vector
+  @param[in]     blockSize  number of samples in each vector
+  @return        none
+ */
 void arm_vexp_f32(
   const float32_t * pSrc,
         float32_t * pDst,
@@ -98,4 +120,7 @@ void arm_vexp_f32(
    }
 }
 
+/**
+  @} end of vexp group
+ */
 #endif // EIDSP_LOAD_CMSIS_DSP_SOURCES

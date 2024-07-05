@@ -5,13 +5,13 @@
  * Title:        arm_correlate_f16.c
  * Description:  Correlation of floating-point sequences
  *
- * $Date:        18. March 2020
- * $Revision:    V1.6.0
+ * $Date:        23 April 2021
+ * $Revision:    V1.9.0
  *
- * Target Processor: Cortex-M cores
+ * Target Processor: Cortex-M and Cortex-A cores
  * -------------------------------------------------------------------- */
 /*
- * Copyright (C) 2010-2020 ARM Limited or its affiliates. All rights reserved.
+ * Copyright (C) 2010-2021 ARM Limited or its affiliates. All rights reserved.
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -35,51 +35,7 @@
   @ingroup groupFilters
  */
 
-/**
-  @defgroup Corr Correlation
 
-  Correlation is a mathematical operation that is similar to convolution.
-  As with convolution, correlation uses two signals to produce a third signal.
-  The underlying algorithms in correlation and convolution are identical except that one of the inputs is flipped in convolution.
-  Correlation is commonly used to measure the similarity between two signals.
-  It has applications in pattern recognition, cryptanalysis, and searching.
-  The CMSIS library provides correlation functions for Q7, Q15, Q31 and floating-point data types.
-  Fast versions of the Q15 and Q31 functions are also provided.
-
-  @par           Algorithm
-                   Let <code>a[n]</code> and <code>b[n]</code> be sequences of length <code>srcALen</code> and <code>srcBLen</code> samples respectively.
-                   The convolution of the two signals is denoted by
-  <pre>
-      c[n] = a[n] * b[n]
-  </pre>
-                   In correlation, one of the signals is flipped in time
-  <pre>
-       c[n] = a[n] * b[-n]
-  </pre>
-  @par
-                   and this is mathematically defined as
-                   \image html CorrelateEquation.gif
-  @par
-                   The <code>pSrcA</code> points to the first input vector of length <code>srcALen</code> and <code>pSrcB</code> points to the second input vector of length <code>srcBLen</code>.
-                   The result <code>c[n]</code> is of length <code>2 * max(srcALen, srcBLen) - 1</code> and is defined over the interval <code>n=0, 1, 2, ..., (2 * max(srcALen, srcBLen) - 2)</code>.
-                   The output result is written to <code>pDst</code> and the calling function must allocate <code>2 * max(srcALen, srcBLen) - 1</code> words for the result.
-
-  @note
-                   The <code>pDst</code> should be initialized to all zeros before being used.
-
-  @par           Fixed-Point Behavior
-                   Correlation requires summing up a large number of intermediate products.
-                   As such, the Q7, Q15, and Q31 functions run a risk of overflow and saturation.
-                   Refer to the function specific documentation below for further details of the particular algorithm used.
-
-  @par           Fast Versions
-                   Fast versions are supported for Q31 and Q15.  Cycles for Fast versions are less compared to Q31 and Q15 of correlate and the design requires
-                   the input signals should be scaled down to avoid intermediate overflows.
-
-  @par           Opt Versions
-                   Opt versions are supported for Q15 and Q7.  Design uses internal scratch buffer for getting good optimisation.
-                   These versions are optimised in cycles and consumes more memory (Scratch memory) compared to Q15 and Q7 versions of correlate
- */
 
 /**
   @addtogroup Corr
@@ -640,16 +596,16 @@ void arm_correlate_f16(
     while (k > 0U)
     {
       /* x[0] * y[srcBLen - 4] */
-      sum += *px++ * *py++;
+      sum += (_Float16)*px++ * (_Float16)*py++;
 
       /* x[1] * y[srcBLen - 3] */
-      sum += *px++ * *py++;
+      sum += (_Float16)*px++ * (_Float16)*py++;
 
       /* x[2] * y[srcBLen - 2] */
-      sum += *px++ * *py++;
+      sum += (_Float16)*px++ * (_Float16)*py++;
 
       /* x[3] * y[srcBLen - 1] */
-      sum += *px++ * *py++;
+      sum += (_Float16)*px++ * (_Float16)*py++;
 
       /* Decrement loop counter */
       k--;
@@ -669,7 +625,7 @@ void arm_correlate_f16(
     {
       /* Perform the multiply-accumulate */
       /* x[0] * y[srcBLen - 1] */
-      sum += *px++ * *py++;
+      sum += (_Float16)*px++ * (_Float16)*py++;
 
       /* Decrement loop counter */
       k--;
@@ -752,13 +708,13 @@ void arm_correlate_f16(
 
         /* Perform the multiply-accumulate */
         /* acc0 +=  x[0] * y[0] */
-        acc0 += x0 * c0;
+        acc0 += (_Float16)x0 * (_Float16)c0;
         /* acc1 +=  x[1] * y[0] */
-        acc1 += x1 * c0;
+        acc1 += (_Float16)x1 * (_Float16)c0;
         /* acc2 +=  x[2] * y[0] */
-        acc2 += x2 * c0;
+        acc2 += (_Float16)x2 * (_Float16)c0;
         /* acc3 +=  x[3] * y[0] */
-        acc3 += x3 * c0;
+        acc3 += (_Float16)x3 * (_Float16)c0;
 
         /* Read y[1] sample */
         c0 = *(py++);
@@ -767,13 +723,13 @@ void arm_correlate_f16(
 
         /* Perform the multiply-accumulate */
         /* acc0 +=  x[1] * y[1] */
-        acc0 += x1 * c0;
+        acc0 += (_Float16)x1 * (_Float16)c0;
         /* acc1 +=  x[2] * y[1] */
-        acc1 += x2 * c0;
+        acc1 += (_Float16)x2 * (_Float16)c0;
         /* acc2 +=  x[3] * y[1] */
-        acc2 += x3 * c0;
+        acc2 += (_Float16)x3 * (_Float16)c0;
         /* acc3 +=  x[4] * y[1] */
-        acc3 += x0 * c0;
+        acc3 += (_Float16)x0 * (_Float16)c0;
 
         /* Read y[2] sample */
         c0 = *(py++);
@@ -782,13 +738,13 @@ void arm_correlate_f16(
 
         /* Perform the multiply-accumulate */
         /* acc0 +=  x[2] * y[2] */
-        acc0 += x2 * c0;
+        acc0 += (_Float16)x2 * (_Float16)c0;
         /* acc1 +=  x[3] * y[2] */
-        acc1 += x3 * c0;
+        acc1 += (_Float16)x3 * (_Float16)c0;
         /* acc2 +=  x[4] * y[2] */
-        acc2 += x0 * c0;
+        acc2 += (_Float16)x0 * (_Float16)c0;
         /* acc3 +=  x[5] * y[2] */
-        acc3 += x1 * c0;
+        acc3 += (_Float16)x1 * (_Float16)c0;
 
         /* Read y[3] sample */
         c0 = *(py++);
@@ -797,13 +753,13 @@ void arm_correlate_f16(
 
         /* Perform the multiply-accumulate */
         /* acc0 +=  x[3] * y[3] */
-        acc0 += x3 * c0;
+        acc0 += (_Float16)x3 * (_Float16)c0;
         /* acc1 +=  x[4] * y[3] */
-        acc1 += x0 * c0;
+        acc1 += (_Float16)x0 * (_Float16)c0;
         /* acc2 +=  x[5] * y[3] */
-        acc2 += x1 * c0;
+        acc2 += (_Float16)x1 * (_Float16)c0;
         /* acc3 +=  x[6] * y[3] */
-        acc3 += x2 * c0;
+        acc3 += (_Float16)x2 * (_Float16)c0;
 
       } while (--k);
 
@@ -820,13 +776,13 @@ void arm_correlate_f16(
 
         /* Perform the multiply-accumulate */
         /* acc0 +=  x[4] * y[4] */
-        acc0 += x0 * c0;
+        acc0 += (_Float16)x0 * (_Float16)c0;
         /* acc1 +=  x[5] * y[4] */
-        acc1 += x1 * c0;
+        acc1 += (_Float16)x1 * (_Float16)c0;
         /* acc2 +=  x[6] * y[4] */
-        acc2 += x2 * c0;
+        acc2 += (_Float16)x2 * (_Float16)c0;
         /* acc3 +=  x[7] * y[4] */
-        acc3 += x3 * c0;
+        acc3 += (_Float16)x3 * (_Float16)c0;
 
         /* Reuse the present samples for the next MAC */
         x0 = x1;
@@ -888,10 +844,10 @@ void arm_correlate_f16(
       while (k > 0U)
       {
         /* Perform the multiply-accumulate */
-        sum += *px++ * *py++;
-        sum += *px++ * *py++;
-        sum += *px++ * *py++;
-        sum += *px++ * *py++;
+        sum += (_Float16)*px++ * (_Float16)*py++;
+        sum += (_Float16)*px++ * (_Float16)*py++;
+        sum += (_Float16)*px++ * (_Float16)*py++;
+        sum += (_Float16)*px++ * (_Float16)*py++;
 
         /* Decrement loop counter */
         k--;
@@ -909,7 +865,7 @@ void arm_correlate_f16(
       while (k > 0U)
       {
         /* Perform the multiply-accumulate */
-        sum += *px++ * *py++;
+        sum += (_Float16)*px++ * (_Float16)*py++;
 
         /* Decrement the loop counter */
         k--;
@@ -949,7 +905,7 @@ void arm_correlate_f16(
       while (k > 0U)
       {
         /* Perform the multiply-accumulate */
-        sum += *px++ * *py++;
+        sum += (_Float16)*px++ * (_Float16)*py++;
 
         /* Decrement the loop counter */
         k--;
@@ -1016,16 +972,16 @@ void arm_correlate_f16(
     {
       /* Perform the multiply-accumulate */
       /* sum += x[srcALen - srcBLen + 4] * y[3] */
-      sum += *px++ * *py++;
+      sum += (_Float16)*px++ * (_Float16)*py++;
 
       /* sum += x[srcALen - srcBLen + 3] * y[2] */
-      sum += *px++ * *py++;
+      sum += (_Float16)*px++ * (_Float16)*py++;
 
       /* sum += x[srcALen - srcBLen + 2] * y[1] */
-      sum += *px++ * *py++;
+      sum += (_Float16)*px++ * (_Float16)*py++;
 
       /* sum += x[srcALen - srcBLen + 1] * y[0] */
-      sum += *px++ * *py++;
+      sum += (_Float16)*px++ * (_Float16)*py++;
 
       /* Decrement loop counter */
       k--;
@@ -1044,7 +1000,7 @@ void arm_correlate_f16(
     while (k > 0U)
     {
       /* Perform the multiply-accumulate */
-      sum += *px++ * *py++;
+      sum += (_Float16)*px++ * (_Float16)*py++;
 
       /* Decrement loop counter */
       k--;
@@ -1138,7 +1094,7 @@ void arm_correlate_f16(
       if ((((i - j) < srcBLen) && (j < srcALen)))
       {
         /* z[i] += x[i-j] * y[j] */
-        sum += pIn1[j] * pIn2[-((int32_t) i - j)];
+        sum += (_Float16)pIn1[j] * (_Float16)pIn2[-((int32_t) i - (int32_t) j)];
       }
     }
 

@@ -1,7 +1,7 @@
 utensor/CMakeFiles/
 tensorflow/lite/micro/mbed/
 porting/arduino/
-porting/ecm3532/
+porting/espressif/
 porting/himax/
 porting/posix/
 porting/silabs/

@@ -5,13 +5,13 @@
  * Title:        arm_mat_trans_q7.c
  * Description:  Q7 matrix transpose
  *
- * $Date:        06. July 2020
- * $Revision:    V1.6.0
+ * $Date:        23 April 2021
+ * $Revision:    V1.9.0
  *
- * Target Processor: Cortex-M cores
+ * Target Processor: Cortex-M and Cortex-A cores
  * -------------------------------------------------------------------- */
 /*
- * Copyright (C) 2010-2020 ARM Limited or its affiliates. All rights reserved.
+ * Copyright (C) 2010-2021 ARM Limited or its affiliates. All rights reserved.
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -63,10 +63,10 @@ arm_status arm_mat_trans_q7(const arm_matrix_instance_q7 *pSrc, arm_matrix_insta
 
 #ifdef ARM_MATH_MATRIX_CHECK
     /* Check for matrix mismatch condition */
-    if ((pSrc->numRows != pDst->dstCols) || (pSrc->srcCols != pDst->numCols))
+    if ((pSrc->numRows != pDst->numCols) || (pSrc->numCols != pDst->numRows))
     {
         /* Set status as ARM_MATH_SIZE_MISMATCH */
-        return = ARM_MATH_SIZE_MISMATCH;
+        return ARM_MATH_SIZE_MISMATCH;
     }
 #endif
 

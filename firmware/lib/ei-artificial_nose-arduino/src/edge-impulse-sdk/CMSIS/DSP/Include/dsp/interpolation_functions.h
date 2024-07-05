@@ -1,8 +1,9 @@
 /******************************************************************************
  * @file     interpolation_functions.h
  * @brief    Public header file for CMSIS DSP Library
- * @version  V1.9.0
- * @date     20. July 2020
+ * @version  V1.10.0
+ * @date     08 July 2021
+ * Target Processor: Cortex-M and Cortex-A cores
  ******************************************************************************/
 /*
  * Copyright (c) 2010-2020 Arm Limited or its affiliates. All rights reserved.
@@ -120,18 +121,6 @@ extern "C"
   } arm_spline_instance_f32;
 
 
-
-
-  /**
-   * @ingroup groupInterpolation
-   */
-
-  /**
-   * @addtogroup SplineInterpolate
-   * @{
-   */
-
-  
   /**
    * @brief Processing function for the floating-point cubic spline interpolation.
    * @param[in]  S          points to an instance of the floating-point spline structure.
@@ -165,18 +154,7 @@ extern "C"
           float32_t * tempBuffer);
 
 
-  /**
-   * @} end of SplineInterpolate group
-   */
-
-
-  
-  /**
-   * @addtogroup LinearInterpolate
-   * @{
-   */
-
-    /**
+   /**
    * @brief  Process function for the floating-point Linear Interpolation Function.
    * @param[in,out] S  is an instance of the floating-point Linear Interpolation structure
    * @param[in]     x  input sample to process
@@ -201,7 +179,7 @@ extern "C"
    *
    */
   q31_t arm_linear_interp_q31(
-  q31_t * pYData,
+  const q31_t * pYData,
   q31_t x,
   uint32_t nValues);
 
@@ -219,7 +197,7 @@ extern "C"
    *
    */
   q15_t arm_linear_interp_q15(
-  q15_t * pYData,
+  const q15_t * pYData,
   q31_t x,
   uint32_t nValues);
 
@@ -236,26 +214,9 @@ extern "C"
    * This function can support maximum of table size 2^12.
    */
 q7_t arm_linear_interp_q7(
-  q7_t * pYData,
+  const q7_t * pYData,
   q31_t x,
   uint32_t nValues);
-
-  /**
-   * @} end of LinearInterpolate group
-   */
-
-  
-
-
-  /**
-   * @ingroup groupInterpolation
-   */
-
-
-  /**
-   * @addtogroup BilinearInterpolate
-   * @{
-   */
 
   /**
   * @brief  Floating-point bilinear interpolation.
@@ -305,10 +266,6 @@ q7_t arm_linear_interp_q7(
   arm_bilinear_interp_instance_q7 * S,
   q31_t X,
   q31_t Y);
-  /**
-   * @} end of BilinearInterpolate group
-   */
-
 
 
 #ifdef   __cplusplus

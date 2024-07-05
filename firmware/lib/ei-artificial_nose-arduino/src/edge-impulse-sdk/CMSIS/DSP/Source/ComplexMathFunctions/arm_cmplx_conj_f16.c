@@ -5,11 +5,13 @@
  * Title:        arm_cmplx_conj_f16.c
  * Description:  Floating-point complex conjugate
  *
+ * $Date:        23 April 2021
+ * $Revision:    V1.9.0
  *
- * Target Processor: Cortex-M cores
+ * Target Processor: Cortex-M and Cortex-A cores
  * -------------------------------------------------------------------- */
 /*
- * Copyright (C) 2010-2020 ARM Limited or its affiliates. All rights reserved.
+ * Copyright (C) 2010-2021 ARM Limited or its affiliates. All rights reserved.
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -33,28 +35,6 @@
   @ingroup groupCmplxMath
  */
 
-/**
-  @defgroup cmplx_conj Complex Conjugate
-
-  Conjugates the elements of a complex data vector.
-
-  The <code>pSrc</code> points to the source data and
-  <code>pDst</code> points to the destination data where the result should be written.
-  <code>numSamples</code> specifies the number of complex samples
-  and the data in each array is stored in an interleaved fashion
-  (real, imag, real, imag, ...).
-  Each array has a total of <code>2*numSamples</code> values.
-
-  The underlying algorithm is used:
-  <pre>
-  for (n = 0; n < numSamples; n++) {
-      pDst[(2*n)  ] =  pSrc[(2*n)  ];    // real part
-      pDst[(2*n)+1] = -pSrc[(2*n)+1];    // imag part
-  }
-  </pre>
-
-  There are separate functions for floating-point, Q15, and Q31 data types.
- */
 
 /**
   @addtogroup cmplx_conj
@@ -112,7 +92,7 @@ void arm_cmplx_conj_f16(
   
       /* Calculate Complex Conjugate and store result in destination buffer. */
       *pDst++ =  *pSrc++;
-      *pDst++ = -*pSrc++;
+      *pDst++ = -(_Float16)*pSrc++;
   
       /* Decrement loop counter */
       blkCnt--;
@@ -139,16 +119,16 @@ void arm_cmplx_conj_f16(
 
     /* Calculate Complex Conjugate and store result in destination buffer. */
     *pDst++ =  *pSrc++;
-    *pDst++ = -*pSrc++;
+    *pDst++ = -(_Float16)*pSrc++;
 
     *pDst++ =  *pSrc++;
-    *pDst++ = -*pSrc++;
+    *pDst++ = -(_Float16)*pSrc++;
 
     *pDst++ =  *pSrc++;
-    *pDst++ = -*pSrc++;
+    *pDst++ = -(_Float16)*pSrc++;
 
     *pDst++ =  *pSrc++;
-    *pDst++ = -*pSrc++;
+    *pDst++ = -(_Float16)*pSrc++;
 
     /* Decrement loop counter */
     blkCnt--;
@@ -170,7 +150,7 @@ void arm_cmplx_conj_f16(
 
     /* Calculate Complex Conjugate and store result in destination buffer. */
     *pDst++ =  *pSrc++;
-    *pDst++ = -*pSrc++;
+    *pDst++ = -(_Float16)*pSrc++;
 
     /* Decrement loop counter */
     blkCnt--;
@@ -183,4 +163,5 @@ void arm_cmplx_conj_f16(
   @} end of cmplx_conj group
  */
 #endif /* #if defined(ARM_FLOAT16_SUPPORTED) */
+
 #endif // EIDSP_LOAD_CMSIS_DSP_SOURCES

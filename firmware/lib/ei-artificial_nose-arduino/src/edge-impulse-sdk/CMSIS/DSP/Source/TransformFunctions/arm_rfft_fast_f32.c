@@ -5,13 +5,13 @@
  * Title:        arm_rfft_fast_f32.c
  * Description:  RFFT & RIFFT Floating point process function
  *
- * $Date:        18. March 2019
- * $Revision:    V1.6.0
+ * $Date:        23 April 2021
+ * $Revision:    V1.9.0
  *
- * Target Processor: Cortex-M cores
+ * Target Processor: Cortex-M and Cortex-A cores
  * -------------------------------------------------------------------- */
 /*
- * Copyright (C) 2010-2019 ARM Limited or its affiliates. All rights reserved.
+ * Copyright (C) 2010-2021 ARM Limited or its affiliates. All rights reserved.
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -473,7 +473,7 @@ void merge_rfft_f32(
                    of the symmetry properties of the FFT and have a speed advantage over complex
                    algorithms of the same length.
   @par
-                   The Fast RFFT algorith relays on the mixed radix CFFT that save processor usage.
+                   The Fast RFFT algorithm relays on the mixed radix CFFT that save processor usage.
   @par
                    The real length N forward FFT of a sequence is computed using the steps shown below.
   @par
@@ -497,6 +497,8 @@ void merge_rfft_f32(
                    The main functions are \ref arm_rfft_fast_f32() and \ref arm_rfft_fast_init_f32().
                    The older functions \ref arm_rfft_f32() and \ref arm_rfft_init_f32() have been deprecated
                    but are still documented.
+                   For f16, the functions are \ref arm_rfft_fast_f16() and \ref arm_rfft_fast_init_f16().
+                   For f64, the functions are \ref arm_rfft_fast_f64() and \ref arm_rfft_fast_init_f64().
   @par
                    The FFT of a real N-point sequence has even symmetry in the frequency domain. 
                    The second half of the data equals the conjugate of the first half flipped in frequency. 

@@ -5,13 +5,13 @@
  * Title:        arm_fir_q15.c
  * Description:  Q15 FIR filter processing function
  *
- * $Date:        18. March 2019
- * $Revision:    V1.6.0
+ * $Date:        23 April 2021
+ * $Revision:    V1.9.0
  *
- * Target Processor: Cortex-M cores
+ * Target Processor: Cortex-M and Cortex-A cores
  * -------------------------------------------------------------------- */
 /*
- * Copyright (C) 2010-2019 ARM Limited or its affiliates. All rights reserved.
+ * Copyright (C) 2010-2021 ARM Limited or its affiliates. All rights reserved.
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -88,14 +88,13 @@
     uint32_t        numTaps = S->numTaps;   /* Number of filter coefficients in the filter */\
     int32_t         blkCnt;                                                                  \
     q15x8_t         vecIn0;                                                                  \
-    const int32_t   nbVecTaps = (NBTAPS / 8);                                                \
                                                                                              \
     /*                                                                                       \
      * load coefs                                                                            \
      */                                                                                      \
-    q15x8_t         vecCoeffs[nbVecTaps];                                                    \
+    q15x8_t         vecCoeffs[NBVECTAPS];                                                    \
                                                                                              \
-    for (int i = 0; i < nbVecTaps; i++)                                                      \
+    for (int i = 0; i < NBVECTAPS; i++)                                                      \
         vecCoeffs[i] = vldrhq_s16(pCoeffs + 8 * i);                                          \
                                                                                              \
     /*                                                                                       \
@@ -116,7 +115,7 @@
         pStateCur += 4;                                                                      \
         pTempSrc += 4;                                                                       \
                                                                                              \
-        FIR_Q15_CORE(pOutput, 4, nbVecTaps, pSamples, vecCoeffs);                            \
+        FIR_Q15_CORE(pOutput, 4, NBVECTAPS, pSamples, vecCoeffs);                            \
         pSamples += 4;                                                                       \
                                                                                              \
         blkCnt--;                                                                            \
@@ -128,7 +127,7 @@
     for (int i = 0; i < residual; i++)                                                       \
         *pStateCur++ = *pTempSrc++;                                                          \
                                                                                              \
-    FIR_Q15_CORE(pOutput, residual, nbVecTaps, pSamples, vecCoeffs);                         \
+    FIR_Q15_CORE(pOutput, residual, NBVECTAPS, pSamples, vecCoeffs);                         \
                                                                                              \
     /*                                                                                       \
      * Copy the samples back into the history buffer start                                   \
@@ -158,7 +157,9 @@ static void arm_fir_q15_25_32_mve(const arm_fir_instance_q15 * S,
   q15_t * __restrict pDst, uint32_t blockSize)
 {
     #define NBTAPS 32
+    #define NBVECTAPS (NBTAPS / 8)
     FIR_Q15_MAIN_CORE();
+    #undef NBVECTAPS
     #undef NBTAPS
 }
 
@@ -167,7 +168,9 @@ static void arm_fir_q15_17_24_mve(const arm_fir_instance_q15 * S,
   q15_t * __restrict pDst, uint32_t blockSize)
 {
     #define NBTAPS 24
+    #define NBVECTAPS (NBTAPS / 8)
     FIR_Q15_MAIN_CORE();
+    #undef NBVECTAPS
     #undef NBTAPS
 }
 
@@ -177,7 +180,9 @@ static void arm_fir_q15_9_16_mve(const arm_fir_instance_q15 * S,
   q15_t * __restrict pDst, uint32_t blockSize)
 {
     #define NBTAPS 16
+    #define NBVECTAPS (NBTAPS / 8)
     FIR_Q15_MAIN_CORE();
+    #undef NBVECTAPS
     #undef NBTAPS
 }
 
@@ -186,7 +191,9 @@ static void arm_fir_q15_1_8_mve(const arm_fir_instance_q15 * S,
   q15_t * __restrict pDst, uint32_t blockSize)
 {
     #define NBTAPS 8
+    #define NBVECTAPS (NBTAPS / 8)
     FIR_Q15_MAIN_CORE();
+    #undef NBVECTAPS
     #undef NBTAPS
 }
 
@@ -520,7 +527,7 @@ void arm_fir_q15(
     while (tapCnt > 0U)
     {
       /* Read the first two coefficients using SIMD:  b[N] and b[N-1] coefficients */
-      c0 = read_q15x2_ia ((q15_t **) &pb);
+      c0 = read_q15x2_ia (&pb);
 
       /* acc0 +=  b[N] * x[n-N] + b[N-1] * x[n-N-1] */
       acc0 = __SMLALD(x0, c0, acc0);
@@ -552,7 +559,7 @@ void arm_fir_q15(
       acc3 = __SMLALDX(x1, c0, acc3);
 
       /* Read coefficients b[N-2], b[N-3] */
-      c0 = read_q15x2_ia ((q15_t **) &pb);
+      c0 = read_q15x2_ia (&pb);
 
       /* acc0 +=  b[N-2] * x[n-N-2] + b[N-3] * x[n-N-3] */
       acc0 = __SMLALD(x2, c0, acc0);
@@ -585,7 +592,7 @@ void arm_fir_q15(
     if ((numTaps & 0x3U) != 0U)
     {
       /* Read last two coefficients */
-      c0 = read_q15x2_ia ((q15_t **) &pb);
+      c0 = read_q15x2_ia (&pb);
 
       /* Perform the multiply-accumulates */
       acc0 = __SMLALD(x0, c0, acc0);

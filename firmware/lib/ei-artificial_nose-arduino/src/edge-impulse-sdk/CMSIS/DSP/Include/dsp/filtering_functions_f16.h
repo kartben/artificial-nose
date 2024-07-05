@@ -1,8 +1,9 @@
 /******************************************************************************
  * @file     filtering_functions_f16.h
  * @brief    Public header file for CMSIS DSP Library
- * @version  V1.9.0
- * @date     20. July 2020
+ * @version  V1.10.0
+ * @date     08 July 2021
+ * Target Processor: Cortex-M and Cortex-A cores
  ******************************************************************************/
 /*
  * Copyright (c) 2010-2020 Arm Limited or its affiliates. All rights reserved.
@@ -213,6 +214,20 @@ extern "C"
   const float16_t * pSrcB,
         uint32_t srcBLen,
         float16_t * pDst);
+
+
+/**
+  @brief         Levinson Durbin
+  @param[in]     phi      autocovariance vector starting with lag 0 (length is nbCoefs + 1)
+  @param[out]    a        autoregressive coefficients
+  @param[out]    err      prediction error (variance)
+  @param[in]     nbCoefs  number of autoregressive coefficients
+  @return        none
+ */
+void arm_levinson_durbin_f16(const float16_t *phi,
+  float16_t *a, 
+  float16_t *err,
+  int nbCoefs);
 
 #endif /*defined(ARM_FLOAT16_SUPPORTED)*/
 #ifdef   __cplusplus

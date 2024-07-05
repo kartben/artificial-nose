@@ -1,3 +1,5 @@
+#include "edge-impulse-sdk/classifier/ei_classifier_config.h"
+#if EI_CLASSIFIER_TFLITE_LOAD_CMSIS_NN_SOURCES
 /*
  * Copyright (C) 2010-2018 Arm Limited or its affiliates. All rights reserved.
  *
@@ -21,8 +23,8 @@
  * Title:        arm_nn_add_q7.c
  * Description:  Non saturating addition of elements of a q7 vector.
  *
- * $Date:        09. October 2020
- * $Revision:    V.1.0.1
+ * $Date:        20. July 2021
+ * $Revision:    V.1.1.1
  *
  * Target Processor:  Cortex-M cores
  *
@@ -44,7 +46,7 @@ void arm_nn_add_q7(const q7_t *input, q31_t *output, uint32_t block_size)
 {
     uint32_t block_count;
     q31_t result = 0;
-#if defined(ARM_MATH_DSP)
+#if defined(ARM_MATH_DSP) && !defined(ARM_MATH_MVEI)
     /* Loop unrolling: Compute 4 outputs at a time */
     block_count = block_size >> 2U;
 
@@ -80,3 +82,4 @@ void arm_nn_add_q7(const q7_t *input, q31_t *output, uint32_t block_size)
 /**
  * @} end of NNBasicMath group
  */
+#endif // EI_CLASSIFIER_TFLITE_LOAD_CMSIS_NN_SOURCES

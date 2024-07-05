@@ -5,13 +5,13 @@
  * Title:        arm_cfft_f64.c
  * Description:  Combined Radix Decimation in Frequency CFFT Double Precision Floating point processing function
  *
- * $Date:        29. November 2019
- * $Revision:    V1.0.0
+ * $Date:        23 April 2021
+ * $Revision:    V1.9.0
  *
- * Target Processor: Cortex-M cores
+ * Target Processor: Cortex-M and Cortex-A cores
  * -------------------------------------------------------------------- */
 /*
- * Copyright (C) 2010-2019 ARM Limited or its affiliates. All rights reserved.
+ * Copyright (C) 2010-2021 ARM Limited or its affiliates. All rights reserved.
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -42,10 +42,6 @@ extern void arm_bitreversal_64(
         uint64_t * pSrc,
   const uint16_t   bitRevLen,
   const uint16_t * pBitRevTable);
-
-/**
-* @} end of ComplexFFT group
-*/
 
 /* ----------------------------------------------------------------------
  * Internal helper function used by the FFTs

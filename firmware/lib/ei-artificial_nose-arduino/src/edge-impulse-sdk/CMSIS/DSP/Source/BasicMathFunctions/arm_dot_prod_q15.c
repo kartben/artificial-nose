@@ -5,13 +5,13 @@
  * Title:        arm_dot_prod_q15.c
  * Description:  Q15 dot product
  *
- * $Date:        18. March 2019
- * $Revision:    V1.6.0
+ * $Date:        23 April 2021
+ * $Revision:    V1.9.0
  *
- * Target Processor: Cortex-M cores
+ * Target Processor: Cortex-M and Cortex-A cores
  * -------------------------------------------------------------------- */
 /*
- * Copyright (C) 2010-2019 ARM Limited or its affiliates. All rights reserved.
+ * Copyright (C) 2010-2021 ARM Limited or its affiliates. All rights reserved.
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -126,8 +126,8 @@ void arm_dot_prod_q15(
 
 #if defined (ARM_MATH_DSP)
     /* Calculate dot product and store result in a temporary buffer. */
-    sum = __SMLALD(read_q15x2_ia ((q15_t **) &pSrcA), read_q15x2_ia ((q15_t **) &pSrcB), sum);
-    sum = __SMLALD(read_q15x2_ia ((q15_t **) &pSrcA), read_q15x2_ia ((q15_t **) &pSrcB), sum);
+    sum = __SMLALD(read_q15x2_ia (&pSrcA), read_q15x2_ia (&pSrcB), sum);
+    sum = __SMLALD(read_q15x2_ia (&pSrcA), read_q15x2_ia (&pSrcB), sum);
 #else
     sum += (q63_t)((q31_t) *pSrcA++ * *pSrcB++);
     sum += (q63_t)((q31_t) *pSrcA++ * *pSrcB++);

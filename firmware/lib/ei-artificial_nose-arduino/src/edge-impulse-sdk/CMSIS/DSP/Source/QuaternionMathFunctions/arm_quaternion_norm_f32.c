@@ -5,8 +5,10 @@
  * Title:        arm_quaternion_norm_f32.c
  * Description:  Floating-point quaternion Norm
  *
+ * $Date:        23 April 2021
+ * $Revision:    V1.9.0
  *
- * Target Processor: Cortex-M cores
+ * Target Processor: Cortex-M and Cortex-A cores
  * -------------------------------------------------------------------- */
 /*
  * Copyright (C) 2010-2021 ARM Limited or its affiliates. All rights reserved.
@@ -84,8 +86,9 @@ void arm_quaternion_norm_f32(const float32_t *pInputQuaternions,
   uint32_t nbQuaternions)
 {
    float32_t temp;
+   uint32_t i;
 
-   for(uint32_t i=0; i < nbQuaternions; i++)
+   for(i=0; i < nbQuaternions; i++)
    {
       temp = SQ(pInputQuaternions[4 * i + 0]) +
              SQ(pInputQuaternions[4 * i + 1]) +

@@ -1,8 +1,9 @@
 /******************************************************************************
  * @file     support_functions.h
  * @brief    Public header file for CMSIS DSP Library
- * @version  V1.9.0
- * @date     20. July 2020
+ * @version  V1.10.0
+ * @date     08 July 2021
+ * Target Processor: Cortex-M and Cortex-A cores
  ******************************************************************************/
 /*
  * Copyright (c) 2010-2020 Arm Limited or its affiliates. All rights reserved.
@@ -294,6 +295,20 @@ extern "C"
         float32_t * pDst,
         uint32_t blockSize);
 
+ 
+ 
+  /**
+   * @brief  Copies the elements of a floating-point vector.
+   * @param[in]  pSrc       input pointer
+   * @param[out] pDst       output pointer
+   * @param[in]  blockSize  number of samples to process
+   */
+  void arm_copy_f64(
+  const float64_t * pSrc,
+        float64_t * pDst,
+        uint32_t blockSize);
+
+
 
   /**
    * @brief  Copies the elements of a Q7 vector.
@@ -340,6 +355,18 @@ extern "C"
   void arm_fill_f32(
         float32_t value,
         float32_t * pDst,
+        uint32_t blockSize);
+
+
+  /**
+   * @brief  Fills a constant value into a floating-point vector.
+   * @param[in]  value      input value to be filled
+   * @param[out] pDst       output pointer
+   * @param[in]  blockSize  number of samples to process
+   */
+  void arm_fill_f64(
+        float64_t value,
+        float64_t * pDst,
         uint32_t blockSize);
 
 

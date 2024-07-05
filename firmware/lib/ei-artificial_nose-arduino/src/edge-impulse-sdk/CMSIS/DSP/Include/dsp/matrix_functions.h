@@ -1,8 +1,9 @@
 /******************************************************************************
  * @file     matrix_functions.h
  * @brief    Public header file for CMSIS DSP Library
- * @version  V1.9.0
- * @date     20. July 2020
+ * @version  V1.10.0
+ * @date     08 July 2021
+ * Target Processor: Cortex-M and Cortex-A cores
  ******************************************************************************/
 /*
  * Copyright (c) 2010-2020 Arm Limited or its affiliates. All rights reserved.
@@ -107,6 +108,9 @@ extern "C"
  * run a bit faster. With size checking disabled the functions always
  * return <code>ARM_MATH_SUCCESS</code>.
  */
+
+  #define DEFAULT_HOUSEHOLDER_THRESHOLD_F64 (1.0e-16)
+  #define DEFAULT_HOUSEHOLDER_THRESHOLD_F32 (1.0e-12f)
 
   /**
    * @brief Instance structure for the floating-point matrix structure.
@@ -444,6 +448,21 @@ arm_status arm_mat_mult_q31(
         arm_matrix_instance_q31 * pDst);
 
   /**
+   * @brief Q31 matrix multiplication
+   * @param[in]  pSrcA  points to the first input matrix structure
+   * @param[in]  pSrcB  points to the second input matrix structure
+   * @param[out] pDst   points to output matrix structure
+   * @param[in]  pState  points to the array for storing intermediate results
+   * @return     The function returns either
+   * <code>ARM_MATH_SIZE_MISMATCH</code> or <code>ARM_MATH_SUCCESS</code> based on the outcome of size checking.
+   */
+arm_status arm_mat_mult_opt_q31(
+  const arm_matrix_instance_q31 * pSrcA,
+  const arm_matrix_instance_q31 * pSrcB,
+        arm_matrix_instance_q31 * pDst,
+        q31_t *pState);
+
+  /**
    * @brief Q31 matrix and vector multiplication
    * @param[in]  pSrcMat  points to the input matrix structure
    * @param[in]  pVec     points to vector
@@ -733,6 +752,88 @@ void arm_mat_init_f32(
   arm_matrix_instance_f64 * l,
   arm_matrix_instance_f64 * d,
   uint16_t * pp);
+
+/**
+  @brief         QR decomposition of a m x n floating point matrix with m >= n.
+  @param[in]     pSrc      points to input matrix structure. The source matrix is modified by the function.
+  @param[in]     threshold norm2 threshold.
+  @param[out]    pOutR     points to output R matrix structure of dimension m x n
+  @param[out]    pOutQ     points to output Q matrix structure of dimension m x m
+  @param[out]    pOutTau   points to Householder scaling factors of dimension n
+  @param[inout]  pTmpA     points to a temporary vector of dimension m.
+  @param[inout]  pTmpB     points to a temporary vector of dimension n.
+  @return        execution status
+                   - \ref ARM_MATH_SUCCESS       : Operation successful
+                   - \ref ARM_MATH_SIZE_MISMATCH : Matrix size check failed
+                   - \ref ARM_MATH_SINGULAR      : Input matrix is found to be singular (non-invertible)
+ */
+
+arm_status arm_mat_qr_f32(
+    const arm_matrix_instance_f32 * pSrc,
+    const float32_t threshold,
+    arm_matrix_instance_f32 * pOutR,
+    arm_matrix_instance_f32 * pOutQ,
+    float32_t * pOutTau,
+    float32_t *pTmpA,
+    float32_t *pTmpB
+    );
+
+/**
+  @brief         QR decomposition of a m x n floating point matrix with m >= n.
+  @param[in]     pSrc      points to input matrix structure. The source matrix is modified by the function.
+  @param[in]     threshold norm2 threshold.  
+  @param[out]    pOutR     points to output R matrix structure of dimension m x n
+  @param[out]    pOutQ     points to output Q matrix structure of dimension m x m
+  @param[out]    pOutTau   points to Householder scaling factors of dimension n
+  @param[inout]  pTmpA     points to a temporary vector of dimension m.
+  @param[inout]  pTmpB     points to a temporary vector of dimension n.
+  @return        execution status
+                   - \ref ARM_MATH_SUCCESS       : Operation successful
+                   - \ref ARM_MATH_SIZE_MISMATCH : Matrix size check failed
+                   - \ref ARM_MATH_SINGULAR      : Input matrix is found to be singular (non-invertible)
+ */
+
+arm_status arm_mat_qr_f64(
+    const arm_matrix_instance_f64 * pSrc,
+    const float64_t threshold,
+    arm_matrix_instance_f64 * pOutR,
+    arm_matrix_instance_f64 * pOutQ,
+    float64_t * pOutTau,
+    float64_t *pTmpA,
+    float64_t *pTmpB
+    );
+
+/**
+  @brief         Householder transform of a floating point vector.
+  @param[in]     pSrc        points to the input vector.
+  @param[in]     threshold   norm2 threshold.
+  @param[in]     blockSize   dimension of the vector space.
+  @param[outQ]   pOut        points to the output vector.
+  @return        beta        return the scaling factor beta
+ */
+
+float32_t arm_householder_f32(
+    const float32_t * pSrc,
+    const float32_t threshold,
+    uint32_t    blockSize,
+    float32_t * pOut
+    );
+
+/**
+  @brief         Householder transform of a double floating point vector.
+  @param[in]     pSrc        points to the input vector.
+  @param[in]     threshold   norm2 threshold.
+  @param[in]     blockSize   dimension of the vector space.
+  @param[outQ]   pOut        points to the output vector.
+  @return        beta        return the scaling factor beta
+ */
+
+float64_t arm_householder_f64(
+    const float64_t * pSrc,
+    const float64_t threshold,
+    uint32_t    blockSize,
+    float64_t * pOut
+    );
 
 #ifdef   __cplusplus
 }

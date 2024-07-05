@@ -1,23 +1,18 @@
-/* Edge Impulse inferencing library
- * Copyright (c) 2021 EdgeImpulse Inc.
+/*
+ * Copyright (c) 2022 EdgeImpulse Inc.
  *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an "AS
+ * IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+ * express or implied. See the License for the specific language
+ * governing permissions and limitations under the License.
  *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 #ifndef _EIDSP_SPEECHPY_PROCESSING_H_
@@ -31,15 +26,8 @@ namespace speechpy {
 // one stack frame returned by stack_frames
 typedef struct ei_stack_frames_info {
     signal_t *signal;
-    std::vector<uint32_t> *frame_ixs;
+    ei_vector<uint32_t> frame_ixs;
     int frame_length;
-
-    // start_ixs is owned by us
-    ~ei_stack_frames_info() {
-        if (frame_ixs) {
-            delete frame_ixs;
-        }
-    }
 } stack_frames_info_t;
 
 namespace processing {
@@ -96,9 +84,6 @@ public:
                 EIDSP_ERR(ret);
             }
 
-            // it might be that everything is already normalized here...
-            bool all_between_min_1_and_1 = true;
-
             // now we have the signal and we can preemphasize
             for (size_t ix = 0; ix < length; ix++) {
                 float now = out_buffer[ix];
@@ -112,12 +97,6 @@ public:
                     out_buffer[ix] = now - (_cof * _prev_buffer[0]);
                 }
 
-                if (_rescale && all_between_min_1_and_1) {
-                    if (out_buffer[ix] < -1.0f || out_buffer[ix] > 1.0f) {
-                        all_between_min_1_and_1 = false;
-                    }
-                }
-
                 // roll through and overwrite last element
                 if (_shift != 1) {
                     numpy::roll(_prev_buffer, _shift, -1);
@@ -128,7 +107,7 @@ public:
             _next_offset_should_be += length;
 
             // rescale from [-1 .. 1] ?
-            if (_rescale && !all_between_min_1_and_1) {
+            if (_rescale) {
                 matrix_t scale_matrix(length, 1, out_buffer);
                 ret = numpy::scale(&scale_matrix, 1.0f / 32768.0f);
                 if (ret != 0) {
@@ -224,7 +203,7 @@ namespace processing {
      * @param frame_stride (float): The stride between frames.
      * @returns Number of frames required, or a negative number if an error occured
      */
-    static int calculate_signal_used(
+    __attribute__((unused)) static int calculate_signal_used(
         size_t signal_size,
         uint32_t sampling_frequency,
         float frame_length,
@@ -279,7 +258,7 @@ namespace processing {
      * @returns EIDSP_OK if OK
      */
     static int stack_frames(stack_frames_info_t *info,
-                            uint32_t sampling_frequency,
+                            float sampling_frequency,
                             float frame_length,
                             float frame_stride,
                             bool zero_padding,
@@ -326,18 +305,16 @@ namespace processing {
             info->signal->total_length = static_cast<size_t>(len_sig);
         }
 
-        // alloc the vector on the heap, will be owned by the info struct
-        std::vector<uint32_t> *frame_indices = new std::vector<uint32_t>();
+        info->frame_ixs.clear();
 
         int frame_count = 0;
 
         for (size_t ix = 0; ix < static_cast<uint32_t>(len_sig); ix += static_cast<size_t>(frame_stride)) {
             if (++frame_count > numframes) break;
 
-            frame_indices->push_back(ix);
+            info->frame_ixs.push_back(ix);
         }
 
-        info->frame_ixs = frame_indices;
         info->frame_length = frame_sample_length;
 
         return EIDSP_OK;
@@ -394,34 +371,6 @@ namespace processing {
     }
 
     /**
-     * Power spectrum of a frame
-     * @param frame Row of a frame
-     * @param frame_size Size of the frame
-     * @param out_buffer Out buffer, size should be fft_points
-     * @param out_buffer_size Buffer size
-     * @param fft_points (int): The length of FFT. If fft_length is greater than frame_len, the frames will be zero-padded.
-     * @returns EIDSP_OK if OK
-     */
-    static int power_spectrum(float *frame, size_t frame_size, float *out_buffer, size_t out_buffer_size, uint16_t fft_points)
-    {
-        if (out_buffer_size != static_cast<size_t>(fft_points / 2 + 1)) {
-            EIDSP_ERR(EIDSP_MATRIX_SIZE_MISMATCH);
-        }
-
-        int r = numpy::rfft(frame, frame_size, out_buffer, out_buffer_size, fft_points);
-        if (r != EIDSP_OK) {
-            return r;
-        }
-
-        for (size_t ix = 0; ix < out_buffer_size; ix++) {
-            out_buffer[ix] = (1.0 / static_cast<float>(fft_points)) *
-                (out_buffer[ix] * out_buffer[ix]);
-        }
-
-        return EIDSP_OK;
-    }
-
-    /**
      * This function performs local cepstral mean and
      * variance normalization on a sliding window. The code assumes that
      * there is one observation per row.
@@ -437,6 +386,10 @@ namespace processing {
     static int cmvnw(matrix_t *features_matrix, uint16_t win_size = 301, bool variance_normalization = false,
         bool scale = false)
     {
+        if (win_size == 0) {
+            return EIDSP_OK;
+        }
+
         uint16_t pad_size = (win_size - 1) / 2;
 
         int ret;
@@ -475,6 +428,25 @@ namespace processing {
                 EIDSP_ERR(ret);
             }
 
+            // subtract the mean for the features
+            for (size_t fm_col = 0; fm_col < features_matrix->cols; fm_col++) {
+                features_matrix->buffer[(ix * features_matrix->cols) + fm_col] =
+                    features_matrix->buffer[(ix * features_matrix->cols) + fm_col] - mean_matrix.buffer[fm_col];
+            }
+        }
+
+        ret = numpy::pad_1d_symmetric(features_matrix, &vec_pad, pad_size, pad_size);
+        if (ret != EIDSP_OK) {
+            EIDSP_ERR(ret);
+        }
+
+        for (size_t ix = 0; ix < features_matrix->rows; ix++) {
+            // create a slice on the vec_pad
+            EI_DSP_MATRIX_B(window, win_size, vec_pad.cols, vec_pad.buffer + (ix * vec_pad.cols));
+            if (!window.buffer) {
+                EIDSP_ERR(EIDSP_OUT_OF_MEM);
+            }
+
             if (variance_normalization == true) {
                 ret = numpy::std_axis0(&window, &window_variance);
                 if (ret != EIDSP_OK) {
@@ -483,15 +455,8 @@ namespace processing {
 
                 features_buffer_ptr = &features_matrix->buffer[ix * vec_pad.cols];
                 for (size_t col = 0; col < vec_pad.cols; col++) {
-                    *(features_buffer_ptr) = (*(features_buffer_ptr)-mean_matrix.buffer[col]) /
-                                             (window_variance.buffer[col] + FLT_EPSILON);
-                    features_buffer_ptr++;
-                }
-            }
-            else {
-                features_buffer_ptr = &features_matrix->buffer[ix * vec_pad.cols];
-                for (size_t col = 0; col < vec_pad.cols; col++) {
-                    *(features_buffer_ptr) = *(features_buffer_ptr)-mean_matrix.buffer[col];
+                    *(features_buffer_ptr) = (*(features_buffer_ptr)) /
+                                             (window_variance.buffer[col] + 1e-10);
                     features_buffer_ptr++;
                 }
             }
@@ -526,6 +491,17 @@ namespace processing {
             f += noise;
             f *= noise_scale;
             // clip again
+
+            /* Here is the python code we're duplicating:
+            # Quantize to 8 bits and dequantize back to float32
+            mfe = np.uint8(np.around(mfe * 2**8))
+            # clip to 2**8
+            mfe = np.clip(mfe, 0, 255)
+            mfe = np.float32(mfe / 2**8)
+            */
+
+            f = roundf(f*256)/256;
+
             if (f < 0.0f) f = 0.0f;
             else if (f > 1.0f) f = 1.0f;
             features_matrix->buffer[ix] = f;
@@ -539,7 +515,7 @@ namespace processing {
      * then add a hard filter
      * @param features_matrix input feature matrix, will be modified in place
      */
-    static int spectrogram_normalization(matrix_t *features_matrix, int noise_floor_db) {
+    static int spectrogram_normalization(matrix_t *features_matrix, int noise_floor_db, bool clip_at_one) {
         const float noise = static_cast<float>(noise_floor_db * -1);
         const float noise_scale = 1.0f / (static_cast<float>(noise_floor_db * -1) + 12.0f);
 
@@ -554,7 +530,7 @@ namespace processing {
             f *= noise_scale;
             // clip again
             if (f < 0.0f) f = 0.0f;
-            else if (f > 1.0f) f = 1.0f;
+            else if (f > 1.0f && clip_at_one) f = 1.0f;
             features_matrix->buffer[ix] = f;
         }
 

@@ -5,13 +5,13 @@
  * Title:        arm_cmplx_mat_mult_q15.c
  * Description:  Q15 complex matrix multiplication
  *
- * $Date:        18. March 2019
- * $Revision:    V1.6.0
+ * $Date:        23 April 2021
+ * $Revision:    V1.9.0
  *
- * Target Processor: Cortex-M cores
+ * Target Processor: Cortex-M and Cortex-A cores
  * -------------------------------------------------------------------- */
 /*
- * Copyright (C) 2010-2019 ARM Limited or its affiliates. All rights reserved.
+ * Copyright (C) 2010-2021 ARM Limited or its affiliates. All rights reserved.
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -463,8 +463,8 @@ arm_status arm_mat_cmplx_mult_q15(
 #if defined (ARM_MATH_DSP)
 
           /* read real and imag values from pSrcA and pSrcB buffer */
-          pSourceA = read_q15x2_ia ((q15_t **) &pInA);
-          pSourceB = read_q15x2_ia ((q15_t **) &pInB);
+          pSourceA = read_q15x2_ia (&pInA);
+          pSourceB = read_q15x2_ia (&pInB);
 
           /* Multiply and Accumlates */
 #ifdef ARM_MATH_BIG_ENDIAN
@@ -477,8 +477,8 @@ arm_status arm_mat_cmplx_mult_q15(
           sumImag += (q63_t) prod2;
 
           /* read real and imag values from pSrcA and pSrcB buffer */
-          pSourceA = read_q15x2_ia ((q15_t **) &pInA);
-          pSourceB = read_q15x2_ia ((q15_t **) &pInB);
+          pSourceA = read_q15x2_ia (&pInA);
+          pSourceB = read_q15x2_ia (&pInB);
 
           /* Multiply and Accumlates */
 #ifdef ARM_MATH_BIG_ENDIAN
@@ -536,8 +536,8 @@ arm_status arm_mat_cmplx_mult_q15(
 
 #if defined (ARM_MATH_DSP)
           /* read real and imag values from pSrcA and pSrcB buffer */
-          pSourceA = read_q15x2_ia ((q15_t **) &pInA);
-          pSourceB = read_q15x2_ia ((q15_t **) &pInB);
+          pSourceA = read_q15x2_ia (&pInA);
+          pSourceB = read_q15x2_ia (&pInB);
 
           /* Multiply and Accumlates */
 #ifdef ARM_MATH_BIG_ENDIAN

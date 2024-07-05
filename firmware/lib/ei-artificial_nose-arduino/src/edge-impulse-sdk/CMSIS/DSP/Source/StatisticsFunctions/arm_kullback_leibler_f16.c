@@ -5,11 +5,13 @@
  * Title:        arm_logsumexp_f16.c
  * Description:  LogSumExp
  *
+ * $Date:        23 April 2021
+ * $Revision:    V1.9.0
  *
  * Target Processor: Cortex-M and Cortex-A cores
  * -------------------------------------------------------------------- */
 /*
- * Copyright (C) 2010-2020 ARM Limited or its affiliates. All rights reserved.
+ * Copyright (C) 2010-2021 ARM Limited or its affiliates. All rights reserved.
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -81,7 +83,7 @@ float16_t arm_kullback_leibler_f16(const float16_t * pSrcA,const float16_t * pSr
 
     accum = 0.0f16;
 
-    f16x8_t         vSum = vdupq_n_f16(0.0f);
+    f16x8_t         vSum = vdupq_n_f16(0.0f16);
     blkCnt = blockSize >> 3;
     while(blkCnt > 0)
     {
@@ -108,7 +110,7 @@ float16_t arm_kullback_leibler_f16(const float16_t * pSrcA,const float16_t * pSr
     {
        pA = *pSrcA++;
        pB = *pSrcB++;
-       accum += pA * logf(pB / pA);
+       accum += pA * (_Float16)logf((float32_t)pB / (float32_t)pA);
        
        blkCnt--;
     
@@ -134,7 +136,7 @@ float16_t arm_kullback_leibler_f16(const float16_t * pSrcA,const float16_t * pSr
     {
        pA = *pInA++;
        pB = *pInB++;
-       accum += pA * logf(pB / pA);
+       accum += pA * (_Float16)logf((float32_t)pB / (float32_t)pA);
        
        blkCnt--;
     

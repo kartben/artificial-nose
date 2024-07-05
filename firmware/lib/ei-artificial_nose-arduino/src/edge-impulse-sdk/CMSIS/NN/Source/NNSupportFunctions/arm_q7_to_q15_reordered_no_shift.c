@@ -1,5 +1,7 @@
+#include "edge-impulse-sdk/classifier/ei_classifier_config.h"
+#if EI_CLASSIFIER_TFLITE_LOAD_CMSIS_NN_SOURCES
 /*
- * Copyright (C) 2010-2020 Arm Limited or its affiliates. All rights reserved.
+ * SPDX-FileCopyrightText: Copyright 2010-2022 Arm Limited and/or its affiliates <open-source-office@arm.com>
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -21,8 +23,8 @@
  * Title:        arm_q7_to_q15_reordered_no_shift.c
  * Description:  Converts the elements of the Q7 vector to reordered Q15 vector without left-shift
  *
- * $Date:        May 29, 2020
- * $Revision:    V.1.0.1
+ * $Date:        4 Aug 2022
+ * $Revision:    V.1.1.2
  *
  * Target Processor:  Cortex-M cores
  *
@@ -39,13 +41,10 @@
  * @{
  */
 
-/**
- * @brief Converts the elements of the Q7 vector to reordered Q15 vector without left-shift
- * @param[in]       *pSrc points to the Q7 input vector
- * @param[out]      *pDst points to the Q15 output vector
- * @param[in]       blockSize length of the input vector
+/*
+ * Converts the elements of the Q7 vector to reordered Q15 vector without left-shift
  *
- * @details
+ * Refer to header for details
  *
  * This function does the q7 to q15 expansion with re-ordering
  *
@@ -79,7 +78,7 @@ void arm_q7_to_q15_reordered_no_shift(const q7_t *pSrc, q15_t *pDst, uint32_t bl
     const q7_t *pIn = pSrc; /* Src pointer */
     uint32_t blkCnt;        /* loop counter */
 
-#ifndef ARM_MATH_CM0_FAMILY
+#if defined(ARM_MATH_DSP) && !defined(ARM_MATH_MVEI)
     q31_t in;
     q31_t in1, in2;
 
@@ -103,11 +102,11 @@ void arm_q7_to_q15_reordered_no_shift(const q7_t *pSrc, q15_t *pDst, uint32_t bl
         in2 = __SXTB16(in);
 
 #ifndef ARM_MATH_BIG_ENDIAN
-        *__SIMD32(pDst)++ = in2;
-        *__SIMD32(pDst)++ = in1;
+        arm_nn_write_q7x4_ia((q7_t **)&pDst, in2);
+        arm_nn_write_q7x4_ia((q7_t **)&pDst, in1);
 #else
-        *__SIMD32(pDst)++ = in1;
-        *__SIMD32(pDst)++ = in2;
+        arm_nn_write_q7x4_ia((q7_t **)&pDst, in1);
+        arm_nn_write_q7x4_ia((q7_t **)&pDst, in2);
 #endif
 
         /* Decrement the loop counter */
@@ -141,3 +140,5 @@ void arm_q7_to_q15_reordered_no_shift(const q7_t *pSrc, q15_t *pDst, uint32_t bl
 /**
  * @} end of q7_to_x group
  */
+
+#endif // EI_CLASSIFIER_TFLITE_LOAD_CMSIS_NN_SOURCES

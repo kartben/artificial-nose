@@ -5,13 +5,13 @@
  * Title:        arm_mat_trans_q15.c
  * Description:  Q15 matrix transpose
  *
- * $Date:        18. March 2019
- * $Revision:    V1.6.0
+ * $Date:        23 April 2021
+ * $Revision:    V1.9.0
  *
- * Target Processor: Cortex-M cores
+ * Target Processor: Cortex-M and Cortex-A cores
  * -------------------------------------------------------------------- */
 /*
- * Copyright (C) 2010-2019 ARM Limited or its affiliates. All rights reserved.
+ * Copyright (C) 2010-2021 ARM Limited or its affiliates. All rights reserved.
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -142,7 +142,7 @@ arm_status arm_mat_trans_q15(
       while (col > 0U)        /* column loop */
       {
         /* Read two elements from row */
-        in = read_q15x2_ia ((q15_t **) &pIn);
+        in = read_q15x2_ia (&pIn);
 
         /* Unpack and store one element in  destination */
 #ifndef ARM_MATH_BIG_ENDIAN
@@ -165,7 +165,7 @@ arm_status arm_mat_trans_q15(
         pOut += nRows;
 
         /* Read two elements from row */
-        in = read_q15x2_ia ((q15_t **) &pIn);
+        in = read_q15x2_ia (&pIn);
 
         /* Unpack and store one element in destination */
 #ifndef ARM_MATH_BIG_ENDIAN

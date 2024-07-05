@@ -5,13 +5,13 @@
  * Title:        arm_dct4_q15.c
  * Description:  Processing function of DCT4 & IDCT4 Q15
  *
- * $Date:        18. March 2019
- * $Revision:    V1.6.0
+ * $Date:        23 April 2021
+ * $Revision:    V1.9.0
  *
- * Target Processor: Cortex-M cores
+ * Target Processor: Cortex-M and Cortex-A cores
  * -------------------------------------------------------------------- */
 /*
- * Copyright (C) 2010-2019 ARM Limited or its affiliates. All rights reserved.
+ * Copyright (C) 2010-2021 ARM Limited or its affiliates. All rights reserved.
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -46,8 +46,14 @@
                    Internally inputs are downscaled in the RFFT process function to avoid overflows.
                    Number of bits downscaled, depends on the size of the transform. The input and output
                    formats for different DCT sizes and number of bits to upscale are mentioned in the table below:
+ 
+| DCT Size  | Input format  | Output format | Number of bits to upscale |
+| --------: | ------------: | ------------: | ------------------------: |
+| 2048      | 1.15          | 11.5          | 10                        |
+| 512       | 1.15          | 9.7           | 8                         |
+| 128       | 1.15          | 7.9           | 6                         |
 
-                   \image html dct4FormatsQ15Table.gif
+
  */
 
 void arm_dct4_q15(

@@ -5,13 +5,13 @@
  * Title:        arm_mat_add_f16.c
  * Description:  Floating-point matrix addition
  *
- * $Date:        18. March 2020
- * $Revision:    V1.6.0
+ * $Date:        23 April 2021
+ * $Revision:    V1.9.0
  *
- * Target Processor: Cortex-M cores
+ * Target Processor: Cortex-M and Cortex-A cores
  * -------------------------------------------------------------------- */
 /*
- * Copyright (C) 2010-2020 ARM Limited or its affiliates. All rights reserved.
+ * Copyright (C) 2010-2021 ARM Limited or its affiliates. All rights reserved.
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -64,7 +64,7 @@ arm_status arm_mat_add_f16(
     arm_status status;  
     uint32_t  numSamples;       /* total number of elements in the matrix  */
     float16_t *pDataA, *pDataB, *pDataDst;
-    f16x8_t vecA, vecB, vecDst;
+    f16x8_t vecA, vecB, vecDst = { 0 };
     float16_t const *pSrcAVec;
     float16_t const *pSrcBVec;
     uint32_t  blkCnt;           /* loop counters */
@@ -169,13 +169,13 @@ arm_status arm_mat_add_f16(
       /* C(m,n) = A(m,n) + B(m,n) */
 
       /* Add and store result in destination buffer. */
-      *pOut++ = *pInA++ + *pInB++;
+      *pOut++ = (_Float16)*pInA++ + (_Float16)*pInB++;
 
-      *pOut++ = *pInA++ + *pInB++;
+      *pOut++ = (_Float16)*pInA++ + (_Float16)*pInB++;
 
-      *pOut++ = *pInA++ + *pInB++;
+      *pOut++ = (_Float16)*pInA++ + (_Float16)*pInB++;
 
-      *pOut++ = *pInA++ + *pInB++;
+      *pOut++ = (_Float16)*pInA++ + (_Float16)*pInB++;
 
       /* Decrement loop counter */
       blkCnt--;
@@ -196,7 +196,7 @@ arm_status arm_mat_add_f16(
       /* C(m,n) = A(m,n) + B(m,n) */
 
       /* Add and store result in destination buffer. */
-      *pOut++ = *pInA++ + *pInB++;
+      *pOut++ = (_Float16)*pInA++ + (_Float16)*pInB++;
 
       /* Decrement loop counter */
       blkCnt--;

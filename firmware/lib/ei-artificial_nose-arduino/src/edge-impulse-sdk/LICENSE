@@ -8,4 +8,3 @@ Folders containing files under different permissive license than Apache 2.0 are 
 * tensorflow - Apache 2.0
 * third_party/flatbuffers - Apache 2.0
 * third_party/gemmlowp - Apache 2.0
-* utensor - Apache 2.0

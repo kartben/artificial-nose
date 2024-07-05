@@ -5,12 +5,14 @@
  * Title:        arm_mat_vec_mult_f32.c
  * Description:  Floating-point matrix and vector multiplication
  *
- * $Date:        07. July 202
+ * $Date:        23 April 2021
  *
- * Target Processor: Cortex-M cores
+ * $Revision:    V1.9.0
+ *
+ * Target Processor: Cortex-M and Cortex-A cores
  * -------------------------------------------------------------------- */
 /*
- * Copyright (C) 2010-2020 ARM Limited or its affiliates. All rights reserved.
+ * Copyright (C) 2010-2021 ARM Limited or its affiliates. All rights reserved.
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -165,7 +167,7 @@ void arm_mat_vec_mult_f32(
     }
 
     /*
-     * compute 2 rows in parrallel
+     * compute 2 rows in parallel
      */
     if (row >= 2)
     {
@@ -310,15 +312,15 @@ void arm_mat_vec_mult_f32(const arm_matrix_instance_f32 *pSrcMat, const float32_
     /* The following loop performs the dot-product of each row in pSrcA with the vector */
     /* row loop */
     while (row > 0) {
-        /* For every row wise process, the pInVec pointer is set
-         ** to the starting address of the vector */
-        pInVec = pVec;
-
         /* Initialize accumulators */
         float32_t sum1 = 0.0f;
         float32_t sum2 = 0.0f;
         float32_t sum3 = 0.0f;
         float32_t sum4 = 0.0f;
+
+        /* For every row wise process, the pInVec pointer is set
+         ** to the starting address of the vector */
+        pInVec = pVec;
 
         /* Loop unrolling: process 2 columns per iteration */
         colCnt = numCols;

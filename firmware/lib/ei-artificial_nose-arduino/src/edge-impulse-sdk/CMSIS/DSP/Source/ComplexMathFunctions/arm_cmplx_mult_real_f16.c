@@ -5,11 +5,13 @@
  * Title:        arm_cmplx_mult_real_f16.c
  * Description:  Floating-point complex by real multiplication
  *
+ * $Date:        23 April 2021
+ * $Revision:    V1.9.0
  *
- * Target Processor: Cortex-M cores
+ * Target Processor: Cortex-M and Cortex-A cores
  * -------------------------------------------------------------------- */
 /*
- * Copyright (C) 2010-2020 ARM Limited or its affiliates. All rights reserved.
+ * Copyright (C) 2010-2021 ARM Limited or its affiliates. All rights reserved.
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -34,28 +36,6 @@
   @ingroup groupCmplxMath
  */
 
-/**
-  @defgroup CmplxByRealMult Complex-by-Real Multiplication
-
-  Multiplies a complex vector by a real vector and generates a complex result.
-  The data in the complex arrays is stored in an interleaved fashion
-  (real, imag, real, imag, ...).
-  The parameter <code>numSamples</code> represents the number of complex
-  samples processed.  The complex arrays have a total of <code>2*numSamples</code>
-  real values while the real array has a total of <code>numSamples</code>
-  real values.
-
-  The underlying algorithm is used:
-
-  <pre>
-  for (n = 0; n < numSamples; n++) {
-      pCmplxDst[(2*n)+0] = pSrcCmplx[(2*n)+0] * pSrcReal[n];
-      pCmplxDst[(2*n)+1] = pSrcCmplx[(2*n)+1] * pSrcReal[n];
-  }
-  </pre>
-
-  There are separate functions for floating-point, Q15, and Q31 data types.
- */
 
 /**
   @addtogroup CmplxByRealMult
@@ -79,7 +59,7 @@ void arm_cmplx_mult_real_f16(
         float16_t * pCmplxDst,
         uint32_t numSamples)
 {
-    const static uint16_t stride_cmplx_x_real_16[8] = {
+    static const uint16_t stride_cmplx_x_real_16[8] = {
         0, 0, 1, 1, 2, 2, 3, 3
         };
     uint32_t blockSizeC = numSamples * CMPLX_DIM;   /* loop counters */
@@ -141,20 +121,20 @@ void arm_cmplx_mult_real_f16(
 
     in = *pSrcReal++;
     /* store result in destination buffer. */
-    *pCmplxDst++ = *pSrcCmplx++ * in;
-    *pCmplxDst++ = *pSrcCmplx++ * in;
+    *pCmplxDst++ = (_Float16)*pSrcCmplx++ * (_Float16)in;
+    *pCmplxDst++ = (_Float16)*pSrcCmplx++ * (_Float16)in;
 
     in = *pSrcReal++;
-    *pCmplxDst++ = *pSrcCmplx++ * in;
-    *pCmplxDst++ = *pSrcCmplx++ * in;
+    *pCmplxDst++ = (_Float16)*pSrcCmplx++ * (_Float16)in;
+    *pCmplxDst++ = (_Float16)*pSrcCmplx++ * (_Float16)in;
 
     in = *pSrcReal++;
-    *pCmplxDst++ = *pSrcCmplx++ * in;
-    *pCmplxDst++ = *pSrcCmplx++ * in;
+    *pCmplxDst++ = (_Float16)*pSrcCmplx++ * (_Float16)in;
+    *pCmplxDst++ = (_Float16)*pSrcCmplx++ * (_Float16)in;
 
     in = *pSrcReal++;
-    *pCmplxDst++ = *pSrcCmplx++* in;
-    *pCmplxDst++ = *pSrcCmplx++ * in;
+    *pCmplxDst++ = (_Float16)*pSrcCmplx++ * (_Float16)in;
+    *pCmplxDst++ = (_Float16)*pSrcCmplx++ * (_Float16)in;
 
     /* Decrement loop counter */
     blkCnt--;
@@ -177,8 +157,8 @@ void arm_cmplx_mult_real_f16(
 
     in = *pSrcReal++;
     /* store result in destination buffer. */
-    *pCmplxDst++ = *pSrcCmplx++ * in;
-    *pCmplxDst++ = *pSrcCmplx++ * in;
+    *pCmplxDst++ = (_Float16)*pSrcCmplx++ * (_Float16)in;
+    *pCmplxDst++ = (_Float16)*pSrcCmplx++ * (_Float16)in;
 
     /* Decrement loop counter */
     blkCnt--;
@@ -192,4 +172,5 @@ void arm_cmplx_mult_real_f16(
  */
 
 #endif /* #if defined(ARM_FLOAT16_SUPPORTED) */
+
 #endif // EIDSP_LOAD_CMSIS_DSP_SOURCES

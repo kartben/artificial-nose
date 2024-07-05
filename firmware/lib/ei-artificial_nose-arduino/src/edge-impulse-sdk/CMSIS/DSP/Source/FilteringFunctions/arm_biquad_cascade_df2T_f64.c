@@ -5,13 +5,13 @@
  * Title:        arm_biquad_cascade_df2T_f64.c
  * Description:  Processing function for floating-point transposed direct form II Biquad cascade filter
  *
- * $Date:        18. March 2019
- * $Revision:    V1.6.0
+ * $Date:        23 April 2021
+ * $Revision:    V1.9.0
  *
- * Target Processor: Cortex-M cores
+ * Target Processor: Cortex-M and Cortex-A cores
  * -------------------------------------------------------------------- */
 /*
- * Copyright (C) 2010-2019 ARM Limited or its affiliates. All rights reserved.
+ * Copyright (C) 2010-2021 ARM Limited or its affiliates. All rights reserved.
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -107,7 +107,7 @@
                    To do this manually without calling the init function, assign the follow subfields of the instance structure:
                    numStages, pCoeffs, pState. Also set all of the values in pState to zero.
   @par
-                   Use of the initialization function is optional.
+                   Use of the initialization function is optional except for the vectorized versions (Helium and Neon).
                    However, if the initialization function is used, then the instance structure cannot be placed into a const data section.
                    To place an instance structure into a const data section, the instance structure must be manually initialized.
                    Set the values in the state buffer to zeros before static initialization.
@@ -119,6 +119,12 @@
                    where <code>numStages</code> is the number of Biquad stages in the filter;
                    <code>pState</code> is the address of the state buffer.
                    <code>pCoeffs</code> is the address of the coefficient buffer;
+  @par           Neon version
+                  For Neon version, the function arm_biquad_cascade_df2T_compute_coefs_x must be
+                  used in addition to arm_biquad_cascade_df2T_init_x.
+
+                  See the documentation of arm_biquad_cascade_df2T_init_x for more details.
+
 */
 
 /**
@@ -135,7 +141,7 @@
   @return        none
  */
 
-LOW_OPTIMIZATION_ENTER
+
 void arm_biquad_cascade_df2T_f64(
   const arm_biquad_cascade_df2T_instance_f64 * S,
   const float64_t * pSrc,
@@ -438,7 +444,7 @@ void arm_biquad_cascade_df2T_f64(
    } while (stage > 0U);
 
 }
-LOW_OPTIMIZATION_EXIT
+
 
 /**
   @} end of BiquadCascadeDF2T group

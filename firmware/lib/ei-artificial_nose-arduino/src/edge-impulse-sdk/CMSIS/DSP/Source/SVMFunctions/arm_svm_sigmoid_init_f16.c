@@ -5,11 +5,13 @@
  * Title:        arm_svm_sigmoid_predict_f16.c
  * Description:  SVM Sigmoid Instance Initialization
  *
+ * $Date:        23 April 2021
+ * $Revision:    V1.9.0
  *
  * Target Processor: Cortex-M and Cortex-A cores
  * -------------------------------------------------------------------- */
 /*
- * Copyright (C) 2010-2020 ARM Limited or its affiliates. All rights reserved.
+ * Copyright (C) 2010-2021 ARM Limited or its affiliates. All rights reserved.
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -37,11 +39,6 @@
   @ingroup groupSVM
  */
 
-/**
-  @defgroup sigmoidsvm Sigmoid SVM
-
-  Sigmoid SVM classifier
- */
 
 /**
  * @addtogroup sigmoidsvm

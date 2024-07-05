@@ -5,13 +5,13 @@
  * Title:        arm_mat_add_f32.c
  * Description:  Floating-point matrix addition
  *
- * $Date:        18. March 2019
- * $Revision:    V1.6.0
+ * $Date:        23 April 2021
+ * $Revision:    V1.9.0
  *
- * Target Processor: Cortex-M cores
+ * Target Processor: Cortex-M and Cortex-A cores
  * -------------------------------------------------------------------- */
 /*
- * Copyright (C) 2010-2019 ARM Limited or its affiliates. All rights reserved.
+ * Copyright (C) 2010-2021 ARM Limited or its affiliates. All rights reserved.
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -38,7 +38,27 @@
   @defgroup MatrixAdd Matrix Addition
 
   Adds two matrices.
-  \image html MatrixAddition.gif "Addition of two 3 x 3 matrices"
+  @par Addition of two 3 x 3 matrices
+
+  \f[
+  \begin{pmatrix}
+   a_{1,1} & a_{1,2} & a_{1,3} \\
+   a_{2,1} & a_{2,2} & a_{2,3} \\
+   a_{3,1} & a_{3,2} & a_{3,3} \\
+  \end{pmatrix}
+  +
+  \begin{pmatrix}
+   b_{1,1} & b_{1,2} & b_{1,3} \\
+   b_{2,1} & b_{2,2} & b_{2,3} \\
+   b_{3,1} & b_{3,2} & b_{3,3} \\
+  \end{pmatrix}
+  =
+  \begin{pmatrix}
+   a_{1,1}+b_{1,1} & a_{1,2}+b_{1,2} & a_{1,3}+b_{1,3} \\
+   a_{2,1}+b_{2,1} & a_{2,2}+b_{2,2} & a_{2,3}+b_{2,3} \\
+   a_{3,1}+b_{3,1} & a_{3,2}+b_{3,2} & a_{3,3}+b_{3,3} \\
+  \end{pmatrix}
+  \f]
 
   The functions check to make sure that
   <code>pSrcA</code>, <code>pSrcB</code>, and <code>pDst</code> have the same
@@ -70,7 +90,7 @@ arm_status arm_mat_add_f32(
     arm_status status;  
     uint32_t  numSamples;       /* total number of elements in the matrix  */
     float32_t *pDataA, *pDataB, *pDataDst;
-    f32x4_t vecA, vecB, vecDst;
+    f32x4_t vecA, vecB, vecDst = { 0 };
     float32_t const *pSrcAVec;
     float32_t const *pSrcBVec;
     uint32_t  blkCnt;           /* loop counters */

@@ -1,5 +1,7 @@
+#include "edge-impulse-sdk/classifier/ei_classifier_config.h"
+#if EI_CLASSIFIER_TFLITE_LOAD_CMSIS_NN_SOURCES
 /*
- * Copyright (C) 2010-2020 Arm Limited or its affiliates. All rights reserved.
+ * SPDX-FileCopyrightText: Copyright 2010-2022 Arm Limited and/or its affiliates <open-source-office@arm.com>
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -21,8 +23,8 @@
  * Title:        arm_nn_mat_mult_s8.c
  * Description:  General Matrix-multiplication function
  *
- * $Date:        09. October 2020
- * $Revision:    V.2.0.5
+ * $Date:        16 August 2022
+ * $Revision:    V.2.0.7
  *
  * Target Processor:  Cortex-M cores
  * -------------------------------------------------------------------- */
@@ -73,27 +75,27 @@ q7_t *arm_nn_mat_mult_s8(const q7_t *input_row,
             for (int i_row_loop = 0; i_row_loop < row_loop_cnt; i_row_loop++)
             {
                 mve_pred16_t p = vctp16q((uint32_t)row_len_tmp);
-                const int16x8_t offset = vdupq_m_n_s16(vuninitializedq_s16(), col_offset, p);
+                const int16x8_t offset = vdupq_x_n_s16(col_offset, p);
                 row_len_tmp -= 8;
+
+                int16x8_t c0 = vldrbq_s16(ip_c0);
+                ip_c0 += 8;
+                c0 = vaddq_s16(c0, offset);
+
+                int16x8_t c1 = vldrbq_s16(ip_c1);
+                ip_c1 += 8;
+                c1 = vaddq_s16(c1, offset);
+
+                int16x8_t c2 = vldrbq_s16(ip_c2);
+                ip_c2 += 8;
+                c2 = vaddq_s16(c2, offset);
+
+                int16x8_t c3 = vldrbq_s16(ip_c3);
+                ip_c3 += 8;
+                c3 = vaddq_s16(c3, offset);
 
                 int16x8_t r0 = vldrbq_z_s16(ip_r0, p);
                 ip_r0 += 8;
-
-                int16x8_t c0 = vldrbq_z_s16(ip_c0, p);
-                ip_c0 += 8;
-                c0 = vaddq_m_s16(vuninitializedq_s16(), c0, offset, p);
-
-                int16x8_t c1 = vldrbq_z_s16(ip_c1, p);
-                ip_c1 += 8;
-                c1 = vaddq_m_s16(vuninitializedq_s16(), c1, offset, p);
-
-                int16x8_t c2 = vldrbq_z_s16(ip_c2, p);
-                ip_c2 += 8;
-                c2 = vaddq_m_s16(vuninitializedq_s16(), c2, offset, p);
-
-                int16x8_t c3 = vldrbq_z_s16(ip_c3, p);
-                ip_c3 += 8;
-                c3 = vaddq_m_s16(vuninitializedq_s16(), c3, offset, p);
 
                 acc_0 = vmladavaq_p_s16(acc_0, r0, c0, p);
                 acc_1 = vmladavaq_p_s16(acc_1, r0, c1, p);
@@ -133,15 +135,15 @@ q7_t *arm_nn_mat_mult_s8(const q7_t *input_row,
                 for (int i_row_loop = 0; i_row_loop < row_loop_cnt; i_row_loop++)
                 {
                     const mve_pred16_t p = vctp16q((uint32_t)row_len_tmp);
-                    const int16x8_t offset = vdupq_m_n_s16(vuninitializedq_s16(), col_offset, p);
+                    const int16x8_t offset = vdupq_x_n_s16(col_offset, p);
                     row_len_tmp -= 8;
+
+                    int16x8_t c0 = vldrbq_s16(ip_c0);
+                    ip_c0 += 8;
+                    c0 = vaddq_s16(c0, offset);
 
                     int16x8_t r0 = vldrbq_z_s16(ip_r0, p);
                     ip_r0 += 8;
-                    int16x8_t c0 = vldrbq_z_s16(ip_c0, p);
-                    ip_c0 += 8;
-
-                    c0 = vaddq_m_s16(vuninitializedq_s16(), c0, offset, p);
                     acc_0 = vmladavaq_p_s16(acc_0, r0, c0, p);
                 }
 
@@ -178,3 +180,5 @@ q7_t *arm_nn_mat_mult_s8(const q7_t *input_row,
     return NULL;
 #endif
 }
+
+#endif // EI_CLASSIFIER_TFLITE_LOAD_CMSIS_NN_SOURCES

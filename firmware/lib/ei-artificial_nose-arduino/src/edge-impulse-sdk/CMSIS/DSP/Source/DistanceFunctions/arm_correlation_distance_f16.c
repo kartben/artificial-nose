@@ -6,11 +6,13 @@
  * Title:        arm_correlation_distance_f16.c
  * Description:  Correlation distance between two vectors
  *
+ * $Date:        23 April 2021
+ * $Revision:    V1.9.0
  *
- * Target Processor: Cortex-M cores
+ * Target Processor: Cortex-M and Cortex-A cores
  * -------------------------------------------------------------------- */
 /*
- * Copyright (C) 2010-2020 ARM Limited or its affiliates. All rights reserved.
+ * Copyright (C) 2010-2021 ARM Limited or its affiliates. All rights reserved.
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -70,21 +72,21 @@ float16_t arm_correlation_distance_f16(float16_t *pA,float16_t *pB, uint32_t blo
     arm_mean_f16(pA, blockSize, &ma);
     arm_mean_f16(pB, blockSize, &mb);
 
-    arm_offset_f16(pA, -ma, pA, blockSize);
-    arm_offset_f16(pB, -mb, pB, blockSize);
+    arm_offset_f16(pA, -(_Float16)ma, pA, blockSize);
+    arm_offset_f16(pB, -(_Float16)mb, pB, blockSize);
 
     arm_power_f16(pA, blockSize, &pwra);
     arm_power_f16(pB, blockSize, &pwrb);
 
     arm_dot_prod_f16(pA,pB,blockSize,&dot);
 
-    dot = dot / blockSize;
-    pwra = pwra / blockSize;
-    pwrb = pwrb / blockSize;
+    dot = (_Float16)dot / (_Float16)blockSize;
+    pwra = (_Float16)pwra / (_Float16)blockSize;
+    pwrb = (_Float16)pwrb / (_Float16)blockSize;
 
-    arm_sqrt_f16(pwra * pwrb,&tmp);
+    arm_sqrt_f16((_Float16)pwra * (_Float16)pwrb,&tmp);
  
-    return(1.0f - dot / tmp);
+    return(1.0f16 - (_Float16)dot / (_Float16)tmp);
 
    
 }

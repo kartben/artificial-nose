@@ -5,11 +5,13 @@
  * Title:        arm_naive_gaussian_bayes_predict_f16
  * Description:  Naive Gaussian Bayesian Estimator
  *
+ * $Date:        23 April 2021
+ * $Revision:    V1.9.0
  *
  * Target Processor: Cortex-M and Cortex-A cores
  * -------------------------------------------------------------------- */
 /*
- * Copyright (C) 2010-2020 ARM Limited or its affiliates. All rights reserved.
+ * Copyright (C) 2010-2021 ARM Limited or its affiliates. All rights reserved.
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -33,7 +35,6 @@
 #include <limits.h>
 #include <math.h>
 
-#define PI_F 3.1415926535897932384626433832795f16
 
 /**
  * @addtogroup groupBayes
@@ -43,13 +44,12 @@
 /**
  * @brief Naive Gaussian Bayesian Estimator
  *
- * @param[in]  *S         points to a naive bayes instance structure
- * @param[in]  *in        points to the elements of the input vector.
- * @param[in]  *pBuffer   points to a buffer of length numberOfClasses
+ * @param[in]  *S                       points to a naive bayes instance structure
+ * @param[in]  *in                      points to the elements of the input vector.
+ * @param[out] *pOutputProbabilities    points to a buffer of length numberOfClasses containing estimated probabilities
+ * @param[out] *pBufferB                points to a temporary buffer of length numberOfClasses
  * @return The predicted class
  *
- * @par If the number of classes is big, MVE version will consume lot of
- * stack since the log prior are computed on the stack.
  *
  */
 
@@ -60,19 +60,21 @@
 
 uint32_t arm_gaussian_naive_bayes_predict_f16(const arm_gaussian_naive_bayes_instance_f16 *S, 
    const float16_t * in, 
-   float16_t *pBuffer)
+   float16_t *pOutputProbabilities,
+   float16_t *pBufferB
+   )
 {
     uint32_t         nbClass;
     const float16_t *pTheta = S->theta;
     const float16_t *pSigma = S->sigma;
-    float16_t      *buffer = pBuffer;
+    float16_t      *buffer = pOutputProbabilities;
     const float16_t *pIn = in;
     float16_t       result;
     f16x8_t         vsigma;
     _Float16       tmp;
     f16x8_t         vacc1, vacc2;
     uint32_t        index;
-    float16_t       logclassPriors[S->numberOfClasses];
+    float16_t       *logclassPriors=pBufferB;
     float16_t      *pLogPrior = logclassPriors;
 
     arm_vlog_f16((float16_t *) S->classPriors, logclassPriors, S->numberOfClasses);
@@ -131,42 +133,35 @@ uint32_t arm_gaussian_naive_bayes_predict_f16(const arm_gaussian_naive_bayes_ins
         tmp = -0.5f16 * (_Float16)vecAddAcrossF16Mve(vacc1);
         tmp -= 0.5f16 * (_Float16)vecAddAcrossF16Mve(vacc2);
 
-        *buffer = tmp + *pLogPrior++;
+        *buffer = (_Float16)tmp + (_Float16)*pLogPrior++;
         buffer++;
     }
 
-    arm_max_f16(pBuffer, S->numberOfClasses, &result, &index);
+    arm_max_f16(pOutputProbabilities, S->numberOfClasses, &result, &index);
 
     return (index);
 }
 
 #else
 
-/**
- * @brief Naive Gaussian Bayesian Estimator
- *
- * @param[in]  *S         points to a naive bayes instance structure
- * @param[in]  *in        points to the elements of the input vector.
- * @param[in]  *pBuffer   points to a buffer of length numberOfClasses
- * @return The predicted class
- *
- */
 uint32_t arm_gaussian_naive_bayes_predict_f16(const arm_gaussian_naive_bayes_instance_f16 *S, 
    const float16_t * in, 
-   float16_t *pBuffer)
+   float16_t *pOutputProbabilities,
+   float16_t *pBufferB)
 {
     uint32_t nbClass;
     uint32_t nbDim;
     const float16_t *pPrior = S->classPriors;
     const float16_t *pTheta = S->theta;
     const float16_t *pSigma = S->sigma;
-    float16_t *buffer = pBuffer;
+    float16_t *buffer = pOutputProbabilities;
     const float16_t *pIn=in;
     float16_t result;
     _Float16 sigma;
     _Float16 tmp;
     _Float16 acc1,acc2;
     uint32_t index;
+    (void)pBufferB;
 
     pTheta=S->theta;
     pSigma=S->sigma;
@@ -182,24 +177,24 @@ uint32_t arm_gaussian_naive_bayes_predict_f16(const arm_gaussian_naive_bayes_ins
         acc2 = 0.0f16;
         for(nbDim = 0; nbDim < S->vectorDimension; nbDim++)
         {
-           sigma = *pSigma + S->epsilon;
-           acc1 += logf(2.0f16 * (_Float16)PI_F * sigma);
-           acc2 += (*pIn - *pTheta) * (*pIn - *pTheta) / sigma;
+           sigma = (_Float16)*pSigma + (_Float16)S->epsilon;
+           acc1 += (_Float16)logf(2.0f * PI * (float32_t)sigma);
+           acc2 += ((_Float16)*pIn - (_Float16)*pTheta) * ((_Float16)*pIn - (_Float16)*pTheta) / (_Float16)sigma;
 
            pIn++;
            pTheta++;
            pSigma++;
         }
 
-        tmp = -0.5f16 * acc1;
-        tmp -= 0.5f16 * acc2;
+        tmp = -0.5f16 * (_Float16)acc1;
+        tmp -= 0.5f16 * (_Float16)acc2;
 
 
-        *buffer = tmp + logf(*pPrior++);
+        *buffer = (_Float16)tmp + (_Float16)logf((float32_t)*pPrior++);
         buffer++;
     }
 
-    arm_max_f16(pBuffer,S->numberOfClasses,&result,&index);
+    arm_max_f16(pOutputProbabilities,S->numberOfClasses,&result,&index);
 
     return(index);
 }

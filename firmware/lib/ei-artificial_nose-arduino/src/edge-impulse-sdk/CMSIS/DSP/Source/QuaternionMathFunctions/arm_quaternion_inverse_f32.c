@@ -5,8 +5,10 @@
  * Title:        arm_quaternion_inverse_f32.c
  * Description:  Floating-point quaternion inverse
  *
+ * $Date:        23 April 2021
+ * $Revision:    V1.9.0
  *
- * Target Processor: Cortex-M cores
+ * Target Processor: Cortex-M and Cortex-A cores
  * -------------------------------------------------------------------- */
 /*
  * Copyright (C) 2010-2021 ARM Limited or its affiliates. All rights reserved.
@@ -92,7 +94,8 @@ void arm_quaternion_inverse_f32(const float32_t *pInputQuaternions,
 {
    float32_t temp;
 
-   for(uint32_t i=0; i < nbQuaternions; i++)
+   uint32_t i;
+   for(i=0; i < nbQuaternions; i++)
    {
 
       temp = SQ(pInputQuaternions[4 * i + 0]) +

@@ -15,12 +15,14 @@ limitations under the License.
 #ifndef TENSORFLOW_LITE_KERNELS_INTERNAL_COMMON_H_
 #define TENSORFLOW_LITE_KERNELS_INTERNAL_COMMON_H_
 
+#include <algorithm>
 #ifndef ALLOW_SLOW_GENERIC_DEPTHWISECONV_FALLBACK
 #ifdef GEMMLOWP_ALLOW_SLOW_SCALAR_FALLBACK
 #define ALLOW_SLOW_GENERIC_DEPTHWISECONV_FALLBACK
 #endif
 #endif
 
+#include <cmath>
 #include <functional>
 
 #include "edge-impulse-sdk/third_party/gemmlowp/fixedpoint/fixedpoint.h"
@@ -75,6 +77,7 @@ float ActivationFunction(float x) {
 inline void BiasAndClamp(float clamp_min, float clamp_max, int bias_size,
                          const float* bias_data, int array_size,
                          float* array_data) {
+  if (bias_size == 0) return;
   // Note: see b/132215220: in May 2019 we thought it would be OK to replace
   // this with the Eigen one-liner:
   //   return (array.colwise() + bias).cwiseMin(clamp_max).cwiseMin(clamp_max).
@@ -138,6 +141,100 @@ inline void BiasAndClamp(float clamp_min, float clamp_max, int bias_size,
 #endif
 }
 
+// Single-rounding MultiplyByQuantizedMultiplier
+#if TFLITE_SINGLE_ROUNDING
+inline int32_t MultiplyByQuantizedMultiplier(int32_t x,
+                                             int32_t quantized_multiplier,
+                                             int shift) {
+  TFLITE_DCHECK(quantized_multiplier >= 0);
+  TFLITE_DCHECK(shift >= -31 && shift <= 30);
+
+  const int64_t total_shift = 31 - shift;
+  const int64_t round = static_cast<int64_t>(1) << (total_shift - 1);
+  int64_t result = x * static_cast<int64_t>(quantized_multiplier) + round;
+  result = result >> total_shift;
+
+  TFLITE_DCHECK(result >= std::numeric_limits<int32_t>::min() &&
+                result <= std::numeric_limits<int32_t>::max());
+  return static_cast<int32_t>(result);
+}
+
+inline int32_t MultiplyByQuantizedMultiplierSmallerThanOneExp(
+    int32_t x, int32_t quantized_multiplier, int shift) {
+  TFLITE_DCHECK_LE(shift, 0);
+  return MultiplyByQuantizedMultiplier(x, quantized_multiplier, shift);
+}
+
+inline int32_t MultiplyByQuantizedMultiplierGreaterThanOne(
+    int32_t x, int32_t quantized_multiplier, int shift) {
+  TFLITE_DCHECK_GE(shift, 0);
+  return MultiplyByQuantizedMultiplier(x, quantized_multiplier, shift);
+}
+
+inline int32_t MultiplyByQuantizedMultiplier(int64_t x,
+                                             int32_t quantized_multiplier,
+                                             int shift) {
+  // Inputs:
+  // - quantized_multiplier has fixed point at bit 31
+  // - shift is -31 to +7 (negative for right shift)
+  //
+  // Assumptions: The following input ranges are assumed
+  // - quantize_scale>=0  (the usual range is (1<<30) to (1>>31)-1)
+  // - scaling is chosen so final scaled result fits in int32_t
+  // - input x is in the range -(1<<47) <= x < (1<<47)
+  TFLITE_DCHECK(quantized_multiplier >= 0);
+  TFLITE_DCHECK(shift >= -31 && shift < 8);
+  TFLITE_DCHECK(x >= -(static_cast<int64_t>(1) << 47) &&
+                x < (static_cast<int64_t>(1) << 47));
+
+  const int32_t reduced_multiplier =
+      (quantized_multiplier < 0x7FFF0000)
+          ? ((quantized_multiplier + (1 << 15)) >> 16)
+          : 0x7FFF;
+  const int64_t total_shift = 15 - shift;
+  const int64_t round = static_cast<int64_t>(1) << (total_shift - 1);
+  int64_t result = x * static_cast<int64_t>(reduced_multiplier) + round;
+  result = result >> total_shift;
+
+  TFLITE_DCHECK(result >= std::numeric_limits<int32_t>::min() &&
+                result <= std::numeric_limits<int32_t>::max());
+  return static_cast<int32_t>(result);
+}
+
+#ifdef USE_NEON
+inline int32x4x4_t MultiplyByQuantizedMultiplier4Rows(
+    int32x4x4_t input_val, int32_t quantized_multiplier, int shift) {
+  TFLITE_DCHECK(quantized_multiplier >= 0);
+
+  const int right_shift = std::min(-1, shift);
+  const int left_shift = shift - right_shift;
+
+  const int32x4_t multiplier_dup = vdupq_n_s32(quantized_multiplier);
+  const int32x4_t left_shift_dup = vdupq_n_s32(left_shift);
+  const int32x4_t right_shift_dup = vdupq_n_s32(right_shift);
+
+  int32x4x4_t result;
+  result.val[0] = vrshlq_s32(
+      vqdmulhq_s32(vshlq_s32(input_val.val[0], left_shift_dup), multiplier_dup),
+      right_shift_dup);
+
+  result.val[1] = vrshlq_s32(
+      vqdmulhq_s32(vshlq_s32(input_val.val[1], left_shift_dup), multiplier_dup),
+      right_shift_dup);
+
+  result.val[2] = vrshlq_s32(
+      vqdmulhq_s32(vshlq_s32(input_val.val[2], left_shift_dup), multiplier_dup),
+      right_shift_dup);
+
+  result.val[3] = vrshlq_s32(
+      vqdmulhq_s32(vshlq_s32(input_val.val[3], left_shift_dup), multiplier_dup),
+      right_shift_dup);
+
+  return result;
+}
+#endif  // USE_NEON
+// Double-rounding MultiplyByQuantizedMultiplier
+#else
 inline int32_t MultiplyByQuantizedMultiplierSmallerThanOneExp(
     int32_t x, int32_t quantized_multiplier, int left_shift) {
   using gemmlowp::RoundingDivideByPOT;
@@ -224,7 +321,8 @@ inline int32x4x4_t MultiplyByQuantizedMultiplier4Rows(
 
   return result;
 }
-#endif
+#endif  // USE_NEON
+#endif  // TFLITE_SINGLE_ROUNDING
 
 template <typename T>
 int CountLeadingZeros(T integer_input) {
@@ -279,81 +377,216 @@ inline Integer FloorLog2(Integer n) {
   }
 }
 
-// generate INT16 LUT for function(), e.g., table exp(x) and 1/(1+x) used in
-// softmax
-// func - the function to build the LUT for (e.g exp(x))
-// min,max - table limits
-// table - pointer to buffer
-// num - number of elements in the LUT
-inline void gen_lut(double (*func)(double), double min, double max,
-                    int16_t* table, const int num) {
-  // size of table should equal to num + 1
-  // last element only for slope calculation
-  double step = (max - min) / (num - 1);
-  double half_step = step / 2.0;
-  for (int i = 0; i < num - 1; i++) {
-    double sample_val = TfLiteRound(func(min + i * step) * 32768.0);
-    double midpoint_interp_val =
-        TfLiteRound((func(min + (i + 1) * step) * 32768.0 +
-                     TfLiteRound(func(min + i * step) * 32768.0)) /
-                    2.0);
-    double midpoint_val =
-        TfLiteRound(func(min + i * step + half_step) * 32768.0);
-    double midpoint_err = midpoint_interp_val - midpoint_val;
-    double bias = TfLiteRound(midpoint_err / 2.0);
-    table[i] = std::min<double>(std::max<double>(sample_val - bias, -32768.0),
-                                32767.0);
-  }
-  table[num - 1] = std::min<double>(
-      std::max<double>(TfLiteRound(func(max) * 32768.0), -32768.0), 32767.0);
+namespace detail {
+
+// LUTPopulate takes an optional type-erased transform_params to allow passing
+// extra parameters to the transform function pointer. const void* is used
+// instead of std::function to be compatible with TFLite Micro
+template <typename FloatT, typename Func>
+inline typename std::enable_if<std::is_same<Func, FloatT (*)(FloatT)>::value,
+                               FloatT>::type
+LUTTransform(Func transform, const void* /*transform_params*/, FloatT value) {
+  static_assert(std::is_floating_point<FloatT>::value,
+                "FloatT must be a floating-point type.");
+  return transform(value);
 }
 
-// generate INT16 LUT for function(), e.g., table exp(x) and 1/(1+x) used in
-// softmax
-// func - the function to build the LUT for (e.g exp(x))
-// min,max - table limits
-// table - pointer to buffer
-// num - number of elements in the LUT
-inline void gen_lut(float (*func)(float), float min, float max, int16_t* table,
-                    const int num) {
-  // size of table should equal to num + 1
-  // last element only for slope calculation
-  float step = (max - min) / (num - 1);
-  float half_step = step / 2.0f;
-  for (int i = 0; i < num - 1; i++) {
-    float sample_val = TfLiteRound(func(min + i * step) * 32768.0f);
-    float midpoint_interp_val =
-        TfLiteRound((func(min + (i + 1) * step) * 32768.0f +
-                     TfLiteRound(func(min + i * step) * 32768.0f)) /
-                    2.0f);
-    float midpoint_val =
-        TfLiteRound(func(min + i * step + half_step) * 32768.0f);
-    float midpoint_err = midpoint_interp_val - midpoint_val;
-    float bias = TfLiteRound(midpoint_err / 2.0f);
-    table[i] = std::min<float>(std::max<float>(sample_val - bias, -32768.0f),
-                               32767.0f);
-  }
-  table[num - 1] = std::min<float>(
-      std::max<float>(TfLiteRound(func(max) * 32768.0f), -32768.0f), 32767.0f);
+template <typename FloatT, typename Func>
+inline typename std::enable_if<
+    std::is_same<Func, FloatT (*)(FloatT, const void*)>::value, FloatT>::type
+LUTTransform(Func transform, const void* transform_params, FloatT value) {
+  static_assert(std::is_floating_point<FloatT>::value,
+                "FloatT must be a floating-point type.");
+  return transform(value, transform_params);
 }
 
-// int16_t func table lookup, e.g., lookup exp() and 1/(1+x) used in softmax
-inline int16_t generic_int16_table_lookup(int16_t value, const int16_t* lut) {
-  // 512 base value, lut[513] only for calculate slope
-  uint16_t index = static_cast<uint16_t>(256 + (value >> 7));
+// Use the same LUT generation code for both uint8_t and int8_t. Int8_t indexes
+// will be directly casted to uint8_t, the int8 LUT will thus be ordered as [0,
+// 1, ..., 127, -128, ..., -2, -1] instead of [-128, -127, ..., -1, 0, 1, ...,
+// 126, 127].
+template <typename T, typename Func>
+inline void LUTPopulateInt8(float input_scale, int32_t input_zero_point,
+                            float output_scale, int32_t output_zero_point,
+                            Func transform, const void* transform_params,
+                            T* lut) {
+  static_assert(
+      std::is_same<T, uint8_t>::value || std::is_same<T, int8_t>::value,
+      "T must be an uint8 or int8 type.");
+  uint8_t* lut_uint8 = reinterpret_cast<uint8_t*>(lut);
+  const float inverse_scale = 1 / output_scale;
+  int32_t maxval = std::numeric_limits<T>::max();
+  int32_t minval = std::numeric_limits<T>::min();
+  for (int32_t val = minval; val <= maxval; ++val) {
+    const float dequantized = input_scale * (val - input_zero_point);
+    const float transformed =
+        LUTTransform(transform, transform_params, dequantized);
+    const float rescaled = TfLiteRound(transformed * inverse_scale);
+    const int32_t quantized =
+        static_cast<int32_t>(rescaled + output_zero_point);
+    lut_uint8[static_cast<uint8_t>(static_cast<T>(val))] = static_cast<uint8_t>(
+        static_cast<T>(std::max(std::min(maxval, quantized), minval)));
+  }
+}
+
+// Keep floating-point type configurable for backward compatibility. float
+// should be used for FloatT by default.
+template <typename FloatT, typename Func>
+inline void LUTPopulateInt16(FloatT input_scale, int32_t input_zero_point,
+                             FloatT output_scale, int32_t output_zero_point,
+                             Func transform, const void* transform_params,
+                             int16_t* lut) {
+  static_assert(std::is_floating_point<FloatT>::value,
+                "FloatT must be a floating-point type.");
+  const FloatT input_min =
+      input_scale * (std::numeric_limits<int16_t>::min() - input_zero_point);
+  const FloatT input_max =
+      input_scale * (std::numeric_limits<int16_t>::max() - input_zero_point);
+  const FloatT output_min =
+      output_scale * (std::numeric_limits<int16_t>::min() - output_zero_point);
+  const FloatT output_max =
+      output_scale * (std::numeric_limits<int16_t>::max() - output_zero_point);
+
+  const int nb_steps = 512;
+  const FloatT step = (input_max - input_min) / nb_steps;
+  const FloatT half_step = step / 2;
+  const FloatT output_scaling_inv =
+      static_cast<FloatT>(std::numeric_limits<int16_t>::max() -
+                          std::numeric_limits<int16_t>::min() + 1) /
+      (output_max - output_min);
+  const FloatT table_min =
+      static_cast<FloatT>(std::numeric_limits<int16_t>::min());
+  const FloatT table_max =
+      static_cast<FloatT>(std::numeric_limits<int16_t>::max());
+
+  for (int i = 0; i < nb_steps; i++) {
+    const FloatT val =
+        LUTTransform<FloatT>(transform, transform_params, input_min + i * step);
+    const FloatT val_midpoint = LUTTransform<FloatT>(
+        transform, transform_params, input_min + i * step + half_step);
+    const FloatT val_next = LUTTransform<FloatT>(transform, transform_params,
+                                                 input_min + (i + 1) * step);
+
+    const FloatT sample_val = TfLiteRound(val * output_scaling_inv);
+    const FloatT midpoint_interp_val =
+        TfLiteRound((val_next * output_scaling_inv +
+                     TfLiteRound(val * output_scaling_inv)) /
+                    2);
+    const FloatT midpoint_val = TfLiteRound(val_midpoint * output_scaling_inv);
+    const FloatT midpoint_err = midpoint_interp_val - midpoint_val;
+    const FloatT bias = TfLiteRound(midpoint_err / 2);
+
+    lut[i] = static_cast<int16_t>(std::min<FloatT>(
+        std::max<FloatT>(sample_val - bias, table_min), table_max));
+  }
+
+  lut[nb_steps] = static_cast<int16_t>(std::min<FloatT>(
+      std::max<FloatT>(TfLiteRound(LUTTransform<FloatT>(
+                                       transform, transform_params, input_max) *
+                                   output_scaling_inv),
+                       table_min),
+      table_max));
+}
+
+}  // namespace detail
+
+template <typename T>
+inline typename std::enable_if<std::is_same<T, uint8_t>::value ||
+                                   std::is_same<T, int8_t>::value,
+                               void>::type
+LUTPopulate(float input_scale, int32_t input_zero_point, float output_scale,
+            int32_t output_zero_point, float (*transform)(float), T* lut) {
+  detail::LUTPopulateInt8(input_scale, input_zero_point, output_scale,
+                          output_zero_point, transform, nullptr, lut);
+}
+
+template <typename T>
+inline typename std::enable_if<std::is_same<T, uint8_t>::value ||
+                                   std::is_same<T, int8_t>::value,
+                               void>::type
+LUTPopulate(float input_scale, int32_t input_zero_point, float output_scale,
+            int32_t output_zero_point, float (*transform)(float, const void*),
+            const void* transform_params, T* lut) {
+  detail::LUTPopulateInt8(input_scale, input_zero_point, output_scale,
+                          output_zero_point, transform, transform_params, lut);
+}
+
+template <typename T>
+inline typename std::enable_if<std::is_same<T, int16_t>::value, void>::type
+LUTPopulate(float input_scale, int32_t input_zero_point, float output_scale,
+            int32_t output_zero_point, float (*transform)(float), T* lut) {
+  detail::LUTPopulateInt16<float>(input_scale, input_zero_point, output_scale,
+                                  output_zero_point, transform, nullptr, lut);
+}
+
+template <typename T>
+inline typename std::enable_if<std::is_same<T, int16_t>::value, void>::type
+LUTPopulate(float input_scale, int32_t input_zero_point, float output_scale,
+            int32_t output_zero_point, float (*transform)(float, const void*),
+            const void* transform_params, T* lut) {
+  detail::LUTPopulateInt16<float>(input_scale, input_zero_point, output_scale,
+                                  output_zero_point, transform,
+                                  transform_params, lut);
+}
+
+// Deprecated, avoid usage and prefer the float version. Kept for
+// backward-compatiblity.
+template <typename T>
+inline typename std::enable_if<std::is_same<T, int16_t>::value, void>::type
+LUTPopulate(double input_scale, int32_t input_zero_point, double output_scale,
+            int32_t output_zero_point, double (*transform)(double), T* lut) {
+  detail::LUTPopulateInt16<double>(input_scale, input_zero_point, output_scale,
+                                   output_zero_point, transform, nullptr, lut);
+}
+
+// The size of the LUT depends on the type of input. For uint8 and int8 inputs a
+// simple 256 entries LUT is used. For int16 inputs the high 9 bits are used for
+// indexing and the 7 remaining bits are used for interpolation. We thus use a
+// 513-entries LUT for int16 cases, 512 for the 9-bit indexing and 1 extra entry
+// to interpolate the last value.
+template <typename T>
+constexpr int LUTSize() {
+  static_assert(std::is_same<T, uint8_t>::value ||
+                    std::is_same<T, int8_t>::value ||
+                    std::is_same<T, int16_t>::value,
+                "Only LUTs with uint8, int8 or int16 inputs are supported.");
+  // As per c++11: constexpr methods cannot have more than one return statement.
+  return (std::is_same<T, uint8_t>::value || std::is_same<T, int8_t>::value)
+             ? 256
+             : 513;
+}
+
+// int16_t -> int16_t table lookup with interpolation
+// LUT must have 513 values
+inline int16_t LUTLookup(int16_t value, const int16_t* lut) {
+  // 512 base values, lut[513] is only used to calculate the slope
+  const uint16_t index = static_cast<uint16_t>(256 + (value >> 7));
   assert(index < 512 && "LUT index out of range.");
-  int16_t offset = value & 0x7f;
+  const int16_t offset = value & 0x7f;
 
-  // base and slope are Q0.15
-  int16_t base = lut[index];
-  int16_t slope = lut[index + 1] - lut[index];
+  // Base and slope are Q0.x
+  const int16_t base = lut[index];
+  const int16_t slope = lut[index + 1] - lut[index];
 
-  // Q0.15 * Q0.7 = Q0.22
-  // Round and convert from Q0.22 to Q0.15
-  int32_t delta = (static_cast<int32_t>(slope) * offset + 64) >> 7;
+  // Q0.x * Q0.7 = Q0.(x + 7)
+  // Round and convert from Q0.(x + 7) to Q0.x
+  const int delta = (slope * offset + 64) >> 7;
 
   // Q0.15 + Q0.15
-  return base + delta;
+  return static_cast<int16_t>(base + delta);
+}
+
+// int8_t -> int8_t table lookup without interpolation
+// LUT must have 256 values
+// LUTPopulate<int8_t> has ordered the LUT so that indexing it with an
+// int8_t is just done by casting it to an uint8_t.
+inline int8_t LUTLookup(int8_t value, const int8_t* lut) {
+  return lut[static_cast<uint8_t>(value)];
+}
+
+// uint8_t -> uint8_t table lookup without interpolation
+// LUT must have 256 values
+inline uint8_t LUTLookup(uint8_t value, const uint8_t* lut) {
+  return lut[value];
 }
 
 // Table of sigmoid(i/24) at 0.16 format - 256 elements.
@@ -575,7 +808,8 @@ log_x_for_x_greater_than_or_equal_to_1_impl(
   //                   InputIntegerBits - z_b_headroom - 0.25);
   const FixedPointAccum z_a_pow_2_adj = SaturatingAddNonGemmlowp(
       FixedPointAccum::FromRaw(SaturatingRoundingMultiplyByPOTParam(
-          InputIntegerBits - z_a_headroom_plus_1, 31 - kAccumIntegerBits)),
+          static_cast<int32_t>(InputIntegerBits - z_a_headroom_plus_1),
+          31 - kAccumIntegerBits)),
       shifted_quarter);
 
   // z_b is treated like z_a, but premultiplying by sqrt(0.5).
@@ -585,7 +819,8 @@ log_x_for_x_greater_than_or_equal_to_1_impl(
       SaturatingRoundingMultiplyByPOTParam(z_a.raw(), z_b_headroom);
   const FixedPointAccum z_b_pow_2_adj = SaturatingSub(
       FixedPointAccum::FromRaw(SaturatingRoundingMultiplyByPOTParam(
-          InputIntegerBits - z_b_headroom, 31 - kAccumIntegerBits)),
+          static_cast<int32_t>(InputIntegerBits - z_b_headroom),
+          31 - kAccumIntegerBits)),
       shifted_quarter);
 
   const FixedPoint0 r = FixedPoint0::FromRaw(std::min(r_a_raw, r_b_raw));

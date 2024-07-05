@@ -5,13 +5,13 @@
  * Title:        arm_conv_f32.c
  * Description:  Convolution of floating-point sequences
  *
- * $Date:        18. March 2019
- * $Revision:    V1.6.0
+ * $Date:        23 April 2021
+ * $Revision:    V1.9.0
  *
- * Target Processor: Cortex-M cores
+ * Target Processor: Cortex-M and Cortex-A cores
  * -------------------------------------------------------------------- */
 /*
- * Copyright (C) 2010-2019 ARM Limited or its affiliates. All rights reserved.
+ * Copyright (C) 2010-2021 ARM Limited or its affiliates. All rights reserved.
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -45,12 +45,14 @@
  @par            Algorithm
                    Let <code>a[n]</code> and <code>b[n]</code> be sequences of length <code>srcALen</code> and
                    <code>srcBLen</code> samples respectively. Then the convolution
-  <pre>
-     c[n] = a[n] * b[n]
-  </pre>
+                   \f[
+                      c[n] = a[n] * b[n]
+                   \f]
   @par
                    is defined as
-                   \image html ConvolutionEquation.gif
+                   \f[
+                   c[n] = \sum_{k=0}^{srcALen} a[k] b[n-k]
+                   \f]
   @par
                    Note that <code>c[n]</code> is of length <code>srcALen + srcBLen - 1</code> and is defined over the interval <code>n=0, 1, 2, ..., srcALen + srcBLen - 2</code>.
                    <code>pSrcA</code> points to the first input vector of length <code>srcALen</code> and
@@ -62,9 +64,9 @@
                    For each offset \c n, the overlapping portions of a[n] and b[n] are multiplied and summed together.
   @par
                    Note that convolution is a commutative operation:
-  <pre>
-     a[n] * b[n] = b[n] * a[n].
-  </pre>
+                   \f[
+                      a[n] * b[n] = b[n] * a[n].
+                   \f]
   @par
                    This means that switching the A and B arguments to the convolution functions has no effect.
 
@@ -80,6 +82,12 @@
   @par           Opt Versions
                    Opt versions are supported for Q15 and Q7. Design uses internal scratch buffer for getting good optimisation.
                    These versions are optimised in cycles and consumes more memory (Scratch memory) compared to Q15 and Q7 versions
+  
+  @par           Long versions:
+                   For convolution of long vectors, those functions are
+                   no more adapted and will be very slow.
+                   An implementation based upon FFTs should be used.
+
  */
 
 /**

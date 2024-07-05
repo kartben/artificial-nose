@@ -18,7 +18,7 @@ limitations under the License.
 #include <algorithm>
 #include <cmath>
 
-#include "edge-impulse-sdk/tensorflow/lite/c/common.h"
+#include "edge-impulse-sdk/tensorflow/lite/core/c/common.h"
 #include "edge-impulse-sdk/tensorflow/lite/kernels/internal/common.h"
 #include "edge-impulse-sdk/tensorflow/lite/kernels/internal/types.h"
 

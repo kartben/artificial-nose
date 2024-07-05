@@ -5,13 +5,13 @@
  * Title:        arm_vlog_f32.c
  * Description:  Fast vectorized log
  *
- * $Date:        15. Octoboer 2019
- * $Revision:    V1.6.0
+ * $Date:        23 April 2021
+ * $Revision:    V1.9.0
  *
- * Target Processor: Cortex-M cores
+ * Target Processor: Cortex-M and Cortex-A cores
  * -------------------------------------------------------------------- */
 /*
- * Copyright (C) 2010-2019 ARM Limited or its affiliates. All rights reserved.
+ * Copyright (C) 2010-2021 ARM Limited or its affiliates. All rights reserved.
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -30,6 +30,24 @@
 
 #include "edge-impulse-sdk/CMSIS/DSP/Include/dsp/fast_math_functions.h"
 #include "edge-impulse-sdk/CMSIS/DSP/Include/arm_common_tables.h"
+
+
+/**
+  @ingroup groupFastMath
+ */
+
+
+/**
+  @defgroup vlog Vector Log
+
+  Compute the log values of a vector of samples.
+
+ */
+
+/**
+  @addtogroup vlog
+  @{
+ */
 
 #if (defined(ARM_MATH_MVEF) || defined(ARM_MATH_HELIUM) || defined(ARM_MATH_NEON) || defined(ARM_MATH_NEON_EXPERIMENTAL)) && !defined(ARM_MATH_AUTOVECTORIZE)
 #include "edge-impulse-sdk/CMSIS/DSP/Include/arm_vec_math.h"
@@ -97,5 +115,9 @@ void arm_vlog_f32(
       blkCnt--;
    }
 }
+
+/**
+  @} end of vlog group
+ */
 
 #endif // EIDSP_LOAD_CMSIS_DSP_SOURCES

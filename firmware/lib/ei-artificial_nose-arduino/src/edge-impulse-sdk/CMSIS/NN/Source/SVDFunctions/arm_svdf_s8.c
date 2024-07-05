@@ -1,5 +1,7 @@
+#include "edge-impulse-sdk/classifier/ei_classifier_config.h"
+#if EI_CLASSIFIER_TFLITE_LOAD_CMSIS_NN_SOURCES
 /*
- * Copyright (C) 2010-2020 Arm Limited or its affiliates. All rights reserved.
+ * Copyright (C) 2010-2022 Arm Limited or its affiliates.
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -21,8 +23,8 @@
  * Title:        arm_svdf_s8.c
  * Description:  S8 basic SVDF layer function
  *
- * $Date:        09. October 2020
- * $Revision:    V.1.0.1
+ * $Date:        4 May 2022
+ * $Revision:    V.4.0.1
  *
  * Target Processor:  Cortex-M processors
  *
@@ -41,29 +43,29 @@
  */
 
 /*
- * S8 SVDF layer function for TensorFlow Lite
+ * S8 SVDF layer function for TensorFlow Lite with 8 bit state tensor
  *
  * Refer to header file for details.
  *
  */
 
-arm_status arm_svdf_s8(const cmsis_nn_context *input_ctx,
-                       const cmsis_nn_context *output_ctx,
-                       const cmsis_nn_svdf_params *svdf_params,
-                       const cmsis_nn_per_tensor_quant_params *input_quant_params,
-                       const cmsis_nn_per_tensor_quant_params *output_quant_params,
-                       const cmsis_nn_dims *input_dims,
-                       const q7_t *input_data,
-                       const cmsis_nn_dims *state_dims,
-                       q15_t *state_data,
-                       const cmsis_nn_dims *weights_feature_dims,
-                       const q7_t *weights_feature_data,
-                       const cmsis_nn_dims *weights_time_dims,
-                       const q15_t *weights_time_data,
-                       const cmsis_nn_dims *bias_dims,
-                       const q31_t *bias_data,
-                       const cmsis_nn_dims *output_dims,
-                       q7_t *output_data)
+arm_cmsis_nn_status arm_svdf_s8(const cmsis_nn_context *input_ctx,
+                                const cmsis_nn_context *output_ctx,
+                                const cmsis_nn_svdf_params *svdf_params,
+                                const cmsis_nn_per_tensor_quant_params *input_quant_params,
+                                const cmsis_nn_per_tensor_quant_params *output_quant_params,
+                                const cmsis_nn_dims *input_dims,
+                                const q7_t *input_data,
+                                const cmsis_nn_dims *state_dims,
+                                q7_t *state_data,
+                                const cmsis_nn_dims *weights_feature_dims,
+                                const q7_t *weights_feature_data,
+                                const cmsis_nn_dims *weights_time_dims,
+                                const q7_t *weights_time_data,
+                                const cmsis_nn_dims *bias_dims,
+                                const q31_t *bias_data,
+                                const cmsis_nn_dims *output_dims,
+                                q7_t *output_data)
 {
     (void)bias_dims;
     (void)state_dims;
@@ -81,141 +83,193 @@ arm_status arm_svdf_s8(const cmsis_nn_context *input_ctx,
     const int32_t out_activation_max = svdf_params->output_activation.max;
     const int16_t rank = svdf_params->rank;
 
-    int32_t zp_32 = (-zp_in & 0xffff) | ((-zp_in & 0xffff) << 16);
-
     const int32_t input_batches = input_dims->n;
     const int32_t input_height = input_dims->h;
     const int32_t feature_batches = weights_feature_dims->n;
     const int32_t time_batches = weights_time_dims->h;
     const int32_t unit_count = feature_batches / rank;
 
+    if (input_ctx->buf == NULL)
+    {
+        return ARM_CMSIS_NN_ARG_ERROR;
+    }
     q31_t *buffer_a = (q31_t *)input_ctx->buf;
+
+    if (output_ctx->buf == NULL)
+    {
+        return ARM_CMSIS_NN_ARG_ERROR;
+    }
     q31_t *buffer_b = (q31_t *)output_ctx->buf;
 
-    memmove((q15_t *)state_data,
-            (q15_t *)state_data + 1,
-            (size_t)(input_batches * feature_batches * time_batches * (int32_t)sizeof(int16_t)));
+    // Left shift state
+    memmove((int8_t *)state_data,
+            (int8_t *)state_data + 1,
+            (size_t)((input_batches * feature_batches * time_batches - 1) * (int32_t)sizeof(int8_t)));
 
-    q15_t *res_ptr = state_data + (time_batches - 1);
+    // Matrix multiplication input * feature weight
     for (int i_batch = 0; i_batch < input_batches; i_batch++)
     {
-        const q7_t *buffer_1 = weights_feature_data;
-        for (int r = 0; r < feature_batches; r++)
+        q7_t *res_ptr = state_data + (time_batches * i_batch * feature_batches) + (time_batches - 1);
+        const q7_t *weight = weights_feature_data;
+        const q7_t *input = input_data + i_batch * input_height;
+
+        arm_cmsis_nn_status res = arm_nn_vec_mat_mult_t_s8(input,
+                                                           weight,
+                                                           NULL,
+                                                           res_ptr,
+                                                           -zp_in,
+                                                           0,
+                                                           0,
+                                                           multiplier_in,
+                                                           shift_in,
+                                                           input_height,
+                                                           feature_batches,
+                                                           in_activation_min,
+                                                           in_activation_max,
+                                                           time_batches);
+
+        if (res != ARM_CMSIS_NN_SUCCESS)
         {
-            q31_t dot_prod = 0;
-
-            const q7_t *buffer_2 = input_data + i_batch * input_height;
-
-#if defined(ARM_MATH_DSP)
-            int c = 0;
-            int32_t block_count = input_height >> 2;
-            for (int i = 0; i < block_count; i++)
-            {
-                c += 4;
-
-                q31_t r1 = arm_nn_read_q7x4_ia(&buffer_1);
-                q31_t r1_a = __SXTB16(r1);
-                q31_t r1_b = __SXTB16(__ROR((uint32_t)r1, 8));
-
-                q31_t r2 = arm_nn_read_q7x4_ia(&buffer_2);
-                q31_t r2_a = __SXTAB16(zp_32, r2);
-                q31_t r2_b = __SXTAB16(zp_32, __ROR((uint32_t)r2, 8));
-
-                dot_prod = __SMLAD(r1_a, r2_a, dot_prod);
-                dot_prod = __SMLAD(r1_b, r2_b, dot_prod);
-            }
-
-            for (; c < input_height; c++)
-            {
-                dot_prod += *buffer_1 * (*buffer_2 - zp_in);
-                buffer_1++;
-                buffer_2++;
-            }
-#else
-            for (int c = 0; c < input_height; c++)
-            {
-                dot_prod += *buffer_1 * (*buffer_2 - zp_in);
-                buffer_1++;
-                buffer_2++;
-            }
-#endif
-
-            dot_prod = arm_nn_requantize(dot_prod, multiplier_in, shift_in);
-            dot_prod = CLAMP(dot_prod, in_activation_max, in_activation_min);
-            *res_ptr = dot_prod;
-            res_ptr += time_batches;
+            return res;
         }
     }
 
-    for (int i_batch = 0; i_batch < input_batches; i_batch++)
+    // Matrix multiplicate time weight * state tensors
     {
-        q31_t *ptr_a = buffer_a + i_batch * feature_batches;
-
-        const q15_t *v1 = weights_time_data;
-        const q15_t *v2 = state_data + i_batch * time_batches * feature_batches;
-        for (int i_feature_batch = 0; i_feature_batch < feature_batches; i_feature_batch++)
+        q31_t *ptr_a = buffer_a;
+        const int8_t *v2 = state_data;
+        for (int i_batch = 0; i_batch < input_batches; i_batch++)
         {
-            *ptr_a = 0;
+            const int8_t *v1 = weights_time_data;
 
-            int32_t sum = 0;
-#if defined(ARM_MATH_DSP)
-            int j = 0;
-            int32_t block_count = time_batches >> 1;
-            for (int i = 0; i < block_count; i++)
+            for (int i_feature_batch = 0; i_feature_batch < feature_batches; i_feature_batch++)
             {
-                j += 2;
-                q31_t r1 = arm_nn_read_q15x2_ia(&v1);
-                q31_t r2 = arm_nn_read_q15x2_ia(&v2);
+                *ptr_a = 0;
+                int32_t sum = 0;
+#if defined(ARM_MATH_DSP) && !defined(ARM_MATH_MVEI)
+                // Perform matrix multiplication in blocks of four
+                int j = 0;
+                int32_t block_count = time_batches >> 2;
+                for (int i = 0; i < block_count; i++)
+                {
+                    j += 4;
 
-                sum = __SMLAD(r1, r2, sum);
-            }
+                    q31_t r1_1, r1_2, r2_1, r2_2;
+                    v1 = read_and_pad_reordered(v1, &r1_1, &r1_2);
+                    v2 = read_and_pad_reordered(v2, &r2_1, &r2_2);
+                    sum = __SMLAD(r1_1, r2_1, sum);
+                    sum = __SMLAD(r1_2, r2_2, sum);
+                }
 
-            // Process the remaining data
-            for (; j < time_batches; j++)
-            {
-                sum += *v1 * *v2;
-                v1++;
-                v2++;
-            }
+                // Process the remaining data
+                for (; j < time_batches; j++)
+                {
+                    sum += *v1 * *v2;
+                    v1++;
+                    v2++;
+                }
 #else
-            for (int j = 0; j < time_batches; j++)
-            {
-                sum += *v1 * *v2;
-                v1++;
-                v2++;
-            }
+                for (int j = 0; j < time_batches; j++)
+                {
+                    sum += *v1 * *v2;
+                    v1++;
+                    v2++;
+                }
 #endif
 
-            *ptr_a = sum;
-            ptr_a++;
-        }
-    }
-
-    for (int i_batch = 0; i_batch < input_batches; i_batch++)
-    {
-        q31_t *output_data_temp = buffer_b + i_batch * unit_count;
-        q31_t *ptr_a = buffer_a + i_batch * feature_batches;
-
-        for (int i = 0; i < unit_count; i++)
-        {
-            output_data_temp[i] = bias_data[i];
-            for (int j = 0; j < rank; j++)
-            {
-                output_data_temp[i] += *ptr_a;
+                *ptr_a = sum;
                 ptr_a++;
             }
         }
     }
 
+    if (bias_data)
+    {
+        if (unit_count == feature_batches)
+        {
+            for (int i = 0; i < input_batches; i++)
+            {
+                q31_t *output_temp = buffer_b + i * feature_batches;
+                const q31_t *ptr_a = buffer_a + i * feature_batches;
+
+                const int32_t *bi = bias_data;
+                for (int j = 0; j < feature_batches; j++)
+                {
+                    output_temp[j] = ptr_a[j] + bi[j];
+                }
+            }
+        }
+        else
+        {
+            for (int i_batch = 0; i_batch < input_batches; i_batch++)
+            {
+                q31_t *output_data_temp = buffer_b + i_batch * unit_count;
+                q31_t *ptr_a = buffer_a + i_batch * feature_batches;
+
+                for (int i = 0; i < unit_count; i++)
+                {
+                    int32_t sum = bias_data[i];
+                    for (int j = 0; j < rank; j++)
+                    {
+                        sum += *ptr_a;
+                        ptr_a++;
+                    }
+                    output_data_temp[i] = sum;
+                }
+            }
+        }
+    }
+    else
+    {
+        for (int i_batch = 0; i_batch < input_batches; i_batch++)
+        {
+            q31_t *output_data_temp = buffer_b + i_batch * unit_count;
+            q31_t *ptr_a = buffer_a + i_batch * feature_batches;
+
+            for (int i = 0; i < unit_count; i++)
+            {
+                int32_t sum = 0;
+                for (int j = 0; j < rank; j++)
+                {
+                    sum += *ptr_a;
+                    ptr_a++;
+                }
+                output_data_temp[i] = sum;
+            }
+        }
+    }
+
+#if defined(ARM_MATH_MVEI)
+    int32_t num_elements = input_batches * unit_count;
+    const int32_t loop_count = (num_elements + 3) / 4;
+    for (int i_op = 0; i_op < loop_count; i_op++)
+    {
+        mve_pred16_t p = vctp32q((uint32_t)num_elements);
+        int32x4_t op = vldrwq_z_s32(buffer_b, p);
+        op = arm_requantize_mve(op, multiplier_out, shift_2);
+        op = vaddq_n_s32(op, zp_out);
+        const int32x4_t min_vec = vdupq_n_s32((int8_t)out_activation_min);
+        const int32x4_t max_vec = vdupq_n_s32((int8_t)out_activation_max);
+        op = vmaxq_s32(op, min_vec);
+        op = vminq_s32(op, max_vec);
+        vstrbq_p_s32(output_data, op, p);
+        output_data += 4;
+        buffer_b += 4;
+        num_elements -= 4;
+    }
+#else
     for (int i = 0; i < input_batches * unit_count; i++)
     {
         output_data[i] = (q7_t)CLAMP(
             arm_nn_requantize(buffer_b[i], multiplier_out, shift_2) + zp_out, out_activation_max, out_activation_min);
     }
+#endif
 
-    return (ARM_MATH_SUCCESS);
+    return (ARM_CMSIS_NN_SUCCESS);
 }
 
 /**
  * @} end of SVDF group
  */
+
+#endif // EI_CLASSIFIER_TFLITE_LOAD_CMSIS_NN_SOURCES

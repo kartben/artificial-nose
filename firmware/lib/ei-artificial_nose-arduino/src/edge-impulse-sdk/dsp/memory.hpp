@@ -1,23 +1,18 @@
-/* Edge Impulse inferencing library
- * Copyright (c) 2021 EdgeImpulse Inc.
+/*
+ * Copyright (c) 2022 EdgeImpulse Inc.
  *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an "AS
+ * IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+ * express or implied. See the License for the specific language
+ * governing permissions and limitations under the License.
  *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 #ifndef _EIDSP_MEMORY_H_
@@ -25,7 +20,10 @@
 
 // clang-format off
 #include <stdio.h>
+#include <memory>
 #include "../porting/ei_classifier_porting.h"
+#include "edge-impulse-sdk/classifier/ei_aligned_malloc.h"
+#include "config.hpp"
 
 extern size_t ei_memory_in_use;
 extern size_t ei_memory_peak_use;
@@ -35,6 +33,17 @@ extern size_t ei_memory_peak_use;
 #else
 #define ei_dsp_printf           (void)
 #endif
+
+typedef std::unique_ptr<void, void(*)(void*)> ei_unique_ptr_t;
+#define EI_ALLOCATE_AUTO_POINTER(ptr, size) \
+    ptr = static_cast<decltype(ptr)>(ei_calloc(size,sizeof(*ptr))); \
+    ei_unique_ptr_t __ptr__(ptr,ei_free);
+
+#define EI_ERR_AND_RETURN_ON_NULL(ptr,code) \
+    if( ! (ptr) ) { \
+        ei_printf("Null check failed\n"); \
+        return code; \
+    }
 
 namespace ei {
 
@@ -54,7 +63,7 @@ namespace ei {
         if (ei_memory_in_use > ei_memory_peak_use) { \
             ei_memory_peak_use = ei_memory_in_use; \
         } \
-        ei_dsp_printf("alloc %lu bytes (in_use=%lu, peak=%lu) (%s@%s:%d) %p\n", \
+        ei_dsp_printf("alloc %lu bytes (in_use=%lu, peak=%lu) (%s@ %s:%d) %p\n", \
             (unsigned long)bytes, (unsigned long)ei_memory_in_use, (unsigned long)ei_memory_peak_use, fn, file, line, ptr);
 
     /**
@@ -69,7 +78,7 @@ namespace ei {
         if (ei_memory_in_use > ei_memory_peak_use) { \
             ei_memory_peak_use = ei_memory_in_use; \
         } \
-        ei_dsp_printf("alloc matrix %lu x %lu = %lu bytes (in_use=%lu, peak=%lu) (%s@%s:%d) %p\n", \
+        ei_dsp_printf("alloc matrix %lu x %lu = %lu bytes (in_use=%lu, peak=%lu) (%s@ %s:%d) %p\n", \
             (unsigned long)rows, (unsigned long)cols, (unsigned long)(rows * cols * type_size), (unsigned long)ei_memory_in_use, \
                 (unsigned long)ei_memory_peak_use, fn, file, line, ptr);
 
@@ -79,7 +88,7 @@ namespace ei {
      */
     #define ei_dsp_register_free_internal(fn, file, line, bytes, ptr) \
         ei_memory_in_use -= bytes; \
-        ei_dsp_printf("free %lu bytes (in_use=%lu, peak=%lu) (%s@%s:%d) %p\n", \
+        ei_dsp_printf("free %lu bytes (in_use=%lu, peak=%lu) (%s@ %s:%d) %p\n", \
             (unsigned long)bytes, (unsigned long)ei_memory_in_use, (unsigned long)ei_memory_peak_use, fn, file, line, ptr);
 
     /**
@@ -91,7 +100,7 @@ namespace ei {
      */
     #define ei_dsp_register_matrix_free_internal(fn, file, line, rows, cols, type_size, ptr) \
         ei_memory_in_use -= (rows * cols * type_size); \
-        ei_dsp_printf("free matrix %lu x %lu = %lu bytes (in_use=%lu, peak=%lu) (%s@%s:%d) %p\n", \
+        ei_dsp_printf("free matrix %lu x %lu = %lu bytes (in_use=%lu, peak=%lu) (%s@ %s:%d) %p\n", \
             (unsigned long)rows, (unsigned long)cols, (unsigned long)(rows * cols * type_size), \
                 (unsigned long)ei_memory_in_use, (unsigned long)ei_memory_peak_use, fn, file, line, ptr);
 
@@ -106,10 +115,6 @@ namespace ei {
     #define EI_DSP_MATRIX_B(name, ...) matrix_t name(__VA_ARGS__, __func__, __FILE__, __LINE__); if (!name.buffer) { EIDSP_ERR(EIDSP_OUT_OF_MEM); }
     #define EI_DSP_QUANTIZED_MATRIX(name, ...) quantized_matrix_t name(__VA_ARGS__, NULL, __func__, __FILE__, __LINE__); if (!name.buffer) { EIDSP_ERR(EIDSP_OUT_OF_MEM); }
     #define EI_DSP_QUANTIZED_MATRIX_B(name, ...) quantized_matrix_t name(__VA_ARGS__, __func__, __FILE__, __LINE__); if (!name.buffer) { EIDSP_ERR(EIDSP_OUT_OF_MEM); }
-    #define EI_DSP_i16_MATRIX(name, rows, cols) matrix_i16_t name(rows, cols, NULL, __func__, __FILE__, __LINE__); if (!name.buffer) { EIDSP_ERR(EIDSP_OUT_OF_MEM); }
-    #define EI_DSP_i16_MATRIX_B(name, ...) matrix_i16_t name(__VA_ARGS__, __func__, __FILE__, __LINE__); if (!name.buffer) { EIDSP_ERR(EIDSP_OUT_OF_MEM); }
-    #define EI_DSP_i32_MATRIX(name, rows, cols) matrix_i32_t name(rows, cols, NULL, __func__, __FILE__, __LINE__); if (!name.buffer) { EIDSP_ERR(EIDSP_OUT_OF_MEM); }
-    #define EI_DSP_i32_MATRIX_B(name, ...) matrix_i32_t name(__VA_ARGS__, __func__, __FILE__, __LINE__); if (!name.buffer) { EIDSP_ERR(EIDSP_OUT_OF_MEM); }
 #else
     #define ei_dsp_register_alloc(...) (void)0
     #define ei_dsp_register_matrix_alloc(...) (void)0
@@ -122,10 +127,6 @@ namespace ei {
     #define EI_DSP_MATRIX_B(name, ...) matrix_t name(__VA_ARGS__); if (!name.buffer) { EIDSP_ERR(EIDSP_OUT_OF_MEM); }
     #define EI_DSP_QUANTIZED_MATRIX(name, ...) quantized_matrix_t name(__VA_ARGS__); if (!name.buffer) { EIDSP_ERR(EIDSP_OUT_OF_MEM); }
     #define EI_DSP_QUANTIZED_MATRIX_B(name, ...) quantized_matrix_t name(__VA_ARGS__); if (!name.buffer) { EIDSP_ERR(EIDSP_OUT_OF_MEM); }
-    #define EI_DSP_i16_MATRIX(name, ...) matrix_i16_t name(__VA_ARGS__); if (!name.buffer) { EIDSP_ERR(EIDSP_OUT_OF_MEM); }
-    #define EI_DSP_i16_MATRIX_B(name, ...) matrix_i16_t name(__VA_ARGS__); if (!name.buffer) { EIDSP_ERR(EIDSP_OUT_OF_MEM); }
-    #define EI_DSP_i32_MATRIX(name, ...) matrix_i32_t name(__VA_ARGS__); if (!name.buffer) { EIDSP_ERR(EIDSP_OUT_OF_MEM); }
-    #define EI_DSP_i32_MATRIX_B(name, ...) matrix_i32_t name(__VA_ARGS__); if (!name.buffer) { EIDSP_ERR(EIDSP_OUT_OF_MEM); }
 #endif
 
 #if EIDSP_TRACK_ALLOCATIONS

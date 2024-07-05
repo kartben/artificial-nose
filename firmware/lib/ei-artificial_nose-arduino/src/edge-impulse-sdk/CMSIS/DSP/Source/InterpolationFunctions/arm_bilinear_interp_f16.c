@@ -5,13 +5,13 @@
  * Title:        arm_bilinear_interp_f16.c
  * Description:  Floating-point bilinear interpolation
  *
- * $Date:        22 July 2020
+ * $Date:        23 April 2021
  * $Revision:    V1.9.0
  *
- * Target Processor: Cortex-M cores
+ * Target Processor: Cortex-M and Cortex-A cores
  * -------------------------------------------------------------------- */
 /*
- * Copyright (C) 2010-2020 ARM Limited or its affiliates. All rights reserved.
+ * Copyright (C) 2010-2021 ARM Limited or its affiliates. All rights reserved.
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -37,57 +37,6 @@
   @ingroup groupInterpolation
  */
 
-/**
-   * @defgroup BilinearInterpolate Bilinear Interpolation
-   *
-   * Bilinear interpolation is an extension of linear interpolation applied to a two dimensional grid.
-   * The underlying function <code>f(x, y)</code> is sampled on a regular grid and the interpolation process
-   * determines values between the grid points.
-   * Bilinear interpolation is equivalent to two step linear interpolation, first in the x-dimension and then in the y-dimension.
-   * Bilinear interpolation is often used in image processing to rescale images.
-   * The CMSIS DSP library provides bilinear interpolation functions for Q7, Q15, Q31, and floating-point data types.
-   *
-   * <b>Algorithm</b>
-   * \par
-   * The instance structure used by the bilinear interpolation functions describes a two dimensional data table.
-   * For floating-point, the instance structure is defined as:
-   * <pre>
-   *   typedef struct
-   *   {
-   *     uint16_t numRows;
-   *     uint16_t numCols;
-   *     float16_t *pData;
-   * } arm_bilinear_interp_instance_f16;
-   * </pre>
-   *
-   * \par
-   * where <code>numRows</code> specifies the number of rows in the table;
-   * <code>numCols</code> specifies the number of columns in the table;
-   * and <code>pData</code> points to an array of size <code>numRows*numCols</code> values.
-   * The data table <code>pTable</code> is organized in row order and the supplied data values fall on integer indexes.
-   * That is, table element (x,y) is located at <code>pTable[x + y*numCols]</code> where x and y are integers.
-   *
-   * \par
-   * Let <code>(x, y)</code> specify the desired interpolation point.  Then define:
-   * <pre>
-   *     XF = floor(x)
-   *     YF = floor(y)
-   * </pre>
-   * \par
-   * The interpolated output point is computed as:
-   * <pre>
-   *  f(x, y) = f(XF, YF) * (1-(x-XF)) * (1-(y-YF))
-   *           + f(XF+1, YF) * (x-XF)*(1-(y-YF))
-   *           + f(XF, YF+1) * (1-(x-XF))*(y-YF)
-   *           + f(XF+1, YF+1) * (x-XF)*(y-YF)
-   * </pre>
-   * Note that the coordinates (x, y) contain integer and fractional components.
-   * The integer components specify which portion of the table to use while the
-   * fractional components control the interpolation processor.
-   *
-   * \par
-   * if (x,y) are outside of the table boundary, Bilinear interpolation returns zero output.
-   */
 
 
   /**
@@ -143,18 +92,19 @@
 
     /* Calculation of intermediate values */
     b1 = f00;
-    b2 = f01 - f00;
-    b3 = f10 - f00;
-    b4 = f00 - f01 - f10 + f11;
+    b2 = (_Float16)f01 - (_Float16)f00;
+    b3 = (_Float16)f10 - (_Float16)f00;
+    b4 = (_Float16)f00 - (_Float16)f01 - (_Float16)f10 + (_Float16)f11;
 
     /* Calculation of fractional part in X */
-    xdiff = X - xIndex;
+    xdiff = (_Float16)X - (_Float16)xIndex;
 
     /* Calculation of fractional part in Y */
-    ydiff = Y - yIndex;
+    ydiff = (_Float16)Y - (_Float16)yIndex;
 
     /* Calculation of bi-linear interpolated output */
-    out = b1 + b2 * xdiff + b3 * ydiff + b4 * xdiff * ydiff;
+    out = (_Float16)b1 + (_Float16)b2 * (_Float16)xdiff + 
+    (_Float16)b3 * (_Float16)ydiff + (_Float16)b4 * (_Float16)xdiff * (_Float16)ydiff;
 
     /* return to application */
     return (out);

@@ -5,13 +5,13 @@
  * Title:        arm_mat_sub_f64.c
  * Description:  Floating-point matrix subtraction
  *
- * $Date:        18. March 2019
- * $Revision:    V1.6.0
+ * $Date:        23 April 2021
+ * $Revision:    V1.9.0
  *
- * Target Processor: Cortex-M cores
+ * Target Processor: Cortex-M and Cortex-A cores
  * -------------------------------------------------------------------- */
 /*
- * Copyright (C) 2010-2019 ARM Limited or its affiliates. All rights reserved.
+ * Copyright (C) 2010-2021 ARM Limited or its affiliates. All rights reserved.
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -34,16 +34,6 @@
   @ingroup groupMatrix
  */
 
-/**
-  @defgroup MatrixSub Matrix Subtraction
-
-  Subtract two matrices.
-  \image html MatrixSubtraction.gif "Subraction of two 3 x 3 matrices"
-
-  The functions check to make sure that
-  <code>pSrcA</code>, <code>pSrcB</code>, and <code>pDst</code> have the same
-  number of rows and columns.
- */
 
 /**
   @addtogroup MatrixSub

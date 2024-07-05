@@ -3,13 +3,13 @@
  * Title:        arm_helium_utils.h
  * Description:  Utility functions for Helium development
  *
- * $Date:        09. September 2019
- * $Revision:    V.1.5.1
+ * @version  V1.10.0
+ * @date     08 July 2021
  *
- * Target Processor: Cortex-M cores
+ * Target Processor: Cortex-M and Cortex-A cores
  * -------------------------------------------------------------------- */
 /*
- * Copyright (C) 2010-2019 ARM Limited or its affiliates. All rights reserved.
+ * Copyright (C) 2010-2021 ARM Limited or its affiliates. All rights reserved.
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -335,7 +335,7 @@ __STATIC_INLINE arm_status arm_mat_cmplx_trans_32bit(
         /*
          * Set status as ARM_MATH_SIZE_MISMATCH
          */
-        return = ARM_MATH_SIZE_MISMATCH;
+        return ARM_MATH_SIZE_MISMATCH;
     }
 #else
     (void)dstRows;
@@ -535,7 +535,7 @@ __STATIC_INLINE arm_status arm_mat_cmplx_trans_16bit(
         /*
          * Set status as ARM_MATH_SIZE_MISMATCH
          */
-        return = ARM_MATH_SIZE_MISMATCH;
+        return ARM_MATH_SIZE_MISMATCH;
     }
 #else
     (void)dstRows;
@@ -620,7 +620,7 @@ __STATIC_INLINE q31x4_t FAST_VSQRT_Q31(q31x4_t vecIn)
 
 
     vecSignBits = vclsq(vecIn);
-    vecSignBits = vbicq(vecSignBits, 1);
+    vecSignBits = vbicq_n_s32(vecSignBits, 1);
     /*
      * in = in << no_of_sign_bits;
      */
@@ -687,7 +687,7 @@ __STATIC_INLINE q15x8_t FAST_VSQRT_Q15(q15x8_t vecIn)
     vecDst = vuninitializedq_s16();
 
     vecSignBits = vclsq(vecIn);
-    vecSignBits = vbicq(vecSignBits, 1);
+    vecSignBits = vbicq_n_s16(vecSignBits, 1);
     /*
      * in = in << no_of_sign_bits;
      */

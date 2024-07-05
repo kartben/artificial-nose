@@ -5,13 +5,13 @@
  * Title:        arm_biquad_cascade_df1_f16.c
  * Description:  Processing function for the floating-point Biquad cascade DirectFormI(DF1) filter
  *
- * $Date:        18. March 2020
- * $Revision:    V1.6.0
+ * $Date:        23 April 2021
+ * $Revision:    V1.9.0
  *
- * Target Processor: Cortex-M cores
+ * Target Processor: Cortex-M and Cortex-A cores
  * -------------------------------------------------------------------- */
 /*
- * Copyright (C) 2010-2020 ARM Limited or its affiliates. All rights reserved.
+ * Copyright (C) 2010-2021 ARM Limited or its affiliates. All rights reserved.
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -65,7 +65,7 @@ void arm_biquad_cascade_df1_f16(
     const float16_t *pCoeffs = S->pCoeffs;    /*  coefficient pointer       */
     float16_t Xn1, Xn2, Yn1, Yn2;   /*  Filter pState variables   */
     float16_t X0, X1, X2, X3;   /*  temporary input           */
-    float16_t X4, X5, X6, X7;   /*  temporary input           */
+    float16_t X4, X5, X6, X7 = 0;   /*  temporary input           */
     _Float16 lastX, lastY;             /*  X,Y history for tail handling */
     f16x8_t coeffs;
     f16x8_t accVec;           /* accumultor vector */
@@ -491,4 +491,5 @@ void arm_biquad_cascade_df1_f16(
 #endif /* #if defined(ARM_MATH_MVE_FLOAT16) && !defined(ARM_MATH_AUTOVECTORIZE) */
 
 #endif /*#if defined(ARM_FLOAT16_SUPPORTED)*/
+
 #endif // EIDSP_LOAD_CMSIS_DSP_SOURCES

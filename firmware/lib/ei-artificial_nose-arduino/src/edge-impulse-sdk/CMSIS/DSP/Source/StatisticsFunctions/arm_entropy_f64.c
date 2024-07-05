@@ -5,11 +5,13 @@
  * Title:        arm_logsumexp_f64.c
  * Description:  LogSumExp
  *
+ * $Date:        23 April 2021
+ * $Revision:    V1.9.0
  *
  * Target Processor: Cortex-M and Cortex-A cores
  * -------------------------------------------------------------------- */
 /*
- * Copyright (C) 2010-2020 ARM Limited or its affiliates. All rights reserved.
+ * Copyright (C) 2010-2021 ARM Limited or its affiliates. All rights reserved.
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -53,7 +55,7 @@ float64_t arm_entropy_f64(const float64_t * pSrcA, uint32_t blockSize)
     pIn = pSrcA;
     blkCnt = blockSize;
 
-    accum = 0.0f;
+    accum = 0.0;
 
     while(blkCnt > 0)
     {

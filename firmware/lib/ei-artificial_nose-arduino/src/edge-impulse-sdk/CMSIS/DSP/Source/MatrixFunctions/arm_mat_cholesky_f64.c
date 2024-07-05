@@ -5,11 +5,13 @@
  * Title:        arm_mat_cholesky_f64.c
  * Description:  Floating-point Cholesky decomposition
  *
+ * $Date:        23 April 2021
+ * $Revision:    V1.9.0
  *
- * Target Processor: Cortex-M cores
+ * Target Processor: Cortex-M and Cortex-A cores
  * -------------------------------------------------------------------- */
 /*
- * Copyright (C) 2010-2020 ARM Limited or its affiliates. All rights reserved.
+ * Copyright (C) 2010-2021 ARM Limited or its affiliates. All rights reserved.
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -27,6 +29,7 @@
  */
 
 #include "edge-impulse-sdk/CMSIS/DSP/Include/dsp/matrix_functions.h"
+#include "edge-impulse-sdk/CMSIS/DSP/Include/dsp/matrix_utils.h"
 
 /**
   @ingroup groupMatrix
@@ -48,7 +51,7 @@
                    - \ref ARM_MATH_DECOMPOSITION_FAILURE      : Input matrix cannot be decomposed
    * @par
    * If the matrix is ill conditioned or only semi-definite, then it is better using the LDL^t decomposition.
-   * The decomposition of A is returning a lower triangular matrix U such that A = U U^t
+   * The decomposition of A is returning a lower triangular matrix L such that A = L L^t
    */
 
 
@@ -96,16 +99,14 @@ arm_status arm_mat_cholesky_f64(
           }
        }
 
-       if (pG[i * n + i] <= 0.0f)
+       if (pG[i * n + i] <= 0.0)
        {
          return(ARM_MATH_DECOMPOSITION_FAILURE);
        }
 
        invSqrtVj = 1.0/sqrt(pG[i * n + i]);
-       for(j=i ; j < n ; j++)
-       {
-         pG[j * n + i] = pG[j * n + i] * invSqrtVj ;
-       }
+       SCALE_COL_F64(pDst,i,invSqrtVj,i);
+
     }
 
     status = ARM_MATH_SUCCESS;

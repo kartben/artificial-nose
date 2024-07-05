@@ -1,8 +1,9 @@
 /******************************************************************************
  * @file     svm_functions_f16.h
  * @brief    Public header file for CMSIS DSP Library
- * @version  V1.9.0
- * @date     20. July 2020
+ * @version  V1.10.0
+ * @date     08 July 2021
+ * Target Processor: Cortex-M and Cortex-A cores
  ******************************************************************************/
 /*
  * Copyright (c) 2010-2020 Arm Limited or its affiliates. All rights reserved.
@@ -33,6 +34,7 @@
 #include "edge-impulse-sdk/CMSIS/DSP/Include/dsp/utils.h"
 #include "edge-impulse-sdk/CMSIS/DSP/Include/dsp/svm_defines.h"
 
+
 #ifdef   __cplusplus
 extern "C"
 {
@@ -56,24 +58,6 @@ extern "C"
  * 
  */
 
-/**
- * @brief Integer exponentiation
- * @param[in]    x           value
- * @param[in]    nb          integer exponent >= 1
- * @return x^nb
- *
- */
-__STATIC_INLINE float16_t arm_exponent_f16(float16_t x, int32_t nb)
-{
-    float16_t r = x;
-    nb --;
-    while(nb > 0)
-    {
-        r = r * x;
-        nb--;
-    }
-    return(r);
-}
 
 
 /**
@@ -131,7 +115,7 @@ typedef struct
   const float16_t *dualCoefficients;      /**< Dual coefficients */
   const float16_t *supportVectors;        /**< Support vectors */
   const int32_t   *classes;               /**< The two SVM classes */
-  float16_t       coef0;                  /**< Independant constant */
+  float16_t       coef0;                  /**< Independent constant */
   float16_t       gamma;                  /**< Gamma factor */
 } arm_svm_sigmoid_instance_f16;
 

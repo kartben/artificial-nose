@@ -1,3 +1,5 @@
+#include "edge-impulse-sdk/classifier/ei_classifier_config.h"
+#if EI_CLASSIFIER_TFLITE_LOAD_CMSIS_NN_SOURCES
 /*
  * Copyright (C) 2010-2018 Arm Limited or its affiliates. All rights reserved.
  *
@@ -201,3 +203,5 @@ const q15_t tanhHTable_q15[192] = {
     0x803c, 0x8044, 0x804d, 0x8057, 0x8062, 0x806f, 0x807e, 0x808f, 0x80a2, 0x80b8, 0x80d0, 0x80ec, 0x810b, 0x812e,
     0x8156, 0x8183, 0x81b7, 0x81f1, 0x8232, 0x827c, 0x82d0, 0x832f, 0x839a, 0x8412,
 };
+
+#endif // EI_CLASSIFIER_TFLITE_LOAD_CMSIS_NN_SOURCES

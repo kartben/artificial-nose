@@ -5,8 +5,10 @@
  * Title:        arm_bitreversal_f16.c
  * Description:  Bitreversal functions
  *
+ * $Date:        23 April 2021
+ * $Revision:    V1.9.0
  *
- * Target Processor: Cortex-M cores
+ * Target Processor: Cortex-M and Cortex-A cores
  * -------------------------------------------------------------------- */
 /*
  * Copyright (C) 2010-2021 ARM Limited or its affiliates. All rights reserved.
@@ -100,4 +102,5 @@ const uint16_t * pBitRevTab)
    }
 }
 #endif /* #if defined(ARM_FLOAT16_SUPPORTED) */
+
 #endif // EIDSP_LOAD_CMSIS_DSP_SOURCES

@@ -1,3 +1,5 @@
+#include "edge-impulse-sdk/classifier/ei_classifier_config.h"
+#if EI_CLASSIFIER_TFLITE_LOAD_CMSIS_NN_SOURCES
 /*
  * Copyright (C) 2010-2020 Arm Limited or its affiliates. All rights reserved.
  *
@@ -94,3 +96,5 @@ void arm_nn_activations_direct_q15(q15_t *data, uint16_t size, uint16_t int_widt
 /**
  * @} end of Acti group
  */
+
+#endif // EI_CLASSIFIER_TFLITE_LOAD_CMSIS_NN_SOURCES

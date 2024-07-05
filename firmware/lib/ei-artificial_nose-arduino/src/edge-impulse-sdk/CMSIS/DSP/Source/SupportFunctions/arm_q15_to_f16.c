@@ -5,13 +5,13 @@
  * Title:        arm_q15_to_float.c
  * Description:  Converts the elements of the Q15 vector to floating-point vector
  *
- * $Date:        18. March 2020
- * $Revision:    V1.6.0
+ * $Date:        23 April 2021
+ * $Revision:    V1.9.0
  *
- * Target Processor: Cortex-M cores
+ * Target Processor: Cortex-M and Cortex-A cores
  * -------------------------------------------------------------------- */
 /*
- * Copyright (C) 2010-2020 ARM Limited or its affiliates. All rights reserved.
+ * Copyright (C) 2010-2021 ARM Limited or its affiliates. All rights reserved.
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -38,7 +38,7 @@
  */
 
 /**
- * @defgroup q15_to_x  Convert 16-bit Integer value
+ * @defgroup q15_to_x  Convert 16-bit fixed point value
  */
 
 /**
@@ -116,10 +116,10 @@ void arm_q15_to_f16(
     /* C = (float16_t) A / 32768 */
 
     /* Convert from q15 to float and store result in destination buffer */
-    *pDst++ = ((float16_t) * pIn++ / 32768.0f);
-    *pDst++ = ((float16_t) * pIn++ / 32768.0f);
-    *pDst++ = ((float16_t) * pIn++ / 32768.0f);
-    *pDst++ = ((float16_t) * pIn++ / 32768.0f);
+    *pDst++ = ((_Float16) * pIn++ / 32768.0f16);
+    *pDst++ = ((_Float16) * pIn++ / 32768.0f16);
+    *pDst++ = ((_Float16) * pIn++ / 32768.0f16);
+    *pDst++ = ((_Float16) * pIn++ / 32768.0f16);
 
     /* Decrement loop counter */
     blkCnt--;
@@ -140,7 +140,7 @@ void arm_q15_to_f16(
     /* C = (float16_t) A / 32768 */
 
     /* Convert from q15 to float and store result in destination buffer */
-    *pDst++ = ((float16_t) *pIn++ / 32768.0f);
+    *pDst++ = ((_Float16) *pIn++ / 32768.0f16);
 
     /* Decrement loop counter */
     blkCnt--;

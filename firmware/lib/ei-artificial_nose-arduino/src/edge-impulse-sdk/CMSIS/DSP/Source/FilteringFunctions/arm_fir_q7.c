@@ -5,13 +5,13 @@
  * Title:        arm_fir_q7.c
  * Description:  Q7 FIR filter processing function
  *
- * $Date:        18. March 2019
- * $Revision:    V1.6.0
+ * $Date:        23 April 2021
+ * $Revision:    V1.9.0
  *
- * Target Processor: Cortex-M cores
+ * Target Processor: Cortex-M and Cortex-A cores
  * -------------------------------------------------------------------- */
 /*
- * Copyright (C) 2010-2019 ARM Limited or its affiliates. All rights reserved.
+ * Copyright (C) 2010-2021 ARM Limited or its affiliates. All rights reserved.
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -83,14 +83,13 @@
     uint32_t       numTaps = S->numTaps;   /* Number of filter coefficients in the filter */\
     int32_t        blkCnt;                                                                  \
     q7x16_t        vecIn0;                                                                  \
-    const int32_t  nbVecTaps = (NBTAPS / 16);                                     \
                                                                                             \
     /*                                                                                      \
      * load coefs                                                                           \
      */                                                                                     \
-    q7x16_t         vecCoeffs[nbVecTaps];                                                   \
+    q7x16_t         vecCoeffs[NBVECTAPS];                                                   \
                                                                                             \
-    for (int i = 0; i < nbVecTaps; i++)                                                     \
+    for (int i = 0; i < NBVECTAPS; i++)                                                     \
         vecCoeffs[i] = vldrbq_s8(pCoeffs + 16 * i);                               \
                                                                                             \
     /*                                                                                      \
@@ -111,7 +110,7 @@
         pStateCur += 4;                                                                     \
         pTempSrc += 4;                                                                      \
                                                                                             \
-        FIR_Q7_CORE(pOutput, 4, nbVecTaps, pSamples, vecCoeffs);                            \
+        FIR_Q7_CORE(pOutput, 4, NBVECTAPS, pSamples, vecCoeffs);                            \
         pSamples += 4;                                                                      \
                                                                                             \
         blkCnt--;                                                                           \
@@ -123,7 +122,7 @@
     for (int i = 0; i < residual; i++)                                                      \
         *pStateCur++ = *pTempSrc++;                                                         \
                                                                                             \
-    FIR_Q7_CORE(pOutput, residual, nbVecTaps, pSamples, vecCoeffs);                         \
+    FIR_Q7_CORE(pOutput, residual, NBVECTAPS, pSamples, vecCoeffs);                         \
                                                                                             \
                                                                                             \
     /*                                                                                      \
@@ -143,22 +142,50 @@
     while (blkCnt > 0);                                                                     \
 }
 
-static void arm_fir_q7_17_32_mve(const arm_fir_instance_q7 * S, 
+
+static void arm_fir_q7_49_64_mve(const arm_fir_instance_q7 * S,
   const q7_t * __restrict pSrc,
   q7_t * __restrict pDst, uint32_t blockSize)
 {
-    #define NBTAPS 32
+    #define NBTAPS 64
+    #define NBVECTAPS (NBTAPS / 16)
     FIR_Q7_MAIN_CORE();
+    #undef NBVECTAPS
     #undef NBTAPS
 }
 
 
-void arm_fir_q7_1_16_mve(const arm_fir_instance_q7 * S, 
-  const q7_t * __restrict pSrc, 
+void arm_fir_q7_33_48_mve(const arm_fir_instance_q7 * S,
+  const q7_t * __restrict pSrc,
+  q7_t * __restrict pDst, uint32_t blockSize)
+{
+    #define NBTAPS 48
+    #define NBVECTAPS (NBTAPS / 16)
+    FIR_Q7_MAIN_CORE();
+    #undef NBVECTAPS
+    #undef NBTAPS
+}
+
+static void arm_fir_q7_17_32_mve(const arm_fir_instance_q7 * S,
+  const q7_t * __restrict pSrc,
+  q7_t * __restrict pDst, uint32_t blockSize)
+{
+    #define NBTAPS 32
+    #define NBVECTAPS (NBTAPS / 16)
+    FIR_Q7_MAIN_CORE();
+    #undef NBVECTAPS
+    #undef NBTAPS
+}
+
+
+void arm_fir_q7_1_16_mve(const arm_fir_instance_q7 * S,
+  const q7_t * __restrict pSrc,
   q7_t * __restrict pDst, uint32_t blockSize)
 {
     #define NBTAPS 16
+    #define NBVECTAPS (NBTAPS / 16)
     FIR_Q7_MAIN_CORE();
+    #undef NBVECTAPS
     #undef NBTAPS
 }
 
@@ -196,6 +223,22 @@ void arm_fir_q7(
          * [17 to 32 taps] specialized routine
          */
         arm_fir_q7_17_32_mve(S, pSrc, pDst, blockSize);
+        return;
+    }
+    else if (numTaps <= 48)
+    {
+        /*
+         * [33 to 48 taps] specialized routine
+         */
+        arm_fir_q7_33_48_mve(S, pSrc, pDst, blockSize);
+        return;
+    }
+    else if (numTaps <= 64)
+    {
+        /*
+         * [49 to 64 taps] specialized routine
+         */
+        arm_fir_q7_49_64_mve(S, pSrc, pDst, blockSize);
         return;
     }
 
@@ -609,7 +652,7 @@ void arm_fir_q7(
     {
       acc0 += (q15_t) * (px++) * (*(pb++));
       i--;
-    } 
+    }
 
     /* The result is in 2.14 format. Convert to 1.7
        Then store the output in the destination buffer. */

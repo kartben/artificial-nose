@@ -1,5 +1,7 @@
+#include "edge-impulse-sdk/classifier/ei_classifier_config.h"
+#if EI_CLASSIFIER_TFLITE_LOAD_CMSIS_NN_SOURCES
 /*
- * Copyright (C) 2010-2020 Arm Limited or its affiliates. All rights reserved.
+ * Copyright (C) 2010-2022 Arm Limited or its affiliates.
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -21,8 +23,8 @@
  * Title:        arm_depthwise_conv_u8_basic_ver1.c
  * Description:  u8 depthwise convolution function
  *
- * $Date:        09. October 2020
- * $Revision:    V.1.1.1
+ * $Date:        19 April 2022
+ * $Revision:    V.2.0.0
  *
  * Target :  Cortex-M CPUs
  *
@@ -224,7 +226,7 @@ static void depthwise_conv_u8_generic(const uint8_t *input,
  * @param[in]     dilation_x Dilation along width. Not used and intended for future enhancement.
  * @param[in]     dilation_y Dilation along height. Not used and intended for future enhancement.
  * @param[in]     bias       Pointer to optional bias values. If no bias is
- *                           availble, NULL is expected
+ *                           available, NULL is expected
  * @param[in]     input_offset  Input tensor zero offset
  * @param[in]     filter_offset Kernel tensor zero offset
  * @param[in]     output_offset Output tensor zero offset
@@ -236,38 +238,35 @@ static void depthwise_conv_u8_generic(const uint8_t *input,
  * @param[in]     output_shift  Amount of right-shift for output
  * @param[in]     output_mult   Output multiplier for requantization
  * @return        The function returns one of the following
- *                <code>ARM_MATH_SIZE_MISMATCH</code> - Not supported dimension of tensors
- *                <code>ARM_MATH_SUCCESS</code> - Successful operation
- *                <code>ARM_MATH_ARGUMENT_ERROR</code> - Implementation not available
- *
+ *                <code>ARM_CMSIS_NN_SUCCESS</code> - Successful operation
  *
  */
 
-arm_status arm_depthwise_conv_u8_basic_ver1(const uint8_t *input,
-                                            const uint16_t input_x,
-                                            const uint16_t input_y,
-                                            const uint16_t input_ch,
-                                            const uint8_t *kernel,
-                                            const uint16_t kernel_x,
-                                            const uint16_t kernel_y,
-                                            const int16_t ch_mult,
-                                            const int16_t pad_x,
-                                            const int16_t pad_y,
-                                            const int16_t stride_x,
-                                            const int16_t stride_y,
-                                            const int16_t dilation_x,
-                                            const int16_t dilation_y,
-                                            const int32_t *bias,
-                                            const int32_t input_offset,
-                                            const int32_t filter_offset,
-                                            const int32_t output_offset,
-                                            uint8_t *output,
-                                            const uint16_t output_x,
-                                            const uint16_t output_y,
-                                            const int32_t output_activation_min,
-                                            const int32_t output_activation_max,
-                                            const int32_t output_shift,
-                                            const int32_t output_mult)
+arm_cmsis_nn_status arm_depthwise_conv_u8_basic_ver1(const uint8_t *input,
+                                                     const uint16_t input_x,
+                                                     const uint16_t input_y,
+                                                     const uint16_t input_ch,
+                                                     const uint8_t *kernel,
+                                                     const uint16_t kernel_x,
+                                                     const uint16_t kernel_y,
+                                                     const int16_t ch_mult,
+                                                     const int16_t pad_x,
+                                                     const int16_t pad_y,
+                                                     const int16_t stride_x,
+                                                     const int16_t stride_y,
+                                                     const int16_t dilation_x,
+                                                     const int16_t dilation_y,
+                                                     const int32_t *bias,
+                                                     const int32_t input_offset,
+                                                     const int32_t filter_offset,
+                                                     const int32_t output_offset,
+                                                     uint8_t *output,
+                                                     const uint16_t output_x,
+                                                     const uint16_t output_y,
+                                                     const int32_t output_activation_min,
+                                                     const int32_t output_activation_max,
+                                                     const int32_t output_shift,
+                                                     const int32_t output_mult)
 {
     (void)dilation_x;
     (void)dilation_y;
@@ -328,9 +327,11 @@ arm_status arm_depthwise_conv_u8_basic_ver1(const uint8_t *input,
     }
 
     /* Return to application */
-    return ARM_MATH_SUCCESS;
+    return ARM_CMSIS_NN_SUCCESS;
 }
 
 /**
  * @} end of NNConv group
  */
+
+#endif // EI_CLASSIFIER_TFLITE_LOAD_CMSIS_NN_SOURCES

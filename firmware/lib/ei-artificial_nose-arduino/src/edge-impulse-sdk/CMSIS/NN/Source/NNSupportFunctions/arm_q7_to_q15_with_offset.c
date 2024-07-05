@@ -1,3 +1,5 @@
+#include "edge-impulse-sdk/classifier/ei_classifier_config.h"
+#if EI_CLASSIFIER_TFLITE_LOAD_CMSIS_NN_SOURCES
 /*
  * Copyright (C) 2010-2020 Arm Limited or its affiliates. All rights reserved.
  *
@@ -112,3 +114,5 @@ void arm_q7_to_q15_with_offset(const q7_t *src, q15_t *dst, uint32_t block_size,
 /**
  * @} end of nndata_convert group
  */
+
+#endif // EI_CLASSIFIER_TFLITE_LOAD_CMSIS_NN_SOURCES

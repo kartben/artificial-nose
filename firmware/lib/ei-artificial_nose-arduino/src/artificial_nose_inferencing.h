@@ -32,6 +32,9 @@
 #ifdef max
 #undef max
 #endif // max
+#ifdef abs
+#undef abs
+#endif // abs
 #ifdef round
 #undef round
 #endif // round

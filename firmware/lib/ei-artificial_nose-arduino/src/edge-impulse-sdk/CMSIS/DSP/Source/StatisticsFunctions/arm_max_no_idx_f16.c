@@ -5,13 +5,13 @@
  * Title:        arm_max_no_idx_f16.c
  * Description:  Maximum value of a floating-point vector without returning the index
  *
- * $Date:        16. October 2020
- * $Revision:    V1.6.0
+ * $Date:        23 April 2021
+ * $Revision:    V1.9.0
  *
  * Target Processor: Cortex-M and Cortex-A cores
  * -------------------------------------------------------------------- */
 /*
- * Copyright (C) 2010-2020 ARM Limited or its affiliates. All rights reserved.
+ * Copyright (C) 2010-2021 ARM Limited or its affiliates. All rights reserved.
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -97,7 +97,7 @@ void arm_max_no_idx_f16(
         newVal = *pSrc++;
 
         /* compare for the maximum value */
-        if (maxValue < newVal)
+        if ((_Float16)maxValue < (_Float16)newVal)
         {
             /* Update the maximum value and it's index */
             maxValue = newVal;
@@ -124,7 +124,7 @@ void arm_max_no_idx_f16(
        newVal = *pSrc++;
    
        /* compare for the maximum value */
-       if (maxValue < newVal)
+       if ((_Float16)maxValue < (_Float16)newVal)
        {
            /* Update the maximum value and it's index */
            maxValue = newVal;

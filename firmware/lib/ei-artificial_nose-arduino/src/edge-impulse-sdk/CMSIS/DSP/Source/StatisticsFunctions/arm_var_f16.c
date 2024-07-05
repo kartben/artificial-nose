@@ -5,13 +5,13 @@
  * Title:        arm_var_f16.c
  * Description:  Variance of the elements of a floating-point vector
  *
- * $Date:        18. March 2020
- * $Revision:    V1.6.0
+ * $Date:        23 April 2021
+ * $Revision:    V1.9.0
  *
- * Target Processor: Cortex-M cores
+ * Target Processor: Cortex-M and Cortex-A cores
  * -------------------------------------------------------------------- */
 /*
- * Copyright (C) 2010-2020 ARM Limited or its affiliates. All rights reserved.
+ * Copyright (C) 2010-2021 ARM Limited or its affiliates. All rights reserved.
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -63,7 +63,7 @@ void arm_var_f16(
 {
     int32_t         blkCnt;     /* loop counters */
     f16x8_t         vecSrc;
-    f16x8_t         sumVec = vdupq_n_f16((float16_t) 0.0);
+    f16x8_t         sumVec = vdupq_n_f16(0.0f16);
     float16_t       fMean;
 
     if (blockSize <= 1U) {
@@ -73,15 +73,6 @@ void arm_var_f16(
 
 
     arm_mean_f16(pSrc, blockSize, &fMean);
-
-/* 6.14 bug */
-#if defined (__ARMCC_VERSION) && (__ARMCC_VERSION >= 6100100) && (__ARMCC_VERSION < 6150001)
-    __asm volatile(
-        "   vmov.i32                     %[acc], #0 \n"
-        : [acc] "+t"(sumVec)
-        : 
-        : );
-#endif
 
     blkCnt = blockSize;
     do {
@@ -100,7 +91,7 @@ void arm_var_f16(
     while (blkCnt > 0);
     
     /* Variance */
-    *pResult = vecAddAcrossF16Mve(sumVec) / (float16_t) (blockSize - 1.0f);
+    *pResult = (_Float16)vecAddAcrossF16Mve(sumVec) / (_Float16) (blockSize - 1.0f16);
 }
 #else
 
@@ -130,10 +121,10 @@ void arm_var_f16(
   {
     /* C = (A[0] + A[1] + A[2] + ... + A[blockSize-1]) */
 
-    sum += *pInput++;
-    sum += *pInput++;
-    sum += *pInput++;
-    sum += *pInput++;
+    sum += (_Float16)*pInput++;
+    sum += (_Float16)*pInput++;
+    sum += (_Float16)*pInput++;
+    sum += (_Float16)*pInput++;
 
 
     /* Decrement loop counter */
@@ -154,14 +145,14 @@ void arm_var_f16(
   {
     /* C = (A[0] + A[1] + A[2] + ... + A[blockSize-1]) */
 
-    sum += *pInput++;
+    sum += (_Float16)*pInput++;
 
     /* Decrement loop counter */
     blkCnt--;
   }
 
   /* C = (A[0] + A[1] + A[2] + ... + A[blockSize-1]) / blockSize  */
-  fMean = sum / (float16_t) blockSize;
+  fMean = (_Float16)sum / (_Float16) blockSize;
 
   pInput = pSrc;
 
@@ -172,17 +163,17 @@ void arm_var_f16(
 
   while (blkCnt > 0U)
   {
-    fValue = *pInput++ - fMean;
-    fSum += fValue * fValue;
+    fValue = (_Float16)*pInput++ - (_Float16)fMean;
+    fSum += (_Float16)fValue * (_Float16)fValue;
 
-    fValue = *pInput++ - fMean;
-    fSum += fValue * fValue;
+    fValue = (_Float16)*pInput++ - (_Float16)fMean;
+    fSum += (_Float16)fValue * (_Float16)fValue;
 
-    fValue = *pInput++ - fMean;
-    fSum += fValue * fValue;
+    fValue = (_Float16)*pInput++ - (_Float16)fMean;
+    fSum += (_Float16)fValue * (_Float16)fValue;
 
-    fValue = *pInput++ - fMean;
-    fSum += fValue * fValue;
+    fValue = (_Float16)*pInput++ - (_Float16)fMean;
+    fSum += (_Float16)fValue * (_Float16)fValue;
 
     /* Decrement loop counter */
     blkCnt--;
@@ -200,15 +191,15 @@ void arm_var_f16(
 
   while (blkCnt > 0U)
   {
-    fValue = *pInput++ - fMean;
-    fSum += fValue * fValue;
+    fValue = (_Float16)*pInput++ - (_Float16)fMean;
+    fSum += (_Float16)fValue * (_Float16)fValue;
 
     /* Decrement loop counter */
     blkCnt--;
   }
 
   /* Variance */
-  *pResult = fSum / (float16_t)(blockSize - 1.0f);
+  *pResult = (_Float16)fSum / ((_Float16)blockSize - 1.0f16);
 }
 #endif /* defined(ARM_MATH_MVEF) && !defined(ARM_MATH_AUTOVECTORIZE) */
 

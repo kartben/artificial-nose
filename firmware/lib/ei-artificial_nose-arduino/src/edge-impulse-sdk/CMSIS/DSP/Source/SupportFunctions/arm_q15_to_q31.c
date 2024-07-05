@@ -5,13 +5,13 @@
  * Title:        arm_q15_to_q31.c
  * Description:  Converts the elements of the Q15 vector to Q31 vector
  *
- * $Date:        18. March 2019
- * $Revision:    V1.6.0
+ * $Date:        23 April 2021
+ * $Revision:    V1.9.0
  *
- * Target Processor: Cortex-M cores
+ * Target Processor: Cortex-M and Cortex-A cores
  * -------------------------------------------------------------------- */
 /*
- * Copyright (C) 2010-2019 ARM Limited or its affiliates. All rights reserved.
+ * Copyright (C) 2010-2021 ARM Limited or its affiliates. All rights reserved.
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -119,8 +119,8 @@ void arm_q15_to_q31(
     /* C = (q31_t)A << 16 */
 
     /* Convert from q15 to q31 and store result in destination buffer */
-    in1 = read_q15x2_ia ((q15_t **) &pIn);
-    in2 = read_q15x2_ia ((q15_t **) &pIn);
+    in1 = read_q15x2_ia (&pIn);
+    in2 = read_q15x2_ia (&pIn);
 
 #ifndef ARM_MATH_BIG_ENDIAN
 

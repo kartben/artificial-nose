@@ -1,9 +1,12 @@
 /******************************************************************************
  * @file     arm_vec_math_f16.h
  * @brief    Public header file for CMSIS DSP Library
+ * @version  V1.10.0
+ * @date     08 July 2021
+ * Target Processor: Cortex-M and Cortex-A cores
  ******************************************************************************/
 /*
- * Copyright (c) 2010-2020 Arm Limited or its affiliates. All rights reserved.
+ * Copyright (c) 2010-2021 Arm Limited or its affiliates. All rights reserved.
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -65,11 +68,11 @@ __STATIC_INLINE f16x8_t vrecip_medprec_f16(
     b = 2.0f16 - xinv.f * ax;
     xinv.f = xinv.f * b;
 
-    xinv.f = vdupq_m(xinv.f, F16INFINITY, vcmpeqq(x, 0.0f));
+    xinv.f = vdupq_m_n_f16(xinv.f, F16INFINITY, vcmpeqq_n_f16(x, 0.0f));
     /*
      * restore sign
      */
-    xinv.f = vnegq_m(xinv.f, xinv.f, vcmpltq(x, 0.0f));
+    xinv.f = vnegq_m(xinv.f, xinv.f, vcmpltq_n_f16(x, 0.0f));
 
     return xinv.f;
 }
@@ -102,11 +105,11 @@ __STATIC_INLINE f16x8_t vrecip_hiprec_f16(
     b = 2.0f16 - xinv.f * ax;
     xinv.f = xinv.f * b;
 
-    xinv.f = vdupq_m(xinv.f, F16INFINITY, vcmpeqq(x, 0.0f));
+    xinv.f = vdupq_m_n_f16(xinv.f, F16INFINITY, vcmpeqq_n_f16(x, 0.0f));
     /*
      * restore sign
      */
-    xinv.f = vnegq_m(xinv.f, xinv.f, vcmpltq(x, 0.0f));
+    xinv.f = vnegq_m(xinv.f, xinv.f, vcmpltq_n_f16(x, 0.0f));
 
     return xinv.f;
 }
@@ -140,22 +143,17 @@ __STATIC_INLINE float16x8_t vtaylor_polyq_f16(
     return res;
 }
 
-__STATIC_INLINE float16x8_t vmant_exp_f16(
-    float16x8_t     x,
-    int16x8_t * e)
-{
-    any16x8_t       r;
-    int16x8_t       n;
-
-    r.f = x;
-    n = r.i >> 10;
-    n = n - 15;
-    r.i = r.i - (n << 10);
-
-    *e = n;
-    return r.f;
-}
-
+#define VMANT_EXP_F16(x)  \
+    any16x8_t       r;    \
+    int16x8_t       n;    \
+                          \
+    r.f = x;              \
+    n = r.i >> 10;        \
+    n = n - 15;           \
+    r.i = r.i - (n << 10);\
+                          \
+    vecExpUnBiased = n;   \
+    vecTmpFlt1 = r.f;
 
 __STATIC_INLINE float16x8_t vlogq_f16(float16x8_t vecIn)
 {
@@ -167,7 +165,7 @@ __STATIC_INLINE float16x8_t vlogq_f16(float16x8_t vecIn)
     /*
      * extract exponent
      */
-    vecTmpFlt1 = vmant_exp_f16(vecIn, &vecExpUnBiased);
+    VMANT_EXP_F16(vecIn);
 
     vecTmpFlt0 = vecTmpFlt1 * vecTmpFlt1;
     /*
@@ -213,7 +211,7 @@ __STATIC_INLINE float16x8_t vlogq_f16(float16x8_t vecIn)
      */
     vecAcc0 = vfmaq(vecAcc0, vecExpUnBiasedFlt, __logf_rng_f16);
     // set log0 down to -inf
-    vecAcc0 = vdupq_m(vecAcc0, -F16INFINITY, vcmpeqq(vecIn, 0.0f));
+    vecAcc0 = vdupq_m_n_f16(vecAcc0, -(_Float16)F16INFINITY, vcmpeqq_n_f16(vecIn, 0.0f));
     return vecAcc0;
 }
 
@@ -230,7 +228,7 @@ __STATIC_INLINE float16x8_t vexpq_f16(
     // Reconstruct
     poly = (float16x8_t) (vqaddq_s16((int16x8_t) (poly), vqshlq_n_s16(m, 10)));
 
-    poly = vdupq_m(poly, 0.0f, vcmpltq_n_s16(m, -14));
+    poly = vdupq_m_n_f16(poly, 0.0f16, vcmpltq_n_s16(m, -14));
     return poly;
 }
 
@@ -267,20 +265,20 @@ __STATIC_INLINE f16x8_t vrecip_f16(f16x8_t vecIn)
     vecW = vmulq(vecSx, v.f);
 
     // v.f = v.f * (8 + w * (-28 + w * (56 + w * (-70 + w *(56 + w * (-28 + w * (8 - w)))))));
-    vecTmp = vsubq(vdupq_n_f16(8.0f), vecW);
-    vecTmp = vfmasq(vecW, vecTmp, -28.0f);
-    vecTmp = vfmasq(vecW, vecTmp, 56.0f);
-    vecTmp = vfmasq(vecW, vecTmp, -70.0f);
-    vecTmp = vfmasq(vecW, vecTmp, 56.0f);
-    vecTmp = vfmasq(vecW, vecTmp, -28.0f);
-    vecTmp = vfmasq(vecW, vecTmp, 8.0f);
+    vecTmp = vsubq(vdupq_n_f16(8.0f16), vecW);
+    vecTmp = vfmasq_n_f16(vecW, vecTmp, -28.0f16);
+    vecTmp = vfmasq_n_f16(vecW, vecTmp, 56.0f16);
+    vecTmp = vfmasq_n_f16(vecW, vecTmp, -70.0f16);
+    vecTmp = vfmasq_n_f16(vecW, vecTmp, 56.0f16);
+    vecTmp = vfmasq_n_f16(vecW, vecTmp, -28.0f16);
+    vecTmp = vfmasq_n_f16(vecW, vecTmp, 8.0f16);
     v.f = vmulq(v.f,  vecTmp);
 
-    v.f = vdupq_m(v.f, F16INFINITY, vcmpeqq(vecIn, 0.0f));
+    v.f = vdupq_m_n_f16(v.f, F16INFINITY, vcmpeqq_n_f16(vecIn, 0.0f));
     /*
      * restore sign
      */
-    v.f = vnegq_m(v.f, v.f, vcmpltq(vecIn, 0.0f));
+    v.f = vnegq_m(v.f, v.f, vcmpltq_n_f16(vecIn, 0.0f));
     return v.f;
 }
 
@@ -288,10 +286,10 @@ __STATIC_INLINE f16x8_t vtanhq_f16(
     f16x8_t val)
 {
     f16x8_t         x =
-        vminnmq_f16(vmaxnmq_f16(val, vdupq_n_f16(-10.f)), vdupq_n_f16(10.0f));
-    f16x8_t         exp2x = vexpq_f16(vmulq_n_f16(x, 2.f));
-    f16x8_t         num = vsubq_n_f16(exp2x, 1.f);
-    f16x8_t         den = vaddq_n_f16(exp2x, 1.f);
+        vminnmq_f16(vmaxnmq_f16(val, vdupq_n_f16(-10.f16)), vdupq_n_f16(10.0f16));
+    f16x8_t         exp2x = vexpq_f16(vmulq_n_f16(x, 2.f16));
+    f16x8_t         num = vsubq_n_f16(exp2x, 1.f16);
+    f16x8_t         den = vaddq_n_f16(exp2x, 1.f16);
     f16x8_t         tanh = vmulq_f16(num, vrecip_f16(den));
     return tanh;
 }

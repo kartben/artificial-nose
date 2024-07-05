@@ -5,13 +5,13 @@
  * Title:        arm_dct4_f32.c
  * Description:  Processing function of DCT4 & IDCT4 F32
  *
- * $Date:        18. March 2019
- * $Revision:    V1.6.0
+ * $Date:        23 April 2021
+ * $Revision:    V1.9.0
  *
- * Target Processor: Cortex-M cores
+ * Target Processor: Cortex-M and Cortex-A cores
  * -------------------------------------------------------------------- */
 /*
- * Copyright (C) 2010-2019 ARM Limited or its affiliates. All rights reserved.
+ * Copyright (C) 2010-2021 ARM Limited or its affiliates. All rights reserved.
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -62,11 +62,15 @@
  
   @par           Algorithm
                    The N-point type-IV DCT is defined as a real, linear transformation by the formula:
-                   \image html DCT4Equation.gif
+                   \f[
+                   X_c(k) = \sqrt{\frac{2}{N}}\sum_{n=0}^{N-1} x(n)cos\Big[\Big(n+\frac{1}{2}\Big)\Big(k+\frac{1}{2}\Big)\frac{\pi}{N}\Big]
+                   \f]
                    where <code>k = 0, 1, 2, ..., N-1</code>
   @par
                    Its inverse is defined as follows:
-                   \image html IDCT4Equation.gif
+                   \f[
+                   x(n) = \sqrt{\frac{2}{N}}\sum_{k=0}^{N-1} X_c(k)cos\Big[\Big(n+\frac{1}{2}\Big)\Big(k+\frac{1}{2}\Big)\frac{\pi}{N}\Big]
+                   \f]
                    where <code>n = 0, 1, 2, ..., N-1</code>
   @par
                    The DCT4 matrices become involutory (i.e. they are self-inverse) by multiplying with an overall scale factor of sqrt(2/N).

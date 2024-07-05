@@ -5,13 +5,13 @@
  * Title:        arm_rms_f16.c
  * Description:  Root mean square value of the elements of a floating-point vector
  *
- * $Date:        18. March 2020
- * $Revision:    V1.6.0
+ * $Date:        23 April 2021
+ * $Revision:    V1.9.0
  *
- * Target Processor: Cortex-M cores
+ * Target Processor: Cortex-M and Cortex-A cores
  * -------------------------------------------------------------------- */
 /*
- * Copyright (C) 2010-2020 ARM Limited or its affiliates. All rights reserved.
+ * Copyright (C) 2010-2021 ARM Limited or its affiliates. All rights reserved.
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -37,18 +37,7 @@
   @ingroup groupStats
  */
 
-/**
-  @defgroup RMS Root mean square (RMS)
 
-  Calculates the Root Mean Square of the elements in the input vector.
-  The underlying algorithm is used:
-
-  <pre>
-      Result = sqrt(((pSrc[0] * pSrc[0] + pSrc[1] * pSrc[1] + ... + pSrc[blockSize-1] * pSrc[blockSize-1]) / blockSize));
-  </pre>
-
-  There are separate functions for floating point, Q31, and Q15 data types.
- */
 
 /**
   @addtogroup RMS
@@ -75,7 +64,7 @@ void arm_rms_f16(
     arm_power_f16(pSrc, blockSize, &pow);
 
     /* Compute Rms and store the result in the destination */
-    arm_sqrt_f16(pow / (float16_t) blockSize, pResult);
+    arm_sqrt_f16((_Float16)pow / (_Float16) blockSize, pResult);
 }
 #else
 
@@ -137,7 +126,7 @@ void arm_rms_f16(
   }
 
   /* Compute Rms and store result in destination */
-  arm_sqrt_f16(sum / (float16_t) blockSize, pResult);
+  arm_sqrt_f16((_Float16)sum / (_Float16) blockSize, pResult);
 }
 #endif /* defined(ARM_MATH_MVEF) && !defined(ARM_MATH_AUTOVECTORIZE) */
 

@@ -1,33 +1,31 @@
-/* Edge Impulse inferencing library
- * Copyright (c) 2021 EdgeImpulse Inc.
+/*
+ * Copyright (c) 2022 EdgeImpulse Inc.
  *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an "AS
+ * IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+ * express or implied. See the License for the specific language
+ * governing permissions and limitations under the License.
  *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 #ifndef _EIDSP_SPEECHPY_FEATURE_H_
 #define _EIDSP_SPEECHPY_FEATURE_H_
 
-#include <vector>
 #include <stdint.h>
+#include "../../porting/ei_classifier_porting.h"
+#include "../ei_utils.h"
 #include "functions.hpp"
 #include "processing.hpp"
 #include "../memory.hpp"
+#include "../returntypes.hpp"
+#include "../ei_vector.h"
 
 namespace ei {
 namespace speechpy {
@@ -170,6 +168,19 @@ public:
     }
 
     /**
+     * @brief Get the fft bin index from hertz
+     *
+     * @param fft_size Size of fft
+     * @param hertz Desired hertz
+     * @param sampling_freq In Hz
+     * @return int the index of the bin closest to the hertz
+     */
+    static int get_fft_bin_from_hertz(uint16_t fft_size, float hertz, uint32_t sampling_freq)
+    {
+        return static_cast<int>(floor((fft_size + 1) * hertz / sampling_freq));
+    }
+
+    /**
      * Compute Mel-filterbank energy features from an audio signal.
      * @param out_features Use `calculate_mfe_buffer_size` to allocate the right matrix.
      * @param out_energies A matrix in the form of Mx1 where M is the rows from `calculate_mfe_buffer_size`
@@ -203,6 +214,207 @@ public:
             high_frequency = sampling_frequency / 2;
         }
 
+        if (version<4) {
+            if (low_frequency == 0) {
+                low_frequency = 300;
+            }
+        }
+
+        stack_frames_info_t stack_frame_info = { 0 };
+        stack_frame_info.signal = signal;
+
+        ret = processing::stack_frames(
+            &stack_frame_info,
+            sampling_frequency,
+            frame_length,
+            frame_stride,
+            false,
+            version
+        );
+        if (ret != 0) {
+            EIDSP_ERR(ret);
+        }
+
+        if (stack_frame_info.frame_ixs.size() != out_features->rows) {
+            EIDSP_ERR(EIDSP_MATRIX_SIZE_MISMATCH);
+        }
+
+        if (num_filters != out_features->cols) {
+            EIDSP_ERR(EIDSP_MATRIX_SIZE_MISMATCH);
+        }
+
+        if (out_energies) {
+            if (stack_frame_info.frame_ixs.size() != out_energies->rows || out_energies->cols != 1) {
+                EIDSP_ERR(EIDSP_MATRIX_SIZE_MISMATCH);
+            }
+        }
+
+        for (uint32_t i = 0; i < out_features->rows * out_features->cols; i++) {
+            *(out_features->buffer + i) = 0;
+        }
+
+        const size_t power_spectrum_frame_size = (fft_length / 2 + 1);
+        // Computing the Mel filterbank
+        // converting the upper and lower frequencies to Mels.
+        // num_filter + 2 is because for num_filter filterbanks we need
+        // num_filter+2 point.
+        float *mels;
+        const int MELS_SIZE = num_filters + 2;
+        mels = (float*)ei_calloc(MELS_SIZE, sizeof(float));
+        EI_ERR_AND_RETURN_ON_NULL(mels, EIDSP_OUT_OF_MEM);
+        ei_unique_ptr_t __ptr__(mels,ei_free);
+        uint16_t* bins = reinterpret_cast<uint16_t*>(mels); // alias the mels array so we can reuse the space
+
+        numpy::linspace(
+            functions::frequency_to_mel(static_cast<float>(low_frequency)),
+            functions::frequency_to_mel(static_cast<float>(high_frequency)),
+            num_filters + 2,
+            mels);
+
+        uint16_t max_bin = version >= 4 ? fft_length : power_spectrum_frame_size; // preserve a bug in v<4
+        // go to -1 size b/c special handling, see after
+        for (uint16_t ix = 0; ix < MELS_SIZE-1; ix++) {
+            mels[ix] = functions::mel_to_frequency(mels[ix]);
+            if (mels[ix] < low_frequency) {
+                mels[ix] = low_frequency;
+            }
+            if (mels[ix] > high_frequency) {
+                mels[ix] = high_frequency;
+            }
+            bins[ix] = get_fft_bin_from_hertz(max_bin, mels[ix], sampling_frequency);
+        }
+
+        // here is a really annoying bug in Speechpy which calculates the frequency index wrong for the last bucket
+        // the last 'hertz' value is not 8,000 (with sampling rate 16,000) but 7,999.999999
+        // thus calculating the bucket to 64, not 65.
+        // we're adjusting this here a tiny bit to ensure we have the same result
+        mels[MELS_SIZE-1] = functions::mel_to_frequency(mels[MELS_SIZE-1]);
+        if (mels[MELS_SIZE-1] > high_frequency) {
+            mels[MELS_SIZE-1] = high_frequency;
+        }
+        mels[MELS_SIZE-1] -= 0.001;
+        bins[MELS_SIZE-1] = get_fft_bin_from_hertz(max_bin, mels[MELS_SIZE-1], sampling_frequency);
+
+        EI_DSP_MATRIX(power_spectrum_frame, 1, power_spectrum_frame_size);
+        if (!power_spectrum_frame.buffer) {
+            EIDSP_ERR(EIDSP_OUT_OF_MEM);
+        }
+
+        // get signal data from the audio file
+        EI_DSP_MATRIX(signal_frame, 1, stack_frame_info.frame_length);
+
+        for (size_t ix = 0; ix < stack_frame_info.frame_ixs.size(); ix++) {
+            // don't read outside of the audio buffer... we'll automatically zero pad then
+            size_t signal_offset = stack_frame_info.frame_ixs.at(ix);
+            size_t signal_length = stack_frame_info.frame_length;
+            if (signal_offset + signal_length > stack_frame_info.signal->total_length) {
+                signal_length = signal_length -
+                    (stack_frame_info.signal->total_length - (signal_offset + signal_length));
+            }
+
+            ret = stack_frame_info.signal->get_data(
+                signal_offset,
+                signal_length,
+                signal_frame.buffer
+            );
+            if (ret != 0) {
+                EIDSP_ERR(ret);
+            }
+
+            ret = numpy::power_spectrum(
+                signal_frame.buffer,
+                stack_frame_info.frame_length,
+                power_spectrum_frame.buffer,
+                power_spectrum_frame_size,
+                fft_length
+            );
+
+            if (ret != 0) {
+                EIDSP_ERR(ret);
+            }
+
+            float energy = numpy::sum(power_spectrum_frame.buffer, power_spectrum_frame_size);
+            if (energy == 0) {
+                energy = 1e-10;
+            }
+
+            if (out_energies) {
+                out_energies->buffer[ix] = energy;
+            }
+
+            auto row_ptr = out_features->get_row_ptr(ix);
+            for (size_t i = 0; i < num_filters; i++) {
+                size_t left = bins[i];
+                size_t middle = bins[i+1];
+                size_t right = bins[i+2];
+
+                assert(right < power_spectrum_frame_size);
+                // now we have weights and locations to move from fft to mel sgram
+                // both left and right become zero weights, so skip them
+
+                // middle always has weight of 1.0
+                // since we skip left and right, if left = middle we need to handle that
+                row_ptr[i] = power_spectrum_frame.buffer[middle];
+
+                for (size_t bin = left+1; bin < right; bin++) {
+                    if (bin < middle) {
+                        row_ptr[i] +=
+                            ((static_cast<float>(bin) - left) / (middle - left)) * // weight *
+                            power_spectrum_frame.buffer[bin];
+                    }
+                    // intentionally skip middle, handled above
+                    if (bin > middle) {
+                        row_ptr[i] +=
+                            ((right - static_cast<float>(bin)) / (right - middle)) * // weight *
+                            power_spectrum_frame.buffer[bin];
+                    }
+                }
+            }
+
+            if (ret != 0) {
+                EIDSP_ERR(ret);
+            }
+        }
+
+        numpy::zero_handling(out_features);
+
+        return EIDSP_OK;
+    }
+
+    /**
+     * Compute Mel-filterbank energy features from an audio signal.
+     * @param out_features Use `calculate_mfe_buffer_size` to allocate the right matrix.
+     * @param out_energies A matrix in the form of Mx1 where M is the rows from `calculate_mfe_buffer_size`
+     * @param signal: audio signal structure with functions to retrieve data from a signal
+     * @param sampling_frequency (int): the sampling frequency of the signal
+     *     we are working with.
+     * @param frame_length (float): the length of each frame in seconds.
+     *     Default is 0.020s
+     * @param frame_stride (float): the step between successive frames in seconds.
+     *     Default is 0.02s (means no overlap)
+     * @param num_filters (int): the number of filters in the filterbank,
+     *     default 40.
+     * @param fft_length (int): number of FFT points. Default is 512.
+     * @param low_frequency (int): lowest band edge of mel filters.
+     *     In Hz, default is 0.
+     * @param high_frequency (int): highest band edge of mel filters.
+     *     In Hz, default is samplerate/2
+     * @EIDSP_OK if OK
+     */
+    static int mfe_v3(matrix_t *out_features, matrix_t *out_energies,
+        signal_t *signal,
+        uint32_t sampling_frequency,
+        float frame_length, float frame_stride, uint16_t num_filters,
+        uint16_t fft_length, uint32_t low_frequency, uint32_t high_frequency,
+        uint16_t version
+        )
+    {
+        int ret = 0;
+
+        if (high_frequency == 0) {
+            high_frequency = sampling_frequency / 2;
+        }
+
         if (low_frequency == 0) {
             low_frequency = 300;
         }
@@ -222,7 +434,7 @@ public:
             EIDSP_ERR(ret);
         }
 
-        if (stack_frame_info.frame_ixs->size() != out_features->rows) {
+        if (stack_frame_info.frame_ixs.size() != out_features->rows) {
             EIDSP_ERR(EIDSP_MATRIX_SIZE_MISMATCH);
         }
 
@@ -230,8 +442,10 @@ public:
             EIDSP_ERR(EIDSP_MATRIX_SIZE_MISMATCH);
         }
 
-        if (stack_frame_info.frame_ixs->size() != out_energies->rows || out_energies->cols != 1) {
-            EIDSP_ERR(EIDSP_MATRIX_SIZE_MISMATCH);
+        if (out_energies) {
+            if (stack_frame_info.frame_ixs.size() != out_energies->rows || out_energies->cols != 1) {
+                EIDSP_ERR(EIDSP_MATRIX_SIZE_MISMATCH);
+            }
         }
 
         for (uint32_t i = 0; i < out_features->rows * out_features->cols; i++) {
@@ -256,7 +470,7 @@ public:
         if (ret != 0) {
             EIDSP_ERR(ret);
         }
-        for (size_t ix = 0; ix < stack_frame_info.frame_ixs->size(); ix++) {
+        for (size_t ix = 0; ix < stack_frame_info.frame_ixs.size(); ix++) {
             size_t power_spectrum_frame_size = (fft_length / 2 + 1);
 
             EI_DSP_MATRIX(power_spectrum_frame, 1, power_spectrum_frame_size);
@@ -268,7 +482,7 @@ public:
             EI_DSP_MATRIX(signal_frame, 1, stack_frame_info.frame_length);
 
             // don't read outside of the audio buffer... we'll automatically zero pad then
-            size_t signal_offset = stack_frame_info.frame_ixs->at(ix);
+            size_t signal_offset = stack_frame_info.frame_ixs.at(ix);
             size_t signal_length = stack_frame_info.frame_length;
             if (signal_offset + signal_length > stack_frame_info.signal->total_length) {
                 signal_length = signal_length -
@@ -284,7 +498,7 @@ public:
                 EIDSP_ERR(ret);
             }
 
-            ret = processing::power_spectrum(
+            ret = numpy::power_spectrum(
                 signal_frame.buffer,
                 stack_frame_info.frame_length,
                 power_spectrum_frame.buffer,
@@ -298,10 +512,12 @@ public:
 
             float energy = numpy::sum(power_spectrum_frame.buffer, power_spectrum_frame_size);
             if (energy == 0) {
-                energy = FLT_EPSILON;
+                energy = 1e-10;
             }
 
-            out_energies->buffer[ix] = energy;
+            if (out_energies) {
+                out_energies->buffer[ix] = energy;
+            }
 
             // calculate the out_features directly here
             ret = numpy::dot_by_row(
@@ -317,7 +533,7 @@ public:
             }
         }
 
-        functions::zero_handling(out_features);
+        numpy::zero_handling(out_features);
 
         return EIDSP_OK;
     }
@@ -336,7 +552,7 @@ public:
      * @EIDSP_OK if OK
      */
     static int spectrogram(matrix_t *out_features,
-        signal_t *signal, uint32_t sampling_frequency,
+        signal_t *signal, float sampling_frequency,
         float frame_length, float frame_stride, uint16_t fft_length,
         uint16_t version
         )
@@ -358,7 +574,7 @@ public:
             EIDSP_ERR(ret);
         }
 
-        if (stack_frame_info.frame_ixs->size() != out_features->rows) {
+        if (stack_frame_info.frame_ixs.size() != out_features->rows) {
             EIDSP_ERR(EIDSP_MATRIX_SIZE_MISMATCH);
         }
 
@@ -372,12 +588,12 @@ public:
             *(out_features->buffer + i) = 0;
         }
 
-        for (size_t ix = 0; ix < stack_frame_info.frame_ixs->size(); ix++) {
+        for (size_t ix = 0; ix < stack_frame_info.frame_ixs.size(); ix++) {
             // get signal data from the audio file
             EI_DSP_MATRIX(signal_frame, 1, stack_frame_info.frame_length);
 
             // don't read outside of the audio buffer... we'll automatically zero pad then
-            size_t signal_offset = stack_frame_info.frame_ixs->at(ix);
+            size_t signal_offset = stack_frame_info.frame_ixs.at(ix);
             size_t signal_length = stack_frame_info.frame_length;
             if (signal_offset + signal_length > stack_frame_info.signal->total_length) {
                 signal_length = signal_length -
@@ -393,8 +609,8 @@ public:
                 EIDSP_ERR(ret);
             }
 
-            // normalize data (only when version is above 3)
-            if (version >= 3) {
+            // normalize data (only when version is 3)
+            if (version == 3) {
                 // it might be that everything is already normalized here...
                 bool all_between_min_1_and_1 = true;
                 for (size_t ix = 0; ix < signal_frame.rows * signal_frame.cols; ix++) {
@@ -412,7 +628,7 @@ public:
                 }
             }
 
-            ret = processing::power_spectrum(
+            ret = numpy::power_spectrum(
                 signal_frame.buffer,
                 stack_frame_info.frame_length,
                 out_features->buffer + (ix * coefficients),
@@ -425,7 +641,7 @@ public:
             }
         }
 
-        functions::zero_handling(out_features);
+        numpy::zero_handling(out_features);
 
         return EIDSP_OK;
     }
@@ -444,18 +660,18 @@ public:
         float frame_length, float frame_stride, uint16_t num_filters,
         uint16_t version)
     {
-        uint16_t rows = processing::calculate_no_of_stack_frames(
+        int32_t rows = processing::calculate_no_of_stack_frames(
             signal_length,
             sampling_frequency,
             frame_length,
             frame_stride,
             false,
             version);
-        uint16_t cols = num_filters;
+        int32_t cols = num_filters;
 
         matrix_size_t size_matrix;
-        size_matrix.rows = rows;
-        size_matrix.cols = cols;
+        size_matrix.rows = (uint32_t)rows;
+        size_matrix.cols = (uint32_t)cols;
         return size_matrix;
     }
 
@@ -569,18 +785,18 @@ public:
         float frame_length, float frame_stride, uint16_t num_cepstral,
         uint16_t version)
     {
-        uint16_t rows = processing::calculate_no_of_stack_frames(
+        int32_t rows = processing::calculate_no_of_stack_frames(
             signal_length,
             sampling_frequency,
             frame_length,
             frame_stride,
             false,
             version);
-        uint16_t cols = num_cepstral;
+        int32_t cols = num_cepstral;
 
         matrix_size_t size_matrix;
-        size_matrix.rows = rows;
-        size_matrix.cols = cols;
+        size_matrix.rows = (uint32_t)rows;
+        size_matrix.cols = (uint32_t)cols;
         return size_matrix;
     }
 };

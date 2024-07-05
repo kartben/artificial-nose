@@ -1,8 +1,9 @@
 /******************************************************************************
  * @file     filtering_functions.h
  * @brief    Public header file for CMSIS DSP Library
- * @version  V1.9.0
- * @date     20. July 2020
+ * @version  V1.10.0
+ * @date     08 July 2021
+ * Target Processor: Cortex-M and Cortex-A cores
  ******************************************************************************/
 /*
  * Copyright (c) 2010-2020 Arm Limited or its affiliates. All rights reserved.
@@ -33,6 +34,7 @@
 #include "edge-impulse-sdk/CMSIS/DSP/Include/dsp/utils.h"
 
 #include "edge-impulse-sdk/CMSIS/DSP/Include/dsp/support_functions.h"
+#include "edge-impulse-sdk/CMSIS/DSP/Include/dsp/fast_math_functions.h"
 
 #ifdef   __cplusplus
 extern "C"
@@ -87,6 +89,16 @@ extern "C"
           float32_t *pState;    /**< points to the state variable array. The array is of length numTaps+blockSize-1. */
     const float32_t *pCoeffs;   /**< points to the coefficient array. The array is of length numTaps. */
   } arm_fir_instance_f32;
+
+  /**
+   * @brief Instance structure for the floating-point FIR filter.
+   */
+  typedef struct
+  {
+          uint16_t numTaps;     /**< number of filter coefficients in the filter. */
+          float64_t *pState;    /**< points to the state variable array. The array is of length numTaps+blockSize-1. */
+    const float64_t *pCoeffs;   /**< points to the coefficient array. The array is of length numTaps. */
+  } arm_fir_instance_f64;
 
   /**
    * @brief Processing function for the Q7 FIR filter.
@@ -225,6 +237,19 @@ extern "C"
         uint32_t blockSize);
 
   /**
+   * @brief Processing function for the floating-point FIR filter.
+   * @param[in]  S          points to an instance of the floating-point FIR structure.
+   * @param[in]  pSrc       points to the block of input data.
+   * @param[out] pDst       points to the block of output data.
+   * @param[in]  blockSize  number of samples to process.
+   */
+  void arm_fir_f64(
+  const arm_fir_instance_f64 * S,
+  const float64_t * pSrc,
+        float64_t * pDst,
+        uint32_t blockSize);
+
+  /**
    * @brief  Initialization function for the floating-point FIR filter.
    * @param[in,out] S          points to an instance of the floating-point FIR filter structure.
    * @param[in]     numTaps    Number of filter coefficients in the filter.
@@ -237,6 +262,21 @@ extern "C"
         uint16_t numTaps,
   const float32_t * pCoeffs,
         float32_t * pState,
+        uint32_t blockSize);
+
+  /**
+   * @brief  Initialization function for the floating-point FIR filter.
+   * @param[in,out] S          points to an instance of the floating-point FIR filter structure.
+   * @param[in]     numTaps    Number of filter coefficients in the filter.
+   * @param[in]     pCoeffs    points to the filter coefficients.
+   * @param[in]     pState     points to the state buffer.
+   * @param[in]     blockSize  number of samples that are processed at a time.
+   */
+  void arm_fir_init_f64(
+        arm_fir_instance_f64 * S,
+        uint16_t numTaps,
+  const float64_t * pCoeffs,
+        float64_t * pState,
         uint32_t blockSize);
 
   /**
@@ -1171,10 +1211,17 @@ arm_status arm_fir_decimate_init_f32(
 
 
 #if defined(ARM_MATH_NEON) 
+/**
+  @brief         Compute new coefficient arrays for use in vectorized filter (Neon only).
+  @param[in]     numStages         number of 2nd order stages in the filter.
+  @param[in]     pCoeffs           points to the original filter coefficients.
+  @param[in]     pComputedCoeffs   points to the new computed coefficients for the vectorized version.
+  @return        none
+*/
 void arm_biquad_cascade_df2T_compute_coefs_f32(
-  arm_biquad_cascade_df2T_instance_f32 * S,
   uint8_t numStages,
-  float32_t * pCoeffs);
+  const float32_t * pCoeffs,
+  float32_t * pComputedCoeffs);
 #endif
   /**
    * @brief  Initialization function for the floating-point transposed direct form II Biquad cascade filter.
@@ -1785,6 +1832,22 @@ void arm_biquad_cascade_df2T_compute_coefs_f32(
   const float32_t * pSrcB,
         uint32_t srcBLen,
         float32_t * pDst);
+
+
+  /**
+   * @brief Correlation of floating-point sequences.
+   * @param[in]  pSrcA    points to the first input sequence.
+   * @param[in]  srcALen  length of the first input sequence.
+   * @param[in]  pSrcB    points to the second input sequence.
+   * @param[in]  srcBLen  length of the second input sequence.
+   * @param[out] pDst     points to the block of output data  Length 2 * max(srcALen, srcBLen) - 1.
+   */
+  void arm_correlate_f64(
+  const float64_t * pSrcA,
+        uint32_t srcALen,
+  const float64_t * pSrcB,
+        uint32_t srcBLen,
+        float64_t * pDst);
 
 
 /**
@@ -2432,8 +2495,33 @@ void arm_correlate_fast_q31(
   }
 
 
+/**
+  @brief         Levinson Durbin
+  @param[in]     phi      autocovariance vector starting with lag 0 (length is nbCoefs + 1)
+  @param[out]    a        autoregressive coefficients
+  @param[out]    err      prediction error (variance)
+  @param[in]     nbCoefs  number of autoregressive coefficients
+  @return        none
+ */
+void arm_levinson_durbin_f32(const float32_t *phi,
+  float32_t *a, 
+  float32_t *err,
+  int nbCoefs);
 
- 
+
+/**
+  @brief         Levinson Durbin
+  @param[in]     phi      autocovariance vector starting with lag 0 (length is nbCoefs + 1)
+  @param[out]    a        autoregressive coefficients
+  @param[out]    err      prediction error (variance)
+  @param[in]     nbCoefs  number of autoregressive coefficients
+  @return        none
+ */
+void arm_levinson_durbin_q31(const q31_t *phi,
+  q31_t *a, 
+  q31_t *err,
+  int nbCoefs);
+
 #ifdef   __cplusplus
 }
 #endif

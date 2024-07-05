@@ -5,11 +5,13 @@
  * Title:        arm_cmplx_dot_prod_f16.c
  * Description:  Floating-point complex dot product
  *
+ * $Date:        23 April 2021
+ * $Revision:    V1.9.0
  *
- * Target Processor: Cortex-M cores
+ * Target Processor: Cortex-M and Cortex-A cores
  * -------------------------------------------------------------------- */
 /*
- * Copyright (C) 2010-2020 ARM Limited or its affiliates. All rights reserved.
+ * Copyright (C) 2010-2021 ARM Limited or its affiliates. All rights reserved.
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -35,32 +37,6 @@
   @ingroup groupCmplxMath
  */
 
-/**
-  @defgroup cmplx_dot_prod Complex Dot Product
-
-  Computes the dot product of two complex vectors.
-  The vectors are multiplied element-by-element and then summed.
-
-  The <code>pSrcA</code> points to the first complex input vector and
-  <code>pSrcB</code> points to the second complex input vector.
-  <code>numSamples</code> specifies the number of complex samples
-  and the data in each array is stored in an interleaved fashion
-  (real, imag, real, imag, ...).
-  Each array has a total of <code>2*numSamples</code> values.
-
-  The underlying algorithm is used:
-
-  <pre>
-  realResult = 0;
-  imagResult = 0;
-  for (n = 0; n < numSamples; n++) {
-      realResult += pSrcA[(2*n)+0] * pSrcB[(2*n)+0] - pSrcA[(2*n)+1] * pSrcB[(2*n)+1];
-      imagResult += pSrcA[(2*n)+0] * pSrcB[(2*n)+1] + pSrcA[(2*n)+1] * pSrcB[(2*n)+0];
-  }
-  </pre>
-
-  There are separate functions for floating-point, Q15, and Q31 data types.
- */
 
 /**
   @addtogroup cmplx_dot_prod
@@ -286,4 +262,5 @@ void arm_cmplx_dot_prod_f16(
  */
 
 #endif /* #if defined(ARM_FLOAT16_SUPPORTED) */
+
 #endif // EIDSP_LOAD_CMSIS_DSP_SOURCES

@@ -5,13 +5,13 @@
  * Title:        arm_offset_q7.c
  * Description:  Q7 vector offset
  *
- * $Date:        18. March 2019
- * $Revision:    V1.6.0
+ * $Date:        23 April 2021
+ * $Revision:    V1.9.0
  *
- * Target Processor: Cortex-M cores
+ * Target Processor: Cortex-M and Cortex-A cores
  * -------------------------------------------------------------------- */
 /*
- * Copyright (C) 2010-2019 ARM Limited or its affiliates. All rights reserved.
+ * Copyright (C) 2010-2021 ARM Limited or its affiliates. All rights reserved.
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -123,7 +123,7 @@ void arm_offset_q7(
 
 #if defined (ARM_MATH_DSP)
     /* Add offset and store result in destination buffer (4 samples at a time). */
-    write_q7x4_ia (&pDst, __QADD8(read_q7x4_ia ((q7_t **) &pSrc), offset_packed));
+    write_q7x4_ia (&pDst, __QADD8(read_q7x4_ia (&pSrc), offset_packed));
 #else
     *pDst++ = (q7_t) __SSAT((q15_t) *pSrc++ + offset, 8);
     *pDst++ = (q7_t) __SSAT((q15_t) *pSrc++ + offset, 8);

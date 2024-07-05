@@ -5,11 +5,13 @@
  * Title:        arm_logsumexp_f32.c
  * Description:  LogSumExp
  *
+ * $Date:        23 April 2021
+ * $Revision:    V1.9.0
  *
  * Target Processor: Cortex-M and Cortex-A cores
  * -------------------------------------------------------------------- */
 /*
- * Copyright (C) 2010-2019 ARM Limited or its affiliates. All rights reserved.
+ * Copyright (C) 2010-2021 ARM Limited or its affiliates. All rights reserved.
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -113,7 +115,7 @@ float32_t arm_logsumexp_f32(const float32_t *in, uint32_t blockSize)
     
     }
 
-    accum = maxVal + log(accum);
+    accum = maxVal + logf(accum);
 
     return (accum);
 }

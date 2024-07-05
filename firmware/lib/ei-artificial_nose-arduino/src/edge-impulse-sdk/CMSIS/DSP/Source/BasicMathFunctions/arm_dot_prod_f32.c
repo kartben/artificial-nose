@@ -5,13 +5,13 @@
  * Title:        arm_dot_prod_f32.c
  * Description:  Floating-point dot product
  *
- * $Date:        18. March 2019
- * $Revision:    V1.6.0
+ * $Date:        05 October 2021
+ * $Revision:    V1.9.1
  *
- * Target Processor: Cortex-M cores
+ * Target Processor: Cortex-M and Cortex-A cores
  * -------------------------------------------------------------------- */
 /*
- * Copyright (C) 2010-2019 ARM Limited or its affiliates. All rights reserved.
+ * Copyright (C) 2010-2021 ARM Limited or its affiliates. All rights reserved.
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -134,7 +134,9 @@ void arm_dot_prod_f32(
     f32x4_t vec1;
     f32x4_t vec2;
     f32x4_t accum = vdupq_n_f32(0);   
-    f32x2_t tmp = vdup_n_f32(0);    
+#if !defined(__aarch64__)
+    f32x2_t tmp = vdup_n_f32(0); 
+#endif   
 
     /* Compute 4 outputs at a time */
     blkCnt = blockSize >> 2U;
@@ -160,7 +162,7 @@ void arm_dot_prod_f32(
         blkCnt--;
     }
     
-#if __aarch64__
+#if defined(__aarch64__)
     sum = vpadds_f32(vpadd_f32(vget_low_f32(accum), vget_high_f32(accum)));
 #else
     tmp = vpadd_f32(vget_low_f32(accum), vget_high_f32(accum));

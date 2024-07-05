@@ -15,12 +15,11 @@ limitations under the License.
 #ifndef TENSORFLOW_LITE_KERNELS_PADDING_H_
 #define TENSORFLOW_LITE_KERNELS_PADDING_H_
 
-#include "edge-impulse-sdk/tensorflow/lite/c/builtin_op_data.h"
+#include "edge-impulse-sdk/tensorflow/lite/core/c/builtin_op_data.h"
 #include "edge-impulse-sdk/tensorflow/lite/kernels/internal/types.h"
 
 namespace tflite {
 
-// TODO(renjieliu): Migrate others to use ComputePaddingWithLeftover.
 inline int ComputePadding(int stride, int dilation_rate, int in_size,
                           int filter_size, int out_size) {
   int effective_filter_size = (filter_size - 1) * dilation_rate + 1;

@@ -1,11 +1,12 @@
 /******************************************************************************
  * @file     arm_vec_math.h
  * @brief    Public header file for CMSIS DSP Library
- * @version  V1.7.0
- * @date     15. October 2019
+ * @version  V1.10.0
+ * @date     08 July 2021
+ * Target Processor: Cortex-M and Cortex-A cores
  ******************************************************************************/
 /*
- * Copyright (c) 2010-2019 Arm Limited or its affiliates. All rights reserved.
+ * Copyright (c) 2010-2021 Arm Limited or its affiliates. All rights reserved.
  *
  * SPDX-License-Identifier: Apache-2.0
  *

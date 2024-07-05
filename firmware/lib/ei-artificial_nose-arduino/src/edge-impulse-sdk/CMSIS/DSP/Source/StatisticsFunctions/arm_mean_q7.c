@@ -5,13 +5,13 @@
  * Title:        arm_mean_q7.c
  * Description:  Mean value of a Q7 vector
  *
- * $Date:        18. March 2019
- * $Revision:    V1.6.0
+ * $Date:        23 April 2021
+ * $Revision:    V1.9.0
  *
- * Target Processor: Cortex-M cores
+ * Target Processor: Cortex-M and Cortex-A cores
  * -------------------------------------------------------------------- */
 /*
- * Copyright (C) 2010-2019 ARM Limited or its affiliates. All rights reserved.
+ * Copyright (C) 2010-2021 ARM Limited or its affiliates. All rights reserved.
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -115,7 +115,7 @@ void arm_mean_q7(
   while (blkCnt > 0U)
   {
     /* C = (A[0] + A[1] + A[2] + ... + A[blockSize-1]) */
-    in = read_q7x4_ia ((q7_t **) &pSrc);
+    in = read_q7x4_ia (&pSrc);
     sum += ((in << 24U) >> 24U);
     sum += ((in << 16U) >> 24U);
     sum += ((in <<  8U) >> 24U);

@@ -5,13 +5,13 @@
  * Title:        arm_sin_cos_f32.c
  * Description:  Sine and Cosine calculation for floating-point values
  *
- * $Date:        18. March 2019
- * $Revision:    V1.6.0
+ * $Date:        23 April 2021
+ * $Revision:    V1.9.0
  *
- * Target Processor: Cortex-M cores
+ * Target Processor: Cortex-M and Cortex-A cores
  * -------------------------------------------------------------------- */
 /*
- * Copyright (C) 2010-2019 ARM Limited or its affiliates. All rights reserved.
+ * Copyright (C) 2010-2021 ARM Limited or its affiliates. All rights reserved.
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -30,35 +30,6 @@
 
 #include "edge-impulse-sdk/CMSIS/DSP/Include/dsp/controller_functions.h"
 #include "edge-impulse-sdk/CMSIS/DSP/Include/arm_common_tables.h"
-
-/**
-  @ingroup groupController
- */
-
-/**
-  @defgroup SinCos Sine Cosine
-
-  Computes the trigonometric sine and cosine values using a combination of table lookup
-  and linear interpolation.
-  There are separate functions for Q31 and floating-point data types.
-  The input to the floating-point version is in degrees while the
-  fixed-point Q31 have a scaled input with the range
-  [-1 0.9999] mapping to [-180 +180] degrees.
-
-  The floating point function also allows values that are out of the usual range. When this happens, the function will
-  take extra time to adjust the input value to the range of [-180 180].
-
-  The result is accurate to 5 digits after the decimal point.
-
-  The implementation is based on table lookup using 360 values together with linear interpolation.
-  The steps used are:
-   -# Calculation of the nearest integer table index.
-   -# Compute the fractional portion (fract) of the input.
-   -# Fetch the value corresponding to \c index from sine table to \c y0 and also value from \c index+1 to \c y1.
-   -# Sine value is computed as <code> *psinVal = y0 + (fract * (y1 - y0))</code>.
-   -# Fetch the value corresponding to \c index from cosine table to \c y0 and also value from \c index+1 to \c y1.
-   -# Cosine value is computed as <code> *pcosVal = y0 + (fract * (y1 - y0))</code>.
- */
 
 /**
   @addtogroup SinCos
@@ -109,8 +80,6 @@ void arm_sin_cos_f32(
   d1 = -sinTable_f32[indexS  ];
   d2 = -sinTable_f32[indexS+1];
 
-  temp = (1.0f - fract) * f1 + fract * f2;
-
   Dn = 0.0122718463030f; /* delta between the two points (fixed), in this case 2*pi/FAST_MATH_TABLE_SIZE */
   Df = f2 - f1;          /* delta between the values of the functions */
 
@@ -127,7 +96,6 @@ void arm_sin_cos_f32(
   d1 = sinTable_f32[indexC  ];
   d2 = sinTable_f32[indexC+1];
 
-  temp = (1.0f - fract) * f1 + fract * f2;
 
   Df = f2 - f1; // delta between the values of the functions
   temp = Dn * (d1 + d2) - 2 * Df;

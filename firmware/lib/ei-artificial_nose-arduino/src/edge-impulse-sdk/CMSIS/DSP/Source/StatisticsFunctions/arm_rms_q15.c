@@ -5,13 +5,13 @@
  * Title:        arm_rms_q15.c
  * Description:  Root Mean Square of the elements of a Q15 vector
  *
- * $Date:        18. March 2019
- * $Revision:    V1.6.0
+ * $Date:        23 April 2021
+ * $Revision:    V1.9.0
  *
- * Target Processor: Cortex-M cores
+ * Target Processor: Cortex-M and Cortex-A cores
  * -------------------------------------------------------------------- */
 /*
- * Copyright (C) 2010-2019 ARM Limited or its affiliates. All rights reserved.
+ * Copyright (C) 2010-2021 ARM Limited or its affiliates. All rights reserved.
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -95,10 +95,10 @@ void arm_rms_q15(
 
     /* Compute sum of squares and store result in a temporary variable. */
 #if defined (ARM_MATH_DSP)
-    in32 = read_q15x2_ia ((q15_t **) &pSrc);
+    in32 = read_q15x2_ia (&pSrc);
     sum = __SMLALD(in32, in32, sum);
 
-    in32 = read_q15x2_ia ((q15_t **) &pSrc);
+    in32 = read_q15x2_ia (&pSrc);
     sum = __SMLALD(in32, in32, sum);
 #else
     in = *pSrc++;

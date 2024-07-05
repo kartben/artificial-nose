@@ -5,13 +5,13 @@
  * Title:        arm_dot_prod_f16.c
  * Description:  Floating-point dot product
  *
- * $Date:        18. March 2019
- * $Revision:    V1.6.0
+ * $Date:        23 April 2021
+ * $Revision:    V1.9.0
  *
- * Target Processor: Cortex-M cores
+ * Target Processor: Cortex-M and Cortex-A cores
  * -------------------------------------------------------------------- */
 /*
- * Copyright (C) 2010-2019 ARM Limited or its affiliates. All rights reserved.
+ * Copyright (C) 2010-2021 ARM Limited or its affiliates. All rights reserved.
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -34,18 +34,6 @@
   @ingroup groupMath
  */
 
-/**
-  @defgroup BasicDotProd Vector Dot Product
-
-  Computes the dot product of two vectors.
-  The vectors are multiplied element-by-element and then summed.
-
-  <pre>
-      sum = pSrcA[0]*pSrcB[0] + pSrcA[1]*pSrcB[1] + ... + pSrcA[blockSize-1]*pSrcB[blockSize-1]
-  </pre>
-
-  There are separate functions for floating-point, Q7, Q15, and Q31 data types.
- */
 
 /**
   @addtogroup BasicDotProd

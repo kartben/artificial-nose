@@ -6,11 +6,13 @@
  * Title:        arm_canberra_distance_f16.c
  * Description:  Canberra distance between two vectors
  *
+ * $Date:        23 April 2021
+ * $Revision:    V1.9.0
  *
- * Target Processor: Cortex-M cores
+ * Target Processor: Cortex-M and Cortex-A cores
  * -------------------------------------------------------------------- */
 /*
- * Copyright (C) 2010-2020 ARM Limited or its affiliates. All rights reserved.
+ * Copyright (C) 2010-2021 ARM Limited or its affiliates. All rights reserved.
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -150,11 +152,11 @@ float16_t arm_canberra_distance_f16(const float16_t *pA,const float16_t *pB, uin
       tmpA = *pA++;
       tmpB = *pB++;
 
-      diff = fabsf(tmpA - tmpB);
-      sum = fabsf(tmpA) + fabsf(tmpB);
-      if ((tmpA != 0.0f16) || (tmpB != 0.0f16))
+      diff = fabsf((float32_t)((_Float16)tmpA - (_Float16)tmpB));
+      sum = (_Float16)fabsf((float32_t)tmpA) + (_Float16)fabsf((float32_t)tmpB);
+      if (((_Float16)tmpA != 0.0f16) || ((_Float16)tmpB != 0.0f16))
       {
-         accum += (diff / sum);
+         accum += ((_Float16)diff / (_Float16)sum);
       }
       blockSize --;
    }

@@ -5,13 +5,13 @@
  * Title:        arm_dct4_init_q15.c
  * Description:  Initialization function of DCT-4 & IDCT4 Q15
  *
- * $Date:        18. March 2019
- * $Revision:    V1.6.0
+ * $Date:        23 April 2021
+ * $Revision:    V1.9.0
  *
- * Target Processor: Cortex-M cores
+ * Target Processor: Cortex-M and Cortex-A cores
  * -------------------------------------------------------------------- */
 /*
- * Copyright (C) 2010-2019 ARM Limited or its affiliates. All rights reserved.
+ * Copyright (C) 2010-2021 ARM Limited or its affiliates. All rights reserved.
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -56,7 +56,12 @@
                    The normalizing factor is <code>sqrt(2/N)</code>, which depends on the size of transform <code>N</code>.
                    Normalizing factors in 1.15 format are mentioned in the table below for different DCT sizes:
 
-                   \image html dct4NormalizingQ15Table.gif
+| DCT Size  | Normalizing factor value (hexadecimal)  | 
+| --------: | ---------------------------------------:| 
+| 2048      | 0x400                                   | 
+| 512       | 0x800                                   | 
+| 128       | 0x1000                                  | 
+
  */
 
 arm_status arm_dct4_init_q15(

@@ -19,8 +19,8 @@ limitations under the License.
 #include <cstdint>
 
 #include "edge-impulse-sdk/tensorflow/lite/c/common.h"
-#include "edge-impulse-sdk/tensorflow/lite/core/api/error_reporter.h"
 #include "edge-impulse-sdk/tensorflow/lite/schema/schema_generated.h"
+#include "edge-impulse-sdk/tensorflow/lite/schema/schema_generated_full.h"
 
 namespace tflite {
 
@@ -33,13 +33,19 @@ uint8_t* AlignPointerDown(uint8_t* data, size_t alignment);
 // Returns an increased size that's a multiple of alignment.
 size_t AlignSizeUp(size_t size, size_t alignment);
 
+// Templated version of AlignSizeUp
+// Returns an increased size that's a multiple of alignment.
+template <typename T>
+size_t AlignSizeUp(size_t count = 1) {
+  return AlignSizeUp(sizeof(T) * count, alignof(T));
+}
+
 // Returns size in bytes for a given TfLiteType.
 TfLiteStatus TfLiteTypeSizeOf(TfLiteType type, size_t* size);
 
 // How many bytes are needed to hold a tensor's contents.
 TfLiteStatus BytesRequiredForTensor(const tflite::Tensor& flatbuffer_tensor,
-                                    size_t* bytes, size_t* type_size,
-                                    ErrorReporter* error_reporter);
+                                    size_t* bytes, size_t* type_size);
 
 // How many bytes are used in a TfLiteEvalTensor instance. The byte length is
 // returned in out_bytes.

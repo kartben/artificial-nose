@@ -5,13 +5,13 @@
  * Title:        arm_sub_f16.c
  * Description:  Floating-point vector subtraction
  *
- * $Date:        18. March 2019
- * $Revision:    V1.6.0
+ * $Date:        23 April 2021
+ * $Revision:    V1.9.0
  *
- * Target Processor: Cortex-M cores
+ * Target Processor: Cortex-M and Cortex-A cores
  * -------------------------------------------------------------------- */
 /*
- * Copyright (C) 2010-2019 ARM Limited or its affiliates. All rights reserved.
+ * Copyright (C) 2010-2021 ARM Limited or its affiliates. All rights reserved.
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -34,17 +34,6 @@
   @ingroup groupMath
  */
 
-/**
-  @defgroup BasicSub Vector Subtraction
-
-  Element-by-element subtraction of two vectors.
-
-  <pre>
-      pDst[n] = pSrcA[n] - pSrcB[n],   0 <= n < blockSize.
-  </pre>
-
-  There are separate functions for floating-point, Q7, Q15, and Q31 data types.
- */
 
 /**
   @addtogroup BasicSub
@@ -131,13 +120,13 @@ void arm_sub_f16(
     /* C = A - B */
 
     /* Subtract and store result in destination buffer. */
-    *pDst++ = (*pSrcA++) - (*pSrcB++);
+    *pDst++ = (_Float16)(*pSrcA++) - (_Float16)(*pSrcB++);
 
-    *pDst++ = (*pSrcA++) - (*pSrcB++);
+    *pDst++ = (_Float16)(*pSrcA++) - (_Float16)(*pSrcB++);
 
-    *pDst++ = (*pSrcA++) - (*pSrcB++);
+    *pDst++ = (_Float16)(*pSrcA++) - (_Float16)(*pSrcB++);
 
-    *pDst++ = (*pSrcA++) - (*pSrcB++);
+    *pDst++ = (_Float16)(*pSrcA++) - (_Float16)(*pSrcB++);
 
     /* Decrement loop counter */
     blkCnt--;
@@ -158,7 +147,7 @@ void arm_sub_f16(
     /* C = A - B */
 
     /* Subtract and store result in destination buffer. */
-    *pDst++ = (*pSrcA++) - (*pSrcB++);
+    *pDst++ = (_Float16)(*pSrcA++) - (_Float16)(*pSrcB++);
 
     /* Decrement loop counter */
     blkCnt--;

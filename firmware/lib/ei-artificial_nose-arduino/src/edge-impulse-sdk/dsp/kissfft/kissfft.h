@@ -10,7 +10,7 @@
 #define KISSFFT_CLASS_HH
 #include <complex>
 #include <utility>
-#include <vector>
+#include "edge-impulse-sdk/dsp/ei_vector.h"
 
 
 template <typename scalar_t>
@@ -69,7 +69,7 @@ class kissfft
             else if ( inverse != _inverse )
             {
                 // conjugate the twiddle factors.
-                for ( typename std::vector<cpx_t>::iterator it = _twiddles.begin();
+                for ( typename ei_vector<cpx_t>::iterator it = _twiddles.begin();
                       it != _twiddles.end(); ++it )
                     it->imag( -it->imag() );
             }
@@ -353,9 +353,9 @@ class kissfft
 
         std::size_t _nfft;
         bool _inverse;
-        std::vector<cpx_t> _twiddles;
-        std::vector<std::size_t> _stageRadix;
-        std::vector<std::size_t> _stageRemainder;
-        mutable std::vector<cpx_t> _scratchbuf;
+        ei_vector<cpx_t> _twiddles;
+        ei_vector<std::size_t> _stageRadix;
+        ei_vector<std::size_t> _stageRemainder;
+        mutable ei_vector<cpx_t> _scratchbuf;
 };
 #endif

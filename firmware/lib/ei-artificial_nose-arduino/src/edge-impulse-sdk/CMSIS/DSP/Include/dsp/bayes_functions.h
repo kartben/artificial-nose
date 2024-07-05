@@ -1,8 +1,9 @@
 /******************************************************************************
  * @file     bayes_functions.h
  * @brief    Public header file for CMSIS DSP Library
- * @version  V1.9.0
- * @date     20. July 2020
+ * @version  V1.10.0
+ * @date     08 July 2021
+ * Target Processor: Cortex-M and Cortex-A cores
  ******************************************************************************/
 /*
  * Copyright (c) 2010-2020 Arm Limited or its affiliates. All rights reserved.
@@ -66,9 +67,10 @@ typedef struct
 /**
  * @brief Naive Gaussian Bayesian Estimator
  *
- * @param[in]  S         points to a naive bayes instance structure
- * @param[in]  in        points to the elements of the input vector.
- * @param[in]  pBuffer   points to a buffer of length numberOfClasses
+ * @param[in]  S                        points to a naive bayes instance structure
+ * @param[in]  in                       points to the elements of the input vector.
+ * @param[out] *pOutputProbabilities    points to a buffer of length numberOfClasses containing estimated probabilities
+ * @param[out] *pBufferB                points to a temporary buffer of length numberOfClasses
  * @return The predicted class
  *
  */
@@ -76,7 +78,8 @@ typedef struct
 
 uint32_t arm_gaussian_naive_bayes_predict_f32(const arm_gaussian_naive_bayes_instance_f32 *S, 
    const float32_t * in, 
-   float32_t *pBuffer);
+   float32_t *pOutputProbabilities,
+   float32_t *pBufferB);
 
 
 #ifdef   __cplusplus

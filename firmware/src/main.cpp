@@ -1,36 +1,4 @@
 #include <Arduino.h>
-#include "Config.h"
-#include "ConfigurationMode.h"
-
-////////////////////////////////////////////////////////////////////////////////
-// Storage
-
-#include <ExtFlashLoader.h>
-#include "Storage.h"
-
-static ExtFlashLoader::QSPIFlash Flash_;
-static Storage Storage_(Flash_);
-
-////////////////////////////////////////////////////////////////////////////////
-// Network
-
-#include <Network/WiFiManager.h>
-#include <Network/TimeManager.h>
-#include <Aziot/AziotDps.h>
-#include <Aziot/AziotHub.h>
-#include <ArduinoJson.h>
-
-static bool isWifiConfigured = false;
-
-static WiFiManager WifiManager_;
-static TimeManager TimeManager_;
-static std::string HubHost_;
-static std::string DeviceId_;
-static AziotHub AziotHub_;
-
-static unsigned long TelemetryInterval_ = TELEMETRY_INTERVAL;   // [sec.]
-static unsigned long nextTelemetrySendTime = 0;
-
 
 /**
 * @brief      Printf function uses vsnprintf and output using Arduino Serial
@@ -51,156 +19,6 @@ void ei_printf(const char *format, ...)
     Serial.write(print_buf);
   }
 }
-
-static void ConnectWiFi()
-{
-  ei_printf("Connecting to SSID: %s\n", Storage_.WiFiSSID.c_str());
-	WifiManager_.Connect(Storage_.WiFiSSID.c_str(), Storage_.WiFiPassword.c_str());
-	while (!WifiManager_.IsConnected())
-	{
-		ei_printf(".");
-		delay(500);
-	}
-	ei_printf("Connected\n");
-}
-
-static void SyncTimeServer()
-{
-	ei_printf("Synchronize time\n");
-	while (!TimeManager_.Update())
-	{
-		ei_printf(".");
-		delay(1000);
-	}
-	ei_printf("Synchronized\n");
-}
-
-static bool DeviceProvisioning()
-{
-	ei_printf("Device provisioning:\n");
-  ei_printf(" Id scope = %s\n", Storage_.IdScope.c_str());
-  ei_printf(" Registration id = %s\n", Storage_.RegistrationId.c_str());
-
-	AziotDps aziotDps;
-	aziotDps.SetMqttPacketSize(MQTT_PACKET_SIZE);
-
-  if (aziotDps.RegisterDevice(DPS_GLOBAL_DEVICE_ENDPOINT_HOST, Storage_.IdScope, Storage_.RegistrationId, Storage_.SymmetricKey, MODEL_ID, TimeManager_.GetEpochTime() + TOKEN_LIFESPAN, &HubHost_, &DeviceId_) != 0)
-  {
-    ei_printf("ERROR: RegisterDevice()\n");
-    return false;
-  }
-
-  ei_printf("Device provisioned:\n");
-  ei_printf(" Hub host = %s\n", HubHost_.c_str());
-  ei_printf(" Device id = %s\n", DeviceId_.c_str());
-
-    return true;
-}
-
-static bool AziotIsConnected()
-{
-  return AziotHub_.IsConnected();
-}
-
-static void AziotDoWork()
-{
-    if(!isWifiConfigured) return;
-
-    static unsigned long connectTime = 0;
-    static unsigned long forceDisconnectTime;
-
-    bool repeat;
-    do {
-      repeat = false;
-
-      const auto now = TimeManager_.GetEpochTime();
-      if (!AziotHub_.IsConnected()) {
-        if (now >= connectTime) {
-          // Serial.printf("Connecting to Azure IoT Hub...\n");
-          if (AziotHub_.Connect(HubHost_,
-                                DeviceId_,
-                                Storage_.SymmetricKey,
-                                MODEL_ID,
-                                now + TOKEN_LIFESPAN) != 0) {
-            // Serial.printf("ERROR: Try again in 5 seconds\n");
-            connectTime = TimeManager_.GetEpochTime() + 5;
-            return;
-          }
-
-          // Serial.printf("SUCCESS\n");
-          forceDisconnectTime =
-            TimeManager_.GetEpochTime() +
-            static_cast<unsigned long>(TOKEN_LIFESPAN * RECONNECT_RATE);
-
-          AziotHub_.RequestTwinDocument("get_twin");
-        }
-      } else {
-        if (now >= forceDisconnectTime) {
-          // Serial.printf("Disconnect\n");
-          AziotHub_.Disconnect();
-          connectTime = 0;
-
-          repeat = true;
-        } else {
-          AziotHub_.DoWork();
-        }
-      }
-    } while (repeat);
-}
-
-template <typename T>
-static void AziotSendConfirm(const char* requestId, const char* name, T value, int ackCode, int ackVersion)
-{
-	StaticJsonDocument<JSON_MAX_SIZE> doc;
-	doc[name]["value"] = value;
-	doc[name]["ac"] = ackCode;
-	doc[name]["av"] = ackVersion;
-
-	char json[JSON_MAX_SIZE];
-	serializeJson(doc, json);
-
-	AziotHub_.SendTwinPatch(requestId, json);
-}
-
-template <typename T>
-static bool AziotUpdateWritableProperty(const char* name, T* value, const JsonVariant& desiredVersion, const JsonVariant& desired, const JsonVariant& reported = JsonVariant())
-{
-    bool ret = false;
-
-    JsonVariant desiredValue = desired[name];
-    JsonVariant reportedProperty = reported[name];
-
-	if (!desiredValue.isNull())
-    {
-        *value = desiredValue.as<T>();
-        ret = true;
-    }
-
-    if (desiredValue.isNull())
-    {
-        if (reportedProperty.isNull())
-        {
-            AziotSendConfirm<T>("init", name, *value, 200, 1);
-        }
-    }
-    else if (reportedProperty.isNull() || desiredVersion.as<int>() != reportedProperty["av"].as<int>())
-    {
-        AziotSendConfirm<T>("update", name, *value, 200, desiredVersion.as<int>());
-    }
-
-    return ret;
-}
-
-
-template <size_t desiredCapacity>
-static void AziotSendTelemetry(const StaticJsonDocument<desiredCapacity>& jsonDoc, char* componentName)
-{
-	char json[jsonDoc.capacity()];
-	serializeJson(jsonDoc, json, sizeof(json));
-
-	AziotHub_.SendTelemetry(json, componentName);
-}
-
 
 #include <AceButton.h>
 using namespace ace_button;
@@ -224,17 +42,16 @@ TFT_eSprite spr = TFT_eSprite(&tft); // main sprite
 #include "fonts/roboto_bold_28.h"
 
 #include "images/icon_ambient.h"
-#include "images/icon_anomaly.h"
-#include "images/icon_coffee.h"
-#include "images/icon_no_anomaly.h"
-#include "images/icon_whiskey.h"
+#include "images/icon_coke.h"
+#include "images/icon_pepsi.h"
 
-#include "images/icon_wifi.h"
+#include "images/icon_anomaly.h"
+#include "images/icon_no_anomaly.h"
 
 #define USE_ICONS 1
 
 #if USE_ICONS
-const unsigned short* ICONS_MAP[] = { icon_ambient, icon_coffee, icon_whiskey };
+const unsigned short* ICONS_MAP[] = { icon_ambient, icon_coke, icon_pepsi }; // See ei_classifier_inferencing_categories.
 #endif
 
 typedef uint32_t (GAS_GMXXX<TwoWire>::*sensorGetFn)();
@@ -303,35 +120,6 @@ enum class ButtonId
 };
 static const int ButtonNumber = 6;
 static AceButton Buttons[ButtonNumber];
-
-static void ReceivedTwinDocument(const char* json, const char* requestId)
-{
-	StaticJsonDocument<JSON_MAX_SIZE> doc;
-	if (deserializeJson(doc, json)) return;
-    
-  if (doc["desired"]["$version"].isNull()) return;
-
-    if (AziotUpdateWritableProperty("telemetryInterval", &TelemetryInterval_, doc["desired"]["$version"], doc["desired"], doc["reported"]))
-    {
-      nextTelemetrySendTime = millis() + TelemetryInterval_;
-      // ei_printf("New telemetryInterval = %d\n", TelemetryInterval_);
-    }
-}
-
-static void ReceivedTwinDesiredPatch(const char* json, const char* version)
-{
-	StaticJsonDocument<JSON_MAX_SIZE> doc;
-	if (deserializeJson(doc, json)) return;
-
-	if (doc["$version"].isNull()) return;
-
-  if (AziotUpdateWritableProperty("telemetryInterval", &TelemetryInterval_, doc["$version"], doc.as<JsonVariant>()))
-  {
-    nextTelemetrySendTime = millis() + TelemetryInterval_;
-    // ei_printf("New telemetryInterval = %d\n", TelemetryInterval_);
-  }
-
-}
 
 static void ButtonEventHandler(AceButton *button, uint8_t eventType, uint8_t buttonState)
 {
@@ -407,8 +195,6 @@ static void ButtonDoWork()
 
 void setup()
 {
-  Storage_.Load();
-
   Serial.begin(115200);
 
   pinMode(D0, OUTPUT);
@@ -423,14 +209,6 @@ void setup()
   pinMode(WIO_5S_LEFT, INPUT_PULLUP);
   pinMode(WIO_5S_RIGHT, INPUT_PULLUP);
   pinMode(WIO_5S_PRESS, INPUT_PULLUP);
-
-  if (digitalRead(WIO_KEY_A) == LOW &&
-      digitalRead(WIO_KEY_B) == LOW &&
-      digitalRead(WIO_KEY_C) == LOW   )
-  {
-      ei_printf("In configuration mode\r\n");
-      ConfigurationMode(Storage_);
-  }
 
   ButtonInit();
 
@@ -451,42 +229,6 @@ void setup()
   spr.setTextColor(TEXT_COLOR);
 
   spr.setFreeFont(&FreeSans12pt7b);
-
-	if(! Storage_.WiFiSSID.empty()) {
-    isWifiConfigured = true              ;
-  
-    spr.drawString("Wi-Fi", 20, 40);
-    spr.pushSprite(0,0);
-    ConnectWiFi();
-    spr.drawXBitmap(320 - 24 - 4, 4, icon_wifi, 24, 24, TFT_GREEN, BG_COLOR);
-    spr.drawString("Wi-Fi ... OK", 20, 40);
-    spr.pushSprite(0,0);
-
-    spr.drawString("Time sync.", 20, 70);
-    spr.pushSprite(0,0);
-    SyncTimeServer();
-    spr.drawString("Time sync. ... OK", 20, 70);
-    spr.pushSprite(0,0);
-
-    spr.drawString("Provisioning", 20, 100);
-    spr.pushSprite(0,0);
-    if (!DeviceProvisioning()) abort();
-    spr.drawString("Provisioning ... OK", 20, 100);
-    spr.pushSprite(0,0);
-
-    spr.drawString("Azure IoT Hub", 20, 130);
-    spr.pushSprite(0,0);
-    AziotDoWork();
-    spr.drawString("Azure IoT Hub ... OK", 20, 130);
-    spr.pushSprite(0,0);
-
-    AziotHub_.SetMqttPacketSize(MQTT_PACKET_SIZE);
-
-    AziotHub_.ReceivedTwinDocumentCallback = ReceivedTwinDocument;
-    AziotHub_.ReceivedTwinDesiredPatchCallback = ReceivedTwinDesiredPatch;  
-
-  }
- 
 }
 
 int fan = 0;
@@ -495,12 +237,7 @@ void loop()
 {
   spr.fillSprite(BG_COLOR);
 
-  if(isWifiConfigured && WifiManager_.IsConnected()) {
-    spr.drawXBitmap(320 - 24 - 4, 4, icon_wifi, 24, 24, TFT_GREEN, BG_COLOR);
-  }
-
   ButtonDoWork();
-  AziotDoWork();
 
   if (mode == TRAINING) {
     strcpy(title_text, "Training mode");
@@ -594,21 +331,6 @@ void loop()
 
     default: {
       break; // nothing
-    }
-  }
-
-  if(millis() >= nextTelemetrySendTime) 
-  {
-    if (AziotIsConnected())
-    {
-        StaticJsonDocument<JSON_MAX_SIZE> doc;
-        doc["no2"] = sensors[0].last_val;
-        doc["co"] = sensors[1].last_val;
-        doc["c2h5oh"] = sensors[2].last_val;
-        doc["voc"] = sensors[3].last_val;
-        AziotSendTelemetry<JSON_MAX_SIZE>(doc, "gas_sensor");
-
-        nextTelemetrySendTime = millis() + TelemetryInterval_ * 1000;
     }
   }
 
@@ -709,21 +431,10 @@ void loop()
             (result.classification[best_prediction].value -
                latest_inference_confidence_level >
              .05)) {
-        if (isWifiConfigured) {
-        StaticJsonDocument<JSON_MAX_SIZE> doc;
-        doc["latestInferenceResult"] = title_text;
 
-        char json[JSON_MAX_SIZE];
-        serializeJson(doc, json);
-
-          static int requestId = 444;
-          char b[12];
-        AziotHub_.SendTwinPatch(itoa(requestId++, b, 10), json);
-      }
-
-      latest_inference_idx = best_prediction;
-      latest_inference_confidence_level =
-        result.classification[best_prediction].value;
+        latest_inference_idx = best_prediction;
+        latest_inference_confidence_level =
+          result.classification[best_prediction].value;
       }
     }
   }

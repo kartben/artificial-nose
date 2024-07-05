@@ -5,13 +5,13 @@
  * Title:        arm_cmplx_mult_cmplx_f16.c
  * Description:  Floating-point complex-by-complex multiplication
  *
- * $Date:        18. March 2019
- * $Revision:    V1.6.0
+ * $Date:        23 April 2021
+ * $Revision:    V1.9.0
  *
- * Target Processor: Cortex-M cores
+ * Target Processor: Cortex-M and Cortex-A cores
  * -------------------------------------------------------------------- */
 /*
- * Copyright (C) 2010-2019 ARM Limited or its affiliates. All rights reserved.
+ * Copyright (C) 2010-2021 ARM Limited or its affiliates. All rights reserved.
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -36,27 +36,7 @@
   @ingroup groupCmplxMath
  */
 
-/**
-  @defgroup CmplxByCmplxMult Complex-by-Complex Multiplication
 
-  Multiplies a complex vector by another complex vector and generates a complex result.
-  The data in the complex arrays is stored in an interleaved fashion
-  (real, imag, real, imag, ...).
-  The parameter <code>numSamples</code> represents the number of complex
-  samples processed.  The complex arrays have a total of <code>2*numSamples</code>
-  real values.
-
-  The underlying algorithm is used:
-
-  <pre>
-  for (n = 0; n < numSamples; n++) {
-      pDst[(2*n)+0] = pSrcA[(2*n)+0] * pSrcB[(2*n)+0] - pSrcA[(2*n)+1] * pSrcB[(2*n)+1];
-      pDst[(2*n)+1] = pSrcA[(2*n)+0] * pSrcB[(2*n)+1] + pSrcA[(2*n)+1] * pSrcB[(2*n)+0];
-  }
-  </pre>
-
-  There are separate functions for floating-point, Q15, and Q31 data types.
- */
 
 /**
   @addtogroup CmplxByCmplxMult
@@ -271,4 +251,5 @@ void arm_cmplx_mult_cmplx_f16(
  */
 
 #endif /* #if defined(ARM_FLOAT16_SUPPORTED) */
+
 #endif // EIDSP_LOAD_CMSIS_DSP_SOURCES

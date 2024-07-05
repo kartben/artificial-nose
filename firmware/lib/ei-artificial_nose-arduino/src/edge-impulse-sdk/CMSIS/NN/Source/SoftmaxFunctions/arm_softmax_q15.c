@@ -1,5 +1,7 @@
+#include "edge-impulse-sdk/classifier/ei_classifier_config.h"
+#if EI_CLASSIFIER_TFLITE_LOAD_CMSIS_NN_SOURCES
 /*
- * Copyright (C) 2010-2018 Arm Limited or its affiliates. All rights reserved.
+ * SPDX-FileCopyrightText: Copyright 2010-2018, 2022 Arm Limited and/or its affiliates <open-source-office@arm.com>
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -21,8 +23,8 @@
  * Title:        arm_softmax_q15.c
  * Description:  Q15 softmax function
  *
- * $Date:        09. October 2020
- * $Revision:    V.1.0.1
+ * $Date:        4 Aug 2022
+ * $Revision:    V.1.0.2
  *
  * Target Processor:  Cortex-M cores
  *
@@ -39,13 +41,9 @@
  * @{
  */
 
-/**
- * @brief Q15 softmax function
- * @param[in]       vec_in      pointer to input vector
- * @param[in]       dim_vec     input vector dimention
- * @param[out]      p_out       pointer to output vector
+/*
+ * Q15 softmax function
  *
- * @details
  *
  *  Here, instead of typical e based softmax, we use
  *  2-based softmax, i.e.,:
@@ -116,3 +114,5 @@ void arm_softmax_q15(const q15_t *vec_in, const uint16_t dim_vec, q15_t *p_out)
 /**
  * @} end of Softmax group
  */
+
+#endif // EI_CLASSIFIER_TFLITE_LOAD_CMSIS_NN_SOURCES

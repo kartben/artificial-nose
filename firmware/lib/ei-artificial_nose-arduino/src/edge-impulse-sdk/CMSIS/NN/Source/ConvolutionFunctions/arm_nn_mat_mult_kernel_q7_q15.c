@@ -1,5 +1,7 @@
+#include "edge-impulse-sdk/classifier/ei_classifier_config.h"
+#if EI_CLASSIFIER_TFLITE_LOAD_CMSIS_NN_SOURCES
 /*
- * Copyright (C) 2010-2021 Arm Limited or its affiliates. All rights reserved.
+ * SPDX-FileCopyrightText: Copyright 2010-2022 Arm Limited and/or its affiliates <open-source-office@arm.com>
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -21,8 +23,8 @@
  * Title:        arm_nn_mat_mult_kernel_q7_q15.c
  * Description:  Matrix-multiplication function for convolution
  *
- * $Date:        January 26, 2021
- * $Revision:    V.1.0.2
+ * $Date:        4 Aug 2022
+ * $Revision:    V.1.0.3
  *
  * Target Processor:  Cortex-M cores
  * -------------------------------------------------------------------- */
@@ -30,10 +32,10 @@
 #include "edge-impulse-sdk/CMSIS/NN/Include/arm_nnfunctions.h"
 #include "edge-impulse-sdk/CMSIS/NN/Include/arm_nnsupportfunctions.h"
 
-/**
- * @brief Matrix-multiplication function for convolution.
+/*
+ * Matrix-multiplication function for convolution.
  *
- * @details Refer to header file for details.
+ * Refer to header file for details.
  *
  */
 
@@ -184,3 +186,5 @@ q7_t *arm_nn_mat_mult_kernel_q7_q15(const q7_t *pA,
     return NULL;
 #endif /* ARM_MATH_DSP */
 }
+
+#endif // EI_CLASSIFIER_TFLITE_LOAD_CMSIS_NN_SOURCES

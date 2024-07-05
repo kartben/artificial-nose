@@ -5,13 +5,13 @@
  * Title:        arm_dct4_init_f32.c
  * Description:  Initialization function of DCT-4 & IDCT4 F32
  *
- * $Date:        18. March 2019
- * $Revision:    V1.6.0
+ * $Date:        23 April 2021
+ * $Revision:    V1.9.0
  *
- * Target Processor: Cortex-M cores
+ * Target Processor: Cortex-M and Cortex-A cores
  * -------------------------------------------------------------------- */
 /*
- * Copyright (C) 2010-2019 ARM Limited or its affiliates. All rights reserved.
+ * Copyright (C) 2010-2021 ARM Limited or its affiliates. All rights reserved.
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -56,7 +56,13 @@
                    The normalizing factor is <code>sqrt(2/N)</code>, which depends on the size of transform <code>N</code>.
                    Floating-point normalizing factors are mentioned in the table below for different DCT sizes:
 
-                   \image html dct4NormalizingF32Table.gif
+ 
+| DCT Size  | Normalizing factor value  | 
+| --------: | ------------------------: | 
+| 2048      | 0.03125                   | 
+| 512       | 0.0625                    | 
+| 128       | 0.125                     | 
+
  */
 
 arm_status arm_dct4_init_f32(

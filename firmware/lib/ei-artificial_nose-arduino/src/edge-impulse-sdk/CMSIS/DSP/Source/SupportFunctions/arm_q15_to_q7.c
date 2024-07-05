@@ -5,13 +5,13 @@
  * Title:        arm_q15_to_q7.c
  * Description:  Converts the elements of the Q15 vector to Q7 vector
  *
- * $Date:        18. March 2019
- * $Revision:    V1.6.0
+ * $Date:        23 April 2021
+ * $Revision:    V1.9.0
  *
- * Target Processor: Cortex-M cores
+ * Target Processor: Cortex-M and Cortex-A cores
  * -------------------------------------------------------------------- */
 /*
- * Copyright (C) 2010-2019 ARM Limited or its affiliates. All rights reserved.
+ * Copyright (C) 2010-2021 ARM Limited or its affiliates. All rights reserved.
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -62,7 +62,7 @@ void arm_q15_to_q7(
     uint32_t  blkCnt;           /* loop counters */
     q15x8x2_t tmp;
     q15_t const *pSrcVec;
-    q7x16_t vecDst;
+    q7x16_t vecDst = { 0 };
 
 
     pSrcVec = (q15_t const *) pSrc;
@@ -121,8 +121,8 @@ void arm_q15_to_q7(
     /* Convert from q15 to q7 and store result in destination buffer */
 #if defined (ARM_MATH_DSP)
 
-    in1 = read_q15x2_ia ((q15_t **) &pIn);
-    in2 = read_q15x2_ia ((q15_t **) &pIn);
+    in1 = read_q15x2_ia (&pIn);
+    in2 = read_q15x2_ia (&pIn);
 
 #ifndef ARM_MATH_BIG_ENDIAN
 

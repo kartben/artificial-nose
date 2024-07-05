@@ -5,13 +5,13 @@
  * Title:        arm_spline_interp_f32.c
  * Description:  Floating-point cubic spline interpolation
  *
- * $Date:        13 November 2019
- * $Revision:    V1.6.0
+ * $Date:        23 April 2021
+ * $Revision:    V1.9.0
  *
- * Target Processor: Cortex-M cores
+ * Target Processor: Cortex-M and Cortex-A cores
  * -------------------------------------------------------------------- */
 /*
- * Copyright (C) 2010-2019 ARM Limited or its affiliates. All rights reserved.
+ * Copyright (C) 2010-2021 ARM Limited or its affiliates. All rights reserved.
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -140,7 +140,7 @@
 /**
  * @brief Processing function for the floating-point cubic spline interpolation.
  * @param[in]  S          points to an instance of the floating-point spline structure.
- * @param[in]  xq         points to the x values ot the interpolated data points.
+ * @param[in]  xq         points to the x values of the interpolated data points.
  * @param[out] pDst       points to the block of output data.
  * @param[in]  blockSize  number of samples of output data.
  */

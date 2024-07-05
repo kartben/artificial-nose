@@ -15,7 +15,7 @@ limitations under the License.
 #ifndef TENSORFLOW_LITE_KERNELS_INTERNAL_TENSOR_CTYPES_H_
 #define TENSORFLOW_LITE_KERNELS_INTERNAL_TENSOR_CTYPES_H_
 
-#include "edge-impulse-sdk/tensorflow/lite/c/common.h"
+#include "edge-impulse-sdk/tensorflow/lite/core/c/common.h"
 #include "edge-impulse-sdk/tensorflow/lite/kernels/internal/types.h"
 
 namespace tflite {

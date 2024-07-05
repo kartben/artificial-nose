@@ -5,13 +5,13 @@
  * Title:        arm_mat_mult_f64.c
  * Description:  Floating-point matrix multiplication
  *
- * $Date:        18. March 2019
- * $Revision:    V1.6.0
+ * $Date:        23 April 2021
+ * $Revision:    V1.9.0
  *
- * Target Processor: Cortex-M cores
+ * Target Processor: Cortex-M and Cortex-A cores
  * -------------------------------------------------------------------- */
 /*
- * Copyright (C) 2010-2019 ARM Limited or its affiliates. All rights reserved.
+ * Copyright (C) 2010-2021 ARM Limited or its affiliates. All rights reserved.
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -33,23 +33,6 @@
 /**
  * @ingroup groupMatrix
  */
-
-/**
- * @defgroup MatrixMult Matrix Multiplication
- *
- * Multiplies two matrices.
- *
- * \image html MatrixMultiplication.gif "Multiplication of two 3 x 3 matrices"
-
- * Matrix multiplication is only defined if the number of columns of the
- * first matrix equals the number of rows of the second matrix.
- * Multiplying an <code>M x N</code> matrix with an <code>N x P</code> matrix results
- * in an <code>M x P</code> matrix.
- * When matrix size checking is enabled, the functions check: (1) that the inner dimensions of
- * <code>pSrcA</code> and <code>pSrcB</code> are equal; and (2) that the size of the output
- * matrix equals the outer dimensions of <code>pSrcA</code> and <code>pSrcB</code>.
- */
-
 
 /**
  * @addtogroup MatrixMult
@@ -116,7 +99,7 @@ arm_status arm_mat_mult_f64(
       do
       {
         /* Set the variable sum, that acts as accumulator, to zero */
-        sum = 0.0f;
+        sum = 0.0;
 
         /* Initialize pointer pIn1 to point to starting address of column being processed */
         pIn1 = pInA;

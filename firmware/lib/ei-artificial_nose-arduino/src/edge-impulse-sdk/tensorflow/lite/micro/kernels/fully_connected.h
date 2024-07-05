@@ -1,4 +1,4 @@
-/* Copyright 2020 The TensorFlow Authors. All Rights Reserved.
+/* Copyright 2022 The TensorFlow Authors. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -38,6 +38,14 @@ struct OpDataFullyConnected {
   int32_t input_zero_point;
   int32_t filter_zero_point;
   int32_t output_zero_point;
+
+// TODO(b/258710417): enable by default once optimized fully-connected works for
+// all targets.
+#if !defined(HEXAGON)
+  // A buffer used to store unpacked filter values. This is used if the source
+  // tensor is of n-bit precision that cannot be easily processed by kernels.
+  int filter_buffer_index;
+#endif
 };
 
 extern const int kFullyConnectedInputTensor;
@@ -65,14 +73,9 @@ TfLiteStatus CalculateOpDataFullyConnected(
 // (reference or optimized) must define this function.
 TfLiteRegistration Register_FULLY_CONNECTED();
 
-#if defined(CMSIS_NN) || defined(ARDUINO)
-// The Arduino is a special case where we use the CMSIS kernels, but because of
-// the current approach to building for Arduino, we do not support -DCMSIS_NN as
-// part of the build. As a result, we use defined(ARDUINO) as proxy for the
-// CMSIS kernels for this one special case.
-
-// Returns a TfLiteRegistration struct for cmsis_nn kernel variant that only
-// supports int8.
+#if defined(CMSIS_NN) || defined(HEXAGON) || defined(EI_CLASSIFIER_TFLITE_ENABLE_SILABS_MVP)
+// Returns a TfLiteRegistration struct for kernel variant that only supports
+// int8.
 TfLiteRegistration Register_FULLY_CONNECTED_INT8();
 
 #else
@@ -86,6 +89,24 @@ inline TfLiteRegistration Register_FULLY_CONNECTED_INT8() {
 }
 
 #endif
+
+#if defined(CMSIS_NN)
+// Returns a TfLiteRegistration struct for kernel variant that only supports
+// int16.
+TfLiteRegistration Register_FULLY_CONNECTED_INT16();
+
+#else
+// Note that while this block gets used for both reference and optimized kernels
+// that do not have any specialized implementations, the only goal here is to
+// define fallback implementation that allow reference kernels to still be used
+// from applications that call a more specific kernel variant.
+
+inline TfLiteRegistration Register_FULLY_CONNECTED_INT16() {
+  return Register_FULLY_CONNECTED();
+}
+
+#endif
+
 }  // namespace tflite
 
 #endif  // TENSORFLOW_LITE_MICRO_KERNELS_FULLY_CONNECTED_H_

@@ -5,13 +5,13 @@
  * Title:        arm_biquad_cascade_df1_32x64_q31.c
  * Description:  High precision Q31 Biquad cascade filter processing function
  *
- * $Date:        18. March 2019
- * $Revision:    V1.6.0
+ * $Date:        23 April 2021
+ * $Revision:    V1.9.0
  *
- * Target Processor: Cortex-M cores
+ * Target Processor: Cortex-M and Cortex-A cores
  * -------------------------------------------------------------------- */
 /*
- * Copyright (C) 2010-2019 ARM Limited or its affiliates. All rights reserved.
+ * Copyright (C) 2010-2021 ARM Limited or its affiliates. All rights reserved.
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -298,7 +298,7 @@ void arm_biquad_cas_df1_32x64_q31(
     q31_t     b0, b1, b2, a1, a2;   /*  Filter coefficients           */
     int32_t   shift = (int32_t) S->postShift + 1;   /*  Shift to be applied to the output */
     uint32_t  sample, stage = S->numStages; /*  loop counters                     */
-    q31x4_t vecCoef, vecIn;
+    q31x4_t vecCoef = { 0 }, vecIn;
     q63_t     acc;
 
     if (blockSize <= 3)

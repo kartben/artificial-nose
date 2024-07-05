@@ -10,6 +10,8 @@
    defines kiss_fft_scalar as either short or a float type
    and defines
    typedef struct { kiss_fft_scalar r; kiss_fft_scalar i; }kiss_fft_cpx; */
+#pragma once
+
 #include "kiss_fft.h"
 #include <limits.h>
 

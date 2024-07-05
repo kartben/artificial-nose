@@ -5,13 +5,13 @@
  * Title:        arm_mat_mult_fast_q15.c
  * Description:  Q15 matrix multiplication (fast variant)
  *
- * $Date:        18. March 2019
- * $Revision:    V1.6.0
+ * $Date:        23 April 2021
+ * $Revision:    V1.9.0
  *
- * Target Processor: Cortex-M cores
+ * Target Processor: Cortex-M and Cortex-A cores
  * -------------------------------------------------------------------- */
 /*
- * Copyright (C) 2010-2019 ARM Limited or its affiliates. All rights reserved.
+ * Copyright (C) 2010-2021 ARM Limited or its affiliates. All rights reserved.
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -80,7 +80,7 @@ arm_status arm_mat_mult_fast_q15(
         uint16_t numRowsA = pSrcA->numRows;            /* Number of rows of input matrix A */
         uint16_t numColsB = pSrcB->numCols;            /* Number of columns of input matrix B */
         uint16_t numColsA = pSrcA->numCols;            /* Number of columns of input matrix A */
-        uint16_t numRowsB = pSrcB->numRows;            /* Number of rows of input matrix A */
+        uint16_t numRowsB = pSrcB->numRows;            /* Number of rows of input matrix B */
         uint32_t col, i = 0U, row = numRowsB, colCnt;  /* Loop counters */
         arm_status status;                             /* Status of matrix multiplication */
 
@@ -127,7 +127,7 @@ arm_status arm_mat_mult_fast_q15(
 #if defined (ARM_MATH_DSP)
 
         /* Read two elements from row */
-        in = read_q15x2_ia ((q15_t **) &pInB);
+        in = read_q15x2_ia (&pInB);
 
         /* Unpack and store one element in destination */
 #ifndef ARM_MATH_BIG_ENDIAN
@@ -149,7 +149,7 @@ arm_status arm_mat_mult_fast_q15(
         /* Update pointer px to point to next row of transposed matrix */
         px += numRowsB;
 
-        in = read_q15x2_ia ((q15_t **) &pInB);
+        in = read_q15x2_ia (&pInB);
 #ifndef ARM_MATH_BIG_ENDIAN
         *px = (q15_t) in;
 #else
@@ -260,7 +260,7 @@ arm_status arm_mat_mult_fast_q15(
         pInA2 = pInA + numColsA;
         pInB2 = pInB + numRowsB;
 
-        /* Read in two elements at once - alows dual MAC instruction */
+        /* Read in two elements at once - allows dual MAC instruction */
         colCnt = numColsA >> 1U;
 #else
         colCnt = numColsA >> 2U;
@@ -273,13 +273,13 @@ arm_status arm_mat_mult_fast_q15(
 
 #if defined (ARM_MATH_DSP)
           /* read real and imag values from pSrcA and pSrcB buffer */
-          inA1 = read_q15x2_ia ((q15_t **) &pInA);
-          inB1 = read_q15x2_ia ((q15_t **) &pInB);
+          inA1 = read_q15x2_ia (&pInA);
+          inB1 = read_q15x2_ia (&pInB);
 
-          inA2 = read_q15x2_ia ((q15_t **) &pInA2);
-          inB2 = read_q15x2_ia ((q15_t **) &pInB2);
+          inA2 = read_q15x2_ia (&pInA2);
+          inB2 = read_q15x2_ia (&pInB2);
 
-          /* Multiply and Accumlates */
+          /* Multiply and Accumulates */
           sum  = __SMLAD(inA1, inB1, sum);
           sum2 = __SMLAD(inA1, inB2, sum2);
           sum3 = __SMLAD(inA2, inB1, sum3);
@@ -288,7 +288,7 @@ arm_status arm_mat_mult_fast_q15(
           /* read real and imag values from pSrcA and pSrcB buffer */
           inA1 = *pInA++;
           inB1 = *pInB++;
-          /* Multiply and Accumlates */
+          /* Multiply and Accumulates */
           sum += inA1 * inB1;
 
           inA2 = *pInA++;
@@ -391,10 +391,10 @@ arm_status arm_mat_mult_fast_q15(
         /* matrix multiplication */
         while (colCnt > 0U)
         {
-          inA1 = read_q15x2_ia ((q15_t **) &pInA);
-          inA2 = read_q15x2_ia ((q15_t **) &pInA);
-          inB1 = read_q15x2_ia ((q15_t **) &pInB);
-          inB2 = read_q15x2_ia ((q15_t **) &pInB);
+          inA1 = read_q15x2_ia (&pInA);
+          inA2 = read_q15x2_ia (&pInA);
+          inB1 = read_q15x2_ia (&pInB);
+          inB2 = read_q15x2_ia (&pInB);
 
           sum  = __SMLAD(inA1, inB1, sum);
           sum  = __SMLAD(inA2, inB2, sum);
@@ -443,10 +443,10 @@ arm_status arm_mat_mult_fast_q15(
         /* matrix multiplication */
         while (colCnt > 0U)
         {
-          inA1 = read_q15x2_ia ((q15_t **) &pInA);
-          inA2 = read_q15x2_ia ((q15_t **) &pInA);
-          inB1 = read_q15x2_ia ((q15_t **) &pInB);
-          inB2 = read_q15x2_ia ((q15_t **) &pInB);
+          inA1 = read_q15x2_ia (&pInA);
+          inA2 = read_q15x2_ia (&pInA);
+          inB1 = read_q15x2_ia (&pInB);
+          inB2 = read_q15x2_ia (&pInB);
 
           sum  = __SMLAD(inA1, inB1, sum);
           sum  = __SMLAD(inA2, inB2, sum);

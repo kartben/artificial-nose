@@ -5,11 +5,13 @@
  * Title:        arm_mat_solve_upper_triangular_f64.c
  * Description:  Solve linear system UT X = A with UT upper triangular matrix
  *
+ * $Date:        23 April 2021
+ * $Revision:    V1.9.0
  *
- * Target Processor: Cortex-M cores
+ * Target Processor: Cortex-M and Cortex-A cores
  * -------------------------------------------------------------------- */
 /*
- * Copyright (C) 2010-2020 ARM Limited or its affiliates. All rights reserved.
+ * Copyright (C) 2010-2021 ARM Limited or its affiliates. All rights reserved.
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -58,7 +60,6 @@ arm_status status;                             /* status of matrix inverse */
 
   /* Check for matrix mismatch condition */
   if ((ut->numRows != ut->numCols) ||
-      (a->numRows != a->numCols) ||
       (ut->numRows != a->numRows)   )
   {
     /* Set status as ARM_MATH_SIZE_MISMATCH */
@@ -70,9 +71,7 @@ arm_status status;                             /* status of matrix inverse */
 
   {
 
-    int i,j,k,n;
-
-    n = dst->numRows;
+    int i,j,k,n,cols;
 
     float64_t *pX = dst->pData;
     float64_t *pUT = ut->pData;
@@ -81,27 +80,30 @@ arm_status status;                             /* status of matrix inverse */
     float64_t *ut_row;
     float64_t *a_col;
 
-    for(j=0; j < n; j ++)
+    n = dst->numRows;
+    cols = dst->numCols;
+
+    for(j=0; j < cols; j ++)
     {
        a_col = &pA[j];
 
        for(i=n-1; i >= 0 ; i--)
        {
+            float64_t tmp=a_col[i * cols];
+
             ut_row = &pUT[n*i];
 
-            float64_t tmp=a_col[i * n];
-            
             for(k=n-1; k > i; k--)
             {
-                tmp -= ut_row[k] * pX[n*k+j];
+                tmp -= ut_row[k] * pX[cols*k+j];
             }
 
-            if (ut_row[i]==0.0f)
+            if (ut_row[i]==0.0)
             {
               return(ARM_MATH_SINGULAR);
             }
             tmp = tmp / ut_row[i];
-            pX[i*n+j] = tmp;
+            pX[i*cols+j] = tmp;
        }
 
     }

@@ -1,5 +1,7 @@
+#include "edge-impulse-sdk/classifier/ei_classifier_config.h"
+#if EI_CLASSIFIER_TFLITE_LOAD_CMSIS_NN_SOURCES
 /*
- * Copyright (C) 2010-2018 Arm Limited or its affiliates. All rights reserved.
+ * SPDX-FileCopyrightText: Copyright 2010-2022 Arm Limited and/or its affiliates <open-source-office@arm.com>
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -21,8 +23,8 @@
  * Title:        arm_pool_q7_HWC.c
  * Description:  Pooling function implementations
  *
- * $Date:        09. October 2020
- * $Revision:    V.1.0.1
+ * $Date:        4 Aug 2022
+ * $Revision:    V.1.1.2
  *
  * Target Processor:  Cortex-M cores
  *
@@ -31,10 +33,10 @@
 #include "edge-impulse-sdk/CMSIS/NN/Include/arm_nnfunctions.h"
 #include "edge-impulse-sdk/CMSIS/NN/Include/arm_nnsupportfunctions.h"
 
-#if defined(ARM_MATH_DSP)
+#if defined(ARM_MATH_DSP) && !defined(ARM_MATH_MVEI)
 
-/**
- * @brief A few utility functions used by pooling functions
+/*
+ * A few utility functions used by pooling functions
  *
  *
  */
@@ -75,7 +77,7 @@ static void compare_and_replace_if_larger_q7(q7_t *base,           // base data
         if (com.bytes[3] > in.bytes[3])
             in.bytes[3] = com.bytes[3];
 
-        *__SIMD32(pIn)++ = in.word;
+        arm_nn_write_q7x4_ia(&pIn, in.word);
 
         cnt--;
     }
@@ -119,10 +121,10 @@ static void accumulate_q7_to_q15(q15_t *base, q7_t *target, const uint16_t lengt
 #endif
 
         in = arm_nn_read_q15x2(pCnt);
-        *__SIMD32(pCnt)++ = __QADD16(vo1, in);
+        arm_nn_write_q15x2_ia(&pCnt, __QADD16(vo1, in));
 
         in = arm_nn_read_q15x2(pCnt);
-        *__SIMD32(pCnt)++ = __QADD16(vo2, in);
+        arm_nn_write_q15x2_ia(&pCnt, __QADD16(vo2, in));
 
         cnt--;
     }
@@ -178,7 +180,7 @@ void arm_maxpool_q7_HWC(q7_t *Im_in,
                         q7_t *Im_out)
 {
     (void)bufferA;
-#if defined(ARM_MATH_DSP)
+#if defined(ARM_MATH_DSP) && !defined(ARM_MATH_MVEI)
     /* Run the following code for Cortex-M4 and Cortex-M7 */
 
     int16_t i_x, i_y;
@@ -334,7 +336,7 @@ void arm_avepool_q7_HWC(q7_t *Im_in,
                         q7_t *Im_out)
 {
 
-#if defined(ARM_MATH_DSP)
+#if defined(ARM_MATH_DSP) && !defined(ARM_MATH_MVEI)
     /* Run the following code for Cortex-M4 and Cortex-M7 */
 
     q15_t *buffer = (q15_t *)bufferA;
@@ -462,3 +464,5 @@ void arm_avepool_q7_HWC(q7_t *Im_in,
 /**
  * @} end of Pooling group
  */
+
+#endif // EI_CLASSIFIER_TFLITE_LOAD_CMSIS_NN_SOURCES

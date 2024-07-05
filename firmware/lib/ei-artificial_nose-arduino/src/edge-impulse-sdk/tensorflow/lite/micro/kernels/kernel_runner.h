@@ -18,7 +18,9 @@ limitations under the License.
 
 #include "edge-impulse-sdk/tensorflow/lite/c/common.h"
 #include "edge-impulse-sdk/tensorflow/lite/kernels/internal/compatibility.h"
-#include "edge-impulse-sdk/tensorflow/lite/micro/simple_memory_allocator.h"
+#include "edge-impulse-sdk/tensorflow/lite/micro/single_arena_buffer_allocator.h"
+#include "edge-impulse-sdk/tensorflow/lite/micro/fake_micro_context.h"
+#include "edge-impulse-sdk/tensorflow/lite/micro/mock_micro_graph.h"
 
 namespace tflite {
 namespace micro {
@@ -33,7 +35,8 @@ class KernelRunner {
  public:
   KernelRunner(const TfLiteRegistration& registration, TfLiteTensor* tensors,
                int tensors_size, TfLiteIntArray* inputs,
-               TfLiteIntArray* outputs, void* builtin_data);
+               TfLiteIntArray* outputs, void* builtin_data,
+               TfLiteIntArray* intermediates = nullptr);
 
   // Calls init and prepare on the kernel (i.e. TfLiteRegistration) struct. Any
   // exceptions will be DebugLog'd and returned as a status code.
@@ -45,34 +48,31 @@ class KernelRunner {
   // passed into the constructor of this class.
   TfLiteStatus Invoke();
 
- protected:
-  static TfLiteTensor* GetTensor(const struct TfLiteContext* context,
-                                 int tensor_index);
-  static TfLiteEvalTensor* GetEvalTensor(const struct TfLiteContext* context,
-                                         int tensor_index);
-  static void* AllocatePersistentBuffer(TfLiteContext* context, size_t bytes);
-  static TfLiteStatus RequestScratchBufferInArena(TfLiteContext* context,
-                                                  size_t bytes,
-                                                  int* buffer_index);
-  static void* GetScratchBuffer(TfLiteContext* context, int buffer_index);
-  static void ReportOpError(struct TfLiteContext* context, const char* format,
-                            ...);
+  // Calls Free on a given TfLiteRegistration pointer(if it's implemented).
+  // After successful Free, kTfLiteOk status will be returned. If Free is not
+  // implemented for a given kernel kTfLiteError will be returned.
+  TfLiteStatus Free();
+
+  // Returns a pointer to the internal MockMicroGraph which KernelRunner uses
+  // to stub out MicroGraph methods and track invocations on each subgraph.
+  MockMicroGraph* GetMockGraph() { return &mock_micro_graph_; }
+
+  // Returns true if all temp buffer in tests are deallocated.
+  // TODO(b/209453859): move this function to private after deallocation checks
+  // are enabled for all kernel tests.
+  bool ValidateTempBufferDeallocated();
 
  private:
-  static constexpr int kNumScratchBuffers_ = 12;
-
   static constexpr int kKernelRunnerBufferSize_ = 10000;
   static uint8_t kKernelRunnerBuffer_[kKernelRunnerBufferSize_];
 
-  SimpleMemoryAllocator* allocator_ = nullptr;
-  const TfLiteRegistration& registration_;
-  TfLiteTensor* tensors_ = nullptr;
-
   TfLiteContext context_ = {};
   TfLiteNode node_ = {};
+  const TfLiteRegistration& registration_;
 
-  int scratch_buffer_count_ = 0;
-  uint8_t* scratch_buffers_[kNumScratchBuffers_];
+  SingleArenaBufferAllocator* allocator_;
+  MockMicroGraph mock_micro_graph_;
+  FakeMicroContext fake_micro_context_;
 };
 
 }  // namespace micro

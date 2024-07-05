@@ -5,13 +5,13 @@
  * Title:        arm_linear_interp_q7.c
  * Description:  Q7 linear interpolation
  *
- * $Date:        22 July 2020
+ * $Date:        23 April 2021
  * $Revision:    V1.9.0
  *
- * Target Processor: Cortex-M cores
+ * Target Processor: Cortex-M and Cortex-A cores
  * -------------------------------------------------------------------- */
 /*
- * Copyright (C) 2010-2020 ARM Limited or its affiliates. All rights reserved.
+ * Copyright (C) 2010-2021 ARM Limited or its affiliates. All rights reserved.
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -53,7 +53,7 @@
    * This function can support maximum of table size 2^12.
    */
   q7_t arm_linear_interp_q7(
-  q7_t * pYData,
+  const q7_t * pYData,
   q31_t x,
   uint32_t nValues)
   {

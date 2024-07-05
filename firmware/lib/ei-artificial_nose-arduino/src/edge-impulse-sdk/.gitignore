@@ -7,3 +7,7 @@ utensor.lib
 utensor/libutensor.a
 *.o
 *.d
+doc/
+node_modules/
+package-lock.json
+package.json
