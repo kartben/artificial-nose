@@ -19,6 +19,11 @@ static Storage Storage_(Flash_);
 #include <Aziot/AziotDps.h>
 #include <Aziot/AziotHub.h>
 #include <ArduinoJson.h>
+#include "CryptoUtils.h" // For HMAC SHA256 Utility
+
+// For Edge Impulse HTTP Data Ingestion
+#include <WiFiClientSecure.h> // For HTTPS
+#include <HTTPClient.h>       // Standard Arduino HTTP Client
 
 static bool isWifiConfigured = false;
 
@@ -284,8 +289,25 @@ CircularBuffer<float, EI_CLASSIFIER_DSP_INPUT_FRAME_SIZE> buffer;
 
 uint64_t next_sampling_tick = micros();
 
+// Edge Impulse Data Batching
+#ifndef EDGE_IMPULSE_BATCH_SIZE // Guard against missing define, though it should be in Config.h
+#define EDGE_IMPULSE_BATCH_SIZE 100
+#endif
+#ifndef EDGE_IMPULSE_SENSOR_INTERVAL_MS // Guard against missing define
+#define EDGE_IMPULSE_SENSOR_INTERVAL_MS 100
+#endif
+static int sensor_batch_buffer[EDGE_IMPULSE_BATCH_SIZE][NB_SENSORS];
+static int current_batch_sample_count = 0;
+static uint64_t batch_start_time = 0; // For 'iat' timestamp for Edge Impulse
+static unsigned long next_edge_impulse_sample_collection_time = 0; // Timer for EDGE_IMPULSE_SENSOR_INTERVAL_MS
+
 #define INITIAL_FAN_STATE LOW
-static int fan_state = INITIAL_FAN_STATE;
+// static int fan_state = INITIAL_FAN_STATE;
+uint8_t current_fan_speed_level = 0; // 0: Off, 1: Low, 2: Medium, 3: High
+const int FAN_PWM_OFF = 0;
+const int FAN_PWM_LOW = 100;
+const int FAN_PWM_MEDIUM = 150;
+const int FAN_PWM_HIGH = 200;
 
 static bool debug_nn = false; // Set this to true to see e.g. features generated
                               // from the raw signal
@@ -294,6 +316,7 @@ void draw_chart();
 
 enum class ButtonId
 {
+  A,
   C,
   LEFT,
   RIGHT,
@@ -341,14 +364,34 @@ static void ButtonEventHandler(AceButton *button, uint8_t eventType, uint8_t but
 
   switch (eventType) {
     case AceButton::kEventReleased:
-      switch (static_cast<ButtonId>(id)) {
-        case ButtonId::C:
-          // Toggle Fan
-          fan_state = (fan_state == HIGH) ? LOW : HIGH ; 
-          digitalWrite(D0, fan_state); // Turn fan ON
-          break;
-        case ButtonId::PRESS:
-          mode = (mode == INFERENCE) ? TRAINING : INFERENCE;
+      // Handle Button A press for fan control
+      if (static_cast<ButtonId>(id) == ButtonId::A) {
+        if (current_fan_speed_level == 0) { // Currently Off
+            current_fan_speed_level = 1; // Set to Low
+            analogWrite(D0, FAN_PWM_LOW);
+        } else if (current_fan_speed_level == 1) { // Currently Low
+            current_fan_speed_level = 2; // Set to Medium
+            analogWrite(D0, FAN_PWM_MEDIUM);
+        } else if (current_fan_speed_level == 2) { // Currently Medium
+            current_fan_speed_level = 3; // Set to High
+            analogWrite(D0, FAN_PWM_HIGH);
+        } else { // Currently High (or any other state, cycle back to Off)
+            current_fan_speed_level = 0; // Set to Off
+            analogWrite(D0, FAN_PWM_OFF);
+        }
+      } 
+      // Handle other buttons
+      else { // <<< Add else here to ensure Button A logic is separate
+        switch (static_cast<ButtonId>(id)) {
+          case ButtonId::C:
+            // Toggle Fan (This logic will be removed or changed in a later step)
+            // For now, let's comment it out to avoid conflict and make it clear
+            // that Button A is now the primary fan control.
+            // fan_state = (fan_state == HIGH) ? LOW : HIGH ; 
+            // digitalWrite(D0, fan_state); // Turn fan ON
+            break;
+          case ButtonId::PRESS:
+            mode = (mode == INFERENCE) ? TRAINING : INFERENCE;
           spr.pushSprite(0, 0);
           break;
         case ButtonId::LEFT:
@@ -378,6 +421,8 @@ static void ButtonEventHandler(AceButton *button, uint8_t eventType, uint8_t but
 
 static void ButtonInit()
 {
+  Buttons[static_cast<int>(ButtonId::A)].init(
+    WIO_KEY_A, HIGH, static_cast<uint8_t>(ButtonId::A));
   Buttons[static_cast<int>(ButtonId::C)].init(
     WIO_KEY_C, HIGH, static_cast<uint8_t>(ButtonId::C));
   Buttons[static_cast<int>(ButtonId::LEFT)].init(
@@ -435,7 +480,7 @@ void setup()
   ButtonInit();
 
   pinMode(D0, OUTPUT);
-  digitalWrite(D0, INITIAL_FAN_STATE);
+  analogWrite(D0, FAN_PWM_OFF);
 
   gas->begin(Wire, 0x08); // use the hardware I2C
 
@@ -485,6 +530,8 @@ void setup()
     AziotHub_.ReceivedTwinDocumentCallback = ReceivedTwinDocument;
     AziotHub_.ReceivedTwinDesiredPatchCallback = ReceivedTwinDesiredPatch;  
 
+    // Initialize Edge Impulse batch collection timer
+    next_edge_impulse_sample_collection_time = millis();
   }
  
 }
@@ -614,7 +661,56 @@ void loop()
 
   if (mode == TRAINING) {
     ei_printf("%d,%d,%d,%d\n", sensors[0].last_val, sensors[1].last_val, sensors[2].last_val, sensors[3].last_val);
-  } else { // INFERENCE
+  }
+
+  // Edge Impulse Data Batching Logic
+  if (mode == TRAINING && WifiManager_.IsConnected() && !Storage_.EdgeImpulseHmacKey.empty()) {
+      if (millis() >= next_edge_impulse_sample_collection_time) {
+          next_edge_impulse_sample_collection_time = millis() + EDGE_IMPULSE_SENSOR_INTERVAL_MS;
+
+          if (current_batch_sample_count < EDGE_IMPULSE_BATCH_SIZE) {
+              // Record batch start time only for the first sample
+              if (current_batch_sample_count == 0) {
+                  if (!TimeManager_.IsSynchronized()) {
+                       TimeManager_.Update(); // Attempt to update if not synced
+                  }
+                  if (TimeManager_.IsSynchronized()) {
+                      batch_start_time = TimeManager_.GetEpochTime();
+                  } else {
+                      ei_printf("Warning: Time for Edge Impulse batch 'iat' not synchronized.\n");
+                      batch_start_time = 0; // Indicate invalid time
+                  }
+              }
+
+              // Store sensor readings into the batch buffer
+              for (int j = 0; j < NB_SENSORS; ++j) {
+                  // Assuming sensors array is ordered NO2, CO, C2H5OH, VOC
+                  // and this order matches what Edge Impulse expects.
+                  // The sensor data is already in sensors[j].last_val from the loop above.
+                  sensor_batch_buffer[current_batch_sample_count][j] = sensors[j].last_val;
+              }
+              current_batch_sample_count++;
+
+              if (current_batch_sample_count >= EDGE_IMPULSE_BATCH_SIZE) {
+                  ei_printf("Edge Impulse Batch ready to be sent (%d samples).\n", current_batch_sample_count);
+                  if (batch_start_time != 0) { // Only send if we have a valid timestamp
+                    // processAndSendEdgeImpulseBatch(batch_start_time, sensor_batch_buffer, current_batch_sample_count); // Definition comes later
+                  } else {
+                    ei_printf("ERROR: Edge Impulse batch dropped due to invalid batch_start_time (time not synchronized).\n");
+                  }
+                  current_batch_sample_count = 0; // Reset for next batch
+              }
+          }
+      }
+  } else if (mode != TRAINING || !WifiManager_.IsConnected() || Storage_.EdgeImpulseHmacKey.empty()) {
+      // If conditions for EI upload are not met, reset batch count
+      if (current_batch_sample_count > 0) {
+          current_batch_sample_count = 0;
+          ei_printf("Edge Impulse batch collection reset due to mode/WiFi/HMAC key change.\n");
+      }
+  }
+
+  if (mode != TRAINING) { // INFERENCE (else part of the original if)
 
     if (!buffer.isFull()) {
       ei_printf("Need more samples to start infering.\n");
@@ -743,4 +839,121 @@ void loop()
     }
 
     **/
+}
+
+// Function to process and send the Edge Impulse batch
+// Definition will be expanded in subsequent steps
+static void processAndSendEdgeImpulseBatch(uint64_t iat_timestamp, int readings_buffer[][NB_SENSORS], int num_samples) {
+    if (num_samples <= 0) {
+        ei_printf("Warning: processAndSendEdgeImpulseBatch called with num_samples = %d. Skipping.\n", num_samples);
+        return;
+    }
+
+    ei_printf("Processing Edge Impulse batch with %d samples, iat: %llu\n", num_samples, iat_timestamp);
+
+    // JSON Payload Construction (Step 3)
+    // Using estimated sizes. Adjust if necessary.
+    // Max ~3KB for payload with 100 samples, 4 sensors.
+    StaticJsonDocument<4096> payload_doc;
+
+    payload_doc["device_name"] = EDGE_IMPULSE_DEVICE_ID;
+    payload_doc["device_type"] = EDGE_IMPULSE_DEVICE_TYPE;
+    payload_doc["interval_ms"] = EDGE_IMPULSE_SENSOR_INTERVAL_MS;
+
+    JsonArray sensors_array = payload_doc.createNestedArray("sensors");
+    JsonObject sensor1 = sensors_array.createNestedObject();
+    sensor1["name"] = "Nitrogen dioxide"; sensor1["units"] = "N/A"; // Units as per EI example, though we have ppm
+    JsonObject sensor2 = sensors_array.createNestedObject();
+    sensor2["name"] = "Carbon monoxide"; sensor2["units"] = "N/A";
+    JsonObject sensor3 = sensors_array.createNestedObject();
+    sensor3["name"] = "Ethyl alcohol"; sensor3["units"] = "N/A";
+    JsonObject sensor4 = sensors_array.createNestedObject();
+    sensor4["name"] = "Volatile organic compounds"; sensor4["units"] = "N/A";
+
+    JsonArray values_array = payload_doc.createNestedArray("values");
+    for (int i = 0; i < num_samples; ++i) {
+        JsonArray single_sample_array = values_array.createNestedArray();
+        for (int j = 0; j < NB_SENSORS; ++j) {
+            single_sample_array.add(readings_buffer[i][j]);
+        }
+    }
+
+    std::string payload_str;
+    serializeJson(payload_doc, payload_str);
+
+    // HMAC Signature Calculation (Step 4)
+    if (Storage_.EdgeImpulseHmacKey.empty()) {
+        ei_printf("ERROR: Edge Impulse HMAC Key is empty. Cannot sign payload.\n");
+        return;
+    }
+    std::string signature = compute_hmac_sha256(Storage_.EdgeImpulseHmacKey.c_str(), payload_str.c_str());
+
+    if (signature.empty()) {
+        ei_printf("ERROR: Failed to compute HMAC SHA256 signature for Edge Impulse payload. Discarding batch.\n");
+        return;
+    }
+
+    // Final JSON Object Construction (Step 5)
+    // Max ~4KB for final doc (payload + protected + signature)
+    StaticJsonDocument<5120> final_doc;
+
+    JsonObject protected_obj = final_doc.createNestedObject("protected");
+    protected_obj["ver"] = "v1";
+    protected_obj["alg"] = "HS256";
+    protected_obj["iat"] = iat_timestamp;
+
+    final_doc["signature"] = signature.c_str();
+
+    // Deep copy payload_doc into final_doc. This is important.
+    // The payload_doc must exist when final_doc["payload"] is assigned if it's by reference.
+    // Assigning the serialized string or parsing it into final_doc might be safer
+    // depending on ArduinoJson version, but direct object assignment usually works via deep copy for StaticJsonDocument.
+    final_doc["payload"] = payload_doc; // This should perform a deep copy.
+
+    std::string final_json_str;
+    serializeJson(final_doc, final_json_str);
+
+    ei_printf("Edge Impulse Payload Size: %d bytes\n", final_json_str.length());
+    // For brevity in logs, let's not print the full JSON unless a debug flag is set.
+    // ei_printf("Edge Impulse Payload: %s\n", final_json_str.c_str());
+
+    // HTTP POST Request (Step 6)
+    WiFiClientSecure client; // Use WiFiClient for HTTP, WiFiClientSecure for HTTPS
+    HTTPClient http;
+
+    // Configure client for HTTPS, skip certificate validation for simplicity in embedded context
+    // WARNING: Skipping certificate validation is insecure for production.
+    // For Wio Terminal, specific functions might be needed if it uses a different SSL library.
+    // client.setInsecure(); // Common for ESP32. May vary for RTL8720DN.
+                          // If this doesn't exist, it might do basic validation or none by default.
+
+    String server_url = String("https://") + EDGE_IMPULSE_INGESTION_HOST + EDGE_IMPULSE_INGESTION_PATH_TRAINING;
+    ei_printf("Posting to URL: %s\n", server_url.c_str());
+
+    if (http.begin(client, server_url)) { // HTTPS by default with WiFiClientSecure
+        http.addHeader("x-api-key", EDGE_IMPULSE_API_KEY);
+        http.addHeader("x-label", EDGE_IMPULSE_LABEL);
+        String filename = String("WIO_TERMINAL_") + String((unsigned long)iat_timestamp) + ".json";
+        http.addHeader("x-file-name", filename.c_str()); // Ensure .c_str() if needed
+        http.addHeader("Content-Type", "application/json");
+        // http.setReuse(true); // Optional: for keep-alive if sending frequently
+
+        int httpCode = http.POST((uint8_t*)final_json_str.c_str(), final_json_str.length());
+
+        if (httpCode > 0) {
+            String response_payload = http.getString();
+            ei_printf("Edge Impulse HTTP POST code: %d\n", httpCode);
+            ei_printf("Edge Impulse Response: %s\n", response_payload.c_str());
+            if (httpCode != 200) {
+                ei_printf("ERROR: Edge Impulse upload failed. Discarding batch.\n");
+            } else {
+                ei_printf("Edge Impulse batch uploaded successfully.\n");
+            }
+        } else {
+            ei_printf("ERROR: Edge Impulse HTTP POST failed: %s\n", http.errorToString(httpCode).c_str());
+        }
+        http.end();
+    } else {
+        ei_printf("ERROR: HTTPClient begin failed for Edge Impulse.\n");
+    }
 }

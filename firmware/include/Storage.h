@@ -19,6 +19,7 @@ public:
 	std::string IdScope;
 	std::string RegistrationId;
 	std::string SymmetricKey;
+	std::string EdgeImpulseHmacKey;
 
     Storage(ExtFlashLoader::QSPIFlash& flash);
 	void Load();

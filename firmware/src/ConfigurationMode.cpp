@@ -36,6 +36,7 @@ static void az_idscope_command(int argc, char** argv);
 static void az_regid_command(int argc, char** argv);
 static void az_symkey_command(int argc, char** argv);
 static void az_iotc_command(int argc, char** argv);
+static void ei_hmackey_command(int argc, char** argv); // New command function declaration
 
 static const struct console_command cmds[] = 
 {
@@ -48,7 +49,8 @@ static const struct console_command cmds[] =
   {"set_az_idscope"        , "Set id scope of Azure IoT DPS"                  , az_idscope_command             },
   {"set_az_regid"          , "Set registration id of Azure IoT DPS"           , az_regid_command               },
   {"set_az_symkey"         , "Set symmetric key of Azure IoT DPS"             , az_symkey_command              },
-  {"set_az_iotc"           , "Set connection information of Azure IoT Central", az_iotc_command                }
+  {"set_az_iotc"           , "Set connection information of Azure IoT Central", az_iotc_command                },
+  {"set_ei_hmackey"        , "Set Edge Impulse HMAC Key"                      , ei_hmackey_command             } // New command entry
 };
 
 static const int cmd_count = sizeof(cmds) / sizeof(cmds[0]);
@@ -133,6 +135,7 @@ static void display_settings_command(int argc, char** argv)
     Serial.print(String::format("Id scope of Azure IoT DPS = %s" DLM, Storage_->IdScope.c_str()));
     Serial.print(String::format("Registration id of Azure IoT DPS = %s" DLM, Storage_->RegistrationId.c_str()));
     Serial.print(String::format("Symmetric key of Azure IoT DPS = %s" DLM, Storage_->SymmetricKey.c_str()));
+    Serial.print(String::format("Edge Impulse HMAC Key = %s" DLM, Storage_->EdgeImpulseHmacKey.c_str())); // Display HMAC key
 }
 
 static void wifissid_command(int argc, char** argv)
@@ -219,6 +222,21 @@ static void az_iotc_command(int argc, char** argv)
     Storage_->Save();
 
     Serial.print("Set connection information of Azure IoT Central successfully." DLM);
+}
+
+// New command function implementation
+static void ei_hmackey_command(int argc, char** argv)
+{
+    if (argc != 2)
+    {
+        Serial.print(String::format("ERROR: Usage: %s <HMAC Key>. Please provide the Edge Impulse HMAC Key." DLM, argv[0]));
+        return;
+    }
+
+    Storage_->EdgeImpulseHmacKey = argv[1];
+    Storage_->Save();
+
+    Serial.print("Set Edge Impulse HMAC Key successfully." DLM);
 }
 
 static bool CliGetInput(char* inbuf, int* bp)
